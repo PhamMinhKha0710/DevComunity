@@ -9,4 +9,6 @@ public class TagDto
     public string TagName { get; set; } = null!;
     public string? Description { get; set; }
     public int UsageCount { get; set; }
+    public int QuestionCount { get; set; }
 }
+
