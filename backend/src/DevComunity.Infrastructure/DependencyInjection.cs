@@ -29,6 +29,10 @@ public static class DependencyInjection
         services.AddScoped<IAnswerRepository, AnswerRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IVoteRepository, VoteRepository>();
+        services.AddScoped<ICommentRepository, CommentRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IChatRepository, ChatRepository>();
 
         // Register services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
