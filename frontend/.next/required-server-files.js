@@ -141,7 +141,7 @@ self.__SERVER_FILES_MANIFEST={
     }
   },
   "appDir": "D:\\DevComunity\\frontend",
-  "relativeAppDir": "frontend",
+  "relativeAppDir": "",
   "files": [
     ".next\\routes-manifest.json",
     ".next\\server\\pages-manifest.json",

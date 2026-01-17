@@ -1,0 +1,566 @@
+/* Styles for real-time elements */
+
+/* Animation for new items */
+@keyframes highlightNew {
+    0% { background-color: rgba(255, 255, 0, 0.5); }
+    100% { background-color: transparent; }
+}
+
+/* Highlighted elements */
+.highlight-new {
+    animation: highlightNew 3s ease-out;
+}
+
+/* Notification container */
+.notification-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Animaciones para notificaciones */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.notification-toast {
+    animation: slideIn 0.3s ease-out forwards;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+/* Notification hiding animation */
+.notification-hiding {
+    transform: translateX(120%);
+    opacity: 0;
+}
+
+/* Notification header */
+.notification-header {
+    background-color: #3498db;
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Notification title */
+.notification-title {
+    font-weight: bold;
+}
+
+/* Close button */
+.notification-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+/* Notification content */
+.notification-content {
+    padding: 15px;
+    color: #333;
+}
+
+/* Question and answer container styling */
+.question-item, .answer-item {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: background-color 0.3s ease;
+}
+
+/* Status badges */
+.resolved-badge, .accepted-badge {
+    display: inline-block;
+    background-color: #27ae60;
+    color: white;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 0.8rem;
+    margin-left: 10px;
+}
+
+/* Meta information */
+.question-meta, .answer-meta {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+/* Loading indicator for connections */
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 8px;
+}
+
+/* Disconnected status */
+.connection-status.disconnected {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+/* Connecting status */
+.connection-status.connecting {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+/* Connected status */
+.connection-status.connected {
+    background-color: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+}
+
+/* Fade out connected status after a while */
+.connected.fade {
+    opacity: 0;
+}
+
+/* Estilos para resaltar nuevos elementos */
+.highlight-new {
+    animation: highlightFade 3s ease-in-out;
+}
+
+@keyframes highlightFade {
+    0% {
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Estilos para los elementos nuevos resaltados */
+.new-question,
+.new-answer {
+    position: relative;
+    transition: background-color 0.5s ease;
+}
+
+/* Notification Styles */
+.notification-dropdown {
+    padding: 0;
+}
+
+.notification-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.3s;
+    color: #212529;
+    text-decoration: none;
+    display: block;
+}
+
+.notification-item:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+    text-decoration: none;
+}
+
+.notification-item.unread {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.notification-item .notification-title {
+    font-weight: 600;
+    margin-bottom: 3px;
+    font-size: 0.95rem;
+}
+
+.notification-item .notification-message {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 3px;
+}
+
+.notification-item .notification-time {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.notification-badge {
+    font-size: 0.6rem;
+    transform: translate(-50%, -50%) !important;
+}
+
+.mark-all-read {
+    color: #0d6efd;
+    font-size: 0.85rem;
+}
+
+.mark-all-read:hover {
+    color: #0a58ca;
+}
+
+.notification-icon i {
+    color: #6c757d;
+}
+
+.notification-icon i.bi-arrow-up-circle {
+    color: #198754;
+}
+
+.notification-icon i.bi-chat-text {
+    color: #0dcaf0;
+}
+
+.notification-icon i.bi-check-circle {
+    color: #198754;
+}
+
+.notification-icon i.bi-chat-dots {
+    color: #6c757d;
+}
+
+.notification-icon i.bi-at {
+    color: #fd7e14;
+}
+
+.mark-read-btn {
+    color: #6c757d;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.85rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.notification-item:hover .mark-read-btn {
+    opacity: 1;
+}
+
+/* Toast notification styles */
+.toast-container {
+    z-index: 1050;
+}
+
+.toast {
+    min-width: 350px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.toast .toast-header {
+    padding: 0.5rem 0.75rem;
+}
+
+.toast .toast-body {
+    padding: 0.75rem;
+}
+
+/* Connection status indicator */
+.connection-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    z-index: 1040;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.connection-status.connected {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.connection-status.connecting {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.connection-status.disconnected {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+/* Notification sound toggle */
+.notification-sound-toggle {
+    padding: 8px 16px;
+}
+
+.notification-sound-toggle .form-check-input {
+    cursor: pointer;
+}
+
+/* SignalR Styles - Real-time features */
+
+/* Notification Styles */
+.notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(50%, -50%);
+    font-size: 0.65rem;
+}
+
+.notification-dropdown-menu {
+    width: 350px;
+    max-width: 90vw;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.notification-dropdown-menu .dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notification-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    white-space: normal;
+}
+
+.notification-item:hover {
+    background-color: rgba(0,0,0,0.03);
+}
+
+.notification-item .notification-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+}
+
+.notification-item.unread {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.notification-item small {
+    font-size: 0.75rem;
+    color: var(--bs-secondary);
+}
+
+.notification-item.unread::before {
+    content: "";
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--bs-primary);
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}
+
+/* Vote Notification Toast */
+.vote-notification-toast {
+    min-width: 300px;
+    background-color: var(--bs-light);
+    border-left: 4px solid var(--bs-primary);
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+}
+
+.vote-notification-toast .toast-header {
+    border-bottom-color: rgba(0,0,0,0.05);
+    background-color: rgba(var(--bs-light-rgb), 0.85);
+}
+
+/* Animation for score updates */
+.score-updated {
+    animation: pulse-highlight 2s ease;
+}
+
+@keyframes pulse-highlight {
+    0% { color: inherit; }
+    30% { color: var(--bs-primary); font-weight: bold; }
+    100% { color: inherit; }
+}
+
+/* View Count Styles */
+.view-count-updated {
+    animation: view-count-highlight 2s ease;
+}
+
+@keyframes view-count-highlight {
+    0% { color: inherit; background-color: transparent; }
+    30% { color: var(--bs-primary); background-color: rgba(var(--bs-primary-rgb), 0.1); font-weight: bold; }
+    100% { color: inherit; background-color: transparent; }
+}
+
+.question-views {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.view-counter-container {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Connection Status Indicator */
+.connection-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+}
+
+.connection-status.connected {
+    background-color: var(--bs-success);
+    box-shadow: 0 0 5px var(--bs-success);
+}
+
+.connection-status.connecting {
+    background-color: var(--bs-warning);
+    box-shadow: 0 0 5px var(--bs-warning);
+    animation: blink 1.5s infinite;
+}
+
+.connection-status.disconnected {
+    background-color: var(--bs-danger);
+    box-shadow: 0 0 5px var(--bs-danger);
+}
+
+@keyframes blink {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+/* Smallest font size utility */
+.smallest {
+    font-size: 0.7rem;
+}
+
+/* SignalR Debug Panel */
+.signalr-debug-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    z-index: 9999;
+    transition: all 0.3s ease;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.signalr-debug-panel.hidden {
+    transform: translateX(310px);
+}
+
+.signalr-debug-panel h5 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.signalr-debug-panel .connection-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.signalr-debug-panel .hub-name {
+    font-weight: 500;
+}
+
+.signalr-debug-panel .status-connected {
+    color: #4caf50;
+}
+
+.signalr-debug-panel .status-connecting {
+    color: #ff9800;
+}
+
+.signalr-debug-panel .status-disconnected {
+    color: #f44336;
+}
+
+.signalr-debug-panel .debug-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+}
+
+.signalr-debug-panel .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 0.2rem;
+}
+
+.signalr-debug-panel-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: #3498db;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 9998;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    font-size: 20px;
+}
+
+.signalr-debug-panel.hidden + .signalr-debug-panel-toggle {
+    display: flex;
+}
+
+.signalr-debug-panel-toggle i {
+    font-size: 1.2rem;
+} 
