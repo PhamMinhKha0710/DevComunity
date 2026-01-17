@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "@/lib/contexts/Providers";
+import LegacyScripts from "@/components/LegacyScripts";
 import "./globals.css";
 
 const inter = Inter({
@@ -50,6 +51,16 @@ export default function RootLayout({
         <link href="/css/search-suggestions.css" rel="stylesheet" />
         <link href="/css/home.css" rel="stylesheet" />
         <link href="/css/reputation-animations.css" rel="stylesheet" />
+        <link href="/css/account-styles.css" rel="stylesheet" />
+        <link href="/css/comment-styles.css" rel="stylesheet" />
+        <link href="/css/code-blocks.css" rel="stylesheet" />
+        <link href="/css/markdown-editor.css" rel="stylesheet" />
+        <link href="/css/vote-styles.css" rel="stylesheet" />
+        <link href="/css/users-modern.css" rel="stylesheet" />
+        <link href="/css/saved-items-modern.css" rel="stylesheet" />
+        <link href="/css/real-time.css" rel="stylesheet" />
+        <link href="/css/toast-notifications.css" rel="stylesheet" />
+        <link href="/css/attachment-styles.css" rel="stylesheet" />
 
         {/* Bootstrap JS */}
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" async></script>
@@ -59,7 +70,10 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} d-flex flex-column`}>
         <Providers>{children}</Providers>
+        {/* Legacy JS Scripts for effects and interactions */}
+        <LegacyScripts />
       </body>
     </html>
   );
 }
+
