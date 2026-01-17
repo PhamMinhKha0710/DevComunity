@@ -22,15 +22,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="light" data-bs-theme="light">
+    <html lang="en" data-theme="light">
       <head>
         {/* Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
 
-        {/* Bootstrap CSS */}
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+        {/* Bootstrap Icons (icons only, no Bootstrap framework) */}
         <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
 
         {/* Prism.js for code highlighting */}
@@ -39,36 +38,10 @@ export default function RootLayout({
         {/* AOS Animation */}
         <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet" />
 
-        {/* Custom CSS */}
-        <link href="/css/site.css" rel="stylesheet" />
-        <link href="/css/themes.css" rel="stylesheet" />
-        <link href="/css/fast-animations.css" rel="stylesheet" />
-        <link href="/css/questions.css" rel="stylesheet" />
-        <link href="/css/repositories.css" rel="stylesheet" />
-        <link href="/css/tags-modern.css" rel="stylesheet" />
-        <link href="/css/signalr-styles.css" rel="stylesheet" />
-        <link href="/css/badge-animations.css" rel="stylesheet" />
-        <link href="/css/search-suggestions.css" rel="stylesheet" />
-        <link href="/css/home.css" rel="stylesheet" />
-        <link href="/css/reputation-animations.css" rel="stylesheet" />
-        <link href="/css/account-styles.css" rel="stylesheet" />
-        <link href="/css/comment-styles.css" rel="stylesheet" />
-        <link href="/css/code-blocks.css" rel="stylesheet" />
-        <link href="/css/markdown-editor.css" rel="stylesheet" />
-        <link href="/css/vote-styles.css" rel="stylesheet" />
-        <link href="/css/users-modern.css" rel="stylesheet" />
-        <link href="/css/saved-items-modern.css" rel="stylesheet" />
-        <link href="/css/real-time.css" rel="stylesheet" />
-        <link href="/css/toast-notifications.css" rel="stylesheet" />
-        <link href="/css/attachment-styles.css" rel="stylesheet" />
-
-        {/* Bootstrap JS */}
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" async></script>
-
-        {/* AOS Animation */}
+        {/* AOS Animation JS */}
         <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js" async></script>
       </head>
-      <body className={`${inter.variable} d-flex flex-column`}>
+      <body className={`${inter.variable} flex flex-col min-h-screen`}>
         <Providers>
           {children}
           {/* Legacy JS Scripts for effects and interactions */}
@@ -78,4 +51,3 @@ export default function RootLayout({
     </html>
   );
 }
-
