@@ -4,14 +4,17 @@
  * Cập nhật để quản lý tất cả các hub
  */
 
-document.addEventListener('DOMContentLoaded', function() {
+// API Base URL for SignalR hubs - change this to match your backend
+const SIGNALR_BASE_URL = 'http://localhost:5122';
+
+document.addEventListener('DOMContentLoaded', function () {
     console.log("SignalR Connection Checker starting...");
 
     // Sử dụng SignalRLoader để đảm bảo SignalR đã được tải trước khi khởi tạo kết nối
     if (window.SignalRLoader) {
-        SignalRLoader.ready(function() {
+        SignalRLoader.ready(function () {
             console.log("SignalR loaded successfully, initializing connection checker");
-            
+
             // Khởi tạo tất cả các kết nối cần thiết
             if (isUserLoggedIn()) {
                 ensureNotificationConnection();
@@ -24,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Nếu người dùng chưa đăng nhập, chỉ thiết lập các hub không yêu cầu xác thực
                 ensureViewCountConnection();
             }
-            
+
             // Kiểm tra sau 2 giây để cho các connection thời gian khởi tạo
             setTimeout(checkAllConnections, 2000);
         });
@@ -37,20 +40,34 @@ document.addEventListener('DOMContentLoaded', function() {
  * Kiểm tra xem người dùng đã đăng nhập hay chưa
  */
 function isUserLoggedIn() {
+    // Check localStorage for token (React/Next.js way)
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('accessToken')) {
+        return true;
+    }
     // Kiểm tra biểu mẫu đăng xuất (một cách đáng tin cậy để xác định đăng nhập)
     return document.querySelector('form#logoutForm') !== null ||
-           document.querySelector('.nav-item.dropdown:has(.dropdown-item[onclick*="logoutForm"])') !== null ||
-           document.querySelector('.dropdown-item[onclick*="logoutForm"]') !== null;
+        document.querySelector('.nav-item.dropdown:has(.dropdown-item[onclick*="logoutForm"])') !== null ||
+        document.querySelector('.dropdown-item[onclick*="logoutForm"]') !== null;
+}
+
+/**
+ * Get access token for SignalR authentication
+ */
+function getAccessToken() {
+    if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem('accessToken');
+    }
+    return null;
 }
 
 /**
  * Tạo kết nối hub base với cách xử lý lỗi và retry phù hợp
- * @param {string} hubUrl - URL đến hub
+ * @param {string} hubPath - Path to the hub (e.g., '/hubs/chat')
  * @param {string} hubName - Tên của hub để hiển thị trong log
  * @param {boolean} requiresAuth - Hub có yêu cầu người dùng đăng nhập không
  * @returns {object} - SignalR hub connection hoặc null nếu không thể tạo
  */
-function createHubConnection(hubUrl, hubName, requiresAuth = true) {
+function createHubConnection(hubPath, hubName, requiresAuth = true) {
     // Kiểm tra SignalR đã load
     if (typeof signalR === 'undefined') {
         console.error(`SignalR library not loaded! Cannot initialize ${hubName} connection.`);
@@ -64,12 +81,18 @@ function createHubConnection(hubUrl, hubName, requiresAuth = true) {
     }
 
     try {
-        // Tạo kết nối mới
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl(hubUrl)
+        // Build full URL
+        const hubUrl = SIGNALR_BASE_URL + hubPath;
+
+        // Create connection builder with authentication
+        let connectionBuilder = new signalR.HubConnectionBuilder()
+            .withUrl(hubUrl, {
+                accessTokenFactory: () => getAccessToken()
+            })
             .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-            .configureLogging(signalR.LogLevel.Information)
-            .build();
+            .configureLogging(signalR.LogLevel.Information);
+
+        const connection = connectionBuilder.build();
 
         // Thiết lập các event handler cơ bản
         connection.onreconnecting(error => {
@@ -101,10 +124,10 @@ function createHubConnection(hubUrl, hubName, requiresAuth = true) {
  */
 function startHubConnection(connection, hubName) {
     if (!connection) return;
-    
+
     console.log(`Starting ${hubName} connection...`);
     updateConnectionStatusIndicator(hubName, "Connecting");
-    
+
     connection.start()
         .then(() => {
             console.log(`Connected to ${hubName}`);
@@ -113,7 +136,7 @@ function startHubConnection(connection, hubName) {
         .catch(error => {
             console.error(`Error connecting to ${hubName}:`, error);
             updateConnectionStatusIndicator(hubName, "Disconnected");
-            
+
             // Kiểm tra lỗi - có thể do chưa đăng nhập
             if (error && error.message && error.message.includes("401")) {
                 console.log(`Authentication error - user may not be logged in for ${hubName}`);
@@ -130,9 +153,9 @@ function startHubConnection(connection, hubName) {
 function ensureNotificationConnection() {
     if (!window.notificationConnection) {
         console.log("NotificationHub connection not found, initializing...");
-        
-        window.notificationConnection = createHubConnection('/notificationHub', 'NotificationHub', true);
-        
+
+        window.notificationConnection = createHubConnection('/hubs/notification', 'NotificationHub', true);
+
         if (window.notificationConnection) {
             // Đăng ký handler cho thông báo
             window.notificationConnection.on("ReceiveNotification", (notification) => {
@@ -142,7 +165,7 @@ function ensureNotificationConnection() {
                     window.showNotificationToast(notification);
                 }
             });
-            
+
             // Bắt đầu kết nối
             startHubConnection(window.notificationConnection, 'NotificationHub');
         }
@@ -151,28 +174,11 @@ function ensureNotificationConnection() {
 
 /**
  * Đảm bảo kết nối ViewCountHub luôn tồn tại
+ * NOTE: ViewCountHub is not implemented in backend yet - disabled for now
  */
 function ensureViewCountConnection() {
-    if (!window.viewCountConnection) {
-        console.log("ViewCountHub connection not found, initializing...");
-        
-        // ViewCountHub không yêu cầu xác thực, có thể dùng cho người dùng ẩn danh
-        window.viewCountConnection = createHubConnection('/viewCountHub', 'ViewCountHub', false);
-        
-        if (window.viewCountConnection) {
-            // Đăng ký các handler cơ bản
-            window.viewCountConnection.on("ReceiveUpdatedViewCount", function(qId, viewCount) {
-                console.log(`ViewCountHub: Received updated view count for question ${qId}: ${viewCount}`);
-            });
-            
-            window.viewCountConnection.on("ReceiveCurrentViewCount", function(qId, viewCount) {
-                console.log(`ViewCountHub: Received current view count for question ${qId}: ${viewCount}`);
-            });
-            
-            // Bắt đầu kết nối
-            startHubConnection(window.viewCountConnection, 'ViewCountHub');
-        }
-    }
+    console.log("ViewCountHub: Not implemented in backend yet, skipping...");
+    // ViewCountHub implementation pending
 }
 
 /**
@@ -181,15 +187,15 @@ function ensureViewCountConnection() {
 function ensureQuestionHubConnection() {
     if (!window.questionHubConnection) {
         console.log("QuestionHub connection not found, initializing...");
-        
-        window.questionHubConnection = createHubConnection('/questionHub', 'QuestionHub', true);
-        
+
+        window.questionHubConnection = createHubConnection('/hubs/question', 'QuestionHub', true);
+
         if (window.questionHubConnection) {
             // Đăng ký handler mặc định
-            window.questionHubConnection.on("ReceiveQuestionUpdate", function(question) {
+            window.questionHubConnection.on("ReceiveQuestionUpdate", function (question) {
                 console.log("Question update received:", question);
             });
-            
+
             // Bắt đầu kết nối
             startHubConnection(window.questionHubConnection, 'QuestionHub');
         }
@@ -202,28 +208,28 @@ function ensureQuestionHubConnection() {
 function ensurePresenceHubConnection() {
     if (!window.presenceConnection) {
         console.log("PresenceHub connection not found, initializing...");
-        
-        window.presenceConnection = createHubConnection('/presenceHub', 'PresenceHub', true);
-        
+
+        window.presenceConnection = createHubConnection('/hubs/presence', 'PresenceHub', true);
+
         if (window.presenceConnection) {
             // Đăng ký handler mặc định cho presence
-            window.presenceConnection.on("UserOnline", function(user) {
+            window.presenceConnection.on("UserOnline", function (user) {
                 console.log("User online:", user);
             });
-            
-            window.presenceConnection.on("UserOffline", function(user) {
+
+            window.presenceConnection.on("UserOffline", function (user) {
                 console.log("User offline:", user);
             });
-            
+
             // Thêm các handler cần thiết để tránh cảnh báo
-            window.presenceConnection.on("OnlineUsers", function(users) {
+            window.presenceConnection.on("OnlineUsers", function (users) {
                 console.log("Online users list received:", users);
             });
-            
-            window.presenceConnection.on("OnlineCount", function(count) {
+
+            window.presenceConnection.on("OnlineCount", function (count) {
                 console.log("Online count:", count);
             });
-            
+
             // Bắt đầu kết nối
             startHubConnection(window.presenceConnection, 'PresenceHub');
         }
@@ -236,15 +242,15 @@ function ensurePresenceHubConnection() {
 function ensureChatHubConnection() {
     if (!window.chatConnection) {
         console.log("ChatHub connection not found, initializing...");
-        
-        window.chatConnection = createHubConnection('/chatHub', 'ChatHub', true);
-        
+
+        window.chatConnection = createHubConnection('/hubs/chat', 'ChatHub', true);
+
         if (window.chatConnection) {
             // Đăng ký handler mặc định cho chat
-            window.chatConnection.on("ReceiveMessage", function(user, message) {
+            window.chatConnection.on("ReceiveMessage", function (user, message) {
                 console.log(`Chat message from ${user}: ${message}`);
             });
-            
+
             // Bắt đầu kết nối
             startHubConnection(window.chatConnection, 'ChatHub');
         }
@@ -257,28 +263,28 @@ function ensureChatHubConnection() {
 function ensureActivityHubConnection() {
     if (!window.activityConnection) {
         console.log("ActivityHub connection not found, initializing...");
-        
-        window.activityConnection = createHubConnection('/activityHub', 'ActivityHub', true);
-        
+
+        window.activityConnection = createHubConnection('/hubs/activity', 'ActivityHub', true);
+
         if (window.activityConnection) {
             // Đăng ký handler mặc định cho activity
-            window.activityConnection.on("ReceiveActivity", function(activity) {
+            window.activityConnection.on("ReceiveActivity", function (activity) {
                 console.log("Activity received:", activity);
             });
-            
+
             // Thêm các handler cần thiết để tránh cảnh báo
-            window.activityConnection.on("ActivityStats", function(stats) {
+            window.activityConnection.on("ActivityStats", function (stats) {
                 console.log("ActivityStats received:", stats);
             });
-            
-            window.activityConnection.on("OnlineUsers", function(users) {
+
+            window.activityConnection.on("OnlineUsers", function (users) {
                 console.log("Online users received:", users);
             });
-            
-            window.activityConnection.on("NewPageView", function(pageView) {
+
+            window.activityConnection.on("NewPageView", function (pageView) {
                 console.log("New page view:", pageView);
             });
-            
+
             // Bắt đầu kết nối
             startHubConnection(window.activityConnection, 'ActivityHub');
         }
@@ -299,7 +305,7 @@ function updateConnectionStatusIndicator(hubName, state) {
 
 function checkAllConnections() {
     console.group("SignalR Connection Status");
-    
+
     // Kiểm tra NotificationHub
     if (window.notificationConnection) {
         logConnectionStatus("NotificationHub", window.notificationConnection.state);
@@ -313,7 +319,7 @@ function checkAllConnections() {
             console.log("NotificationHub: User not logged in (connection not required)");
         }
     }
-    
+
     // Kiểm tra ViewCountHub
     if (window.viewCountConnection) {
         logConnectionStatus("ViewCountHub", window.viewCountConnection.state);
@@ -321,7 +327,7 @@ function checkAllConnections() {
         console.warn("ViewCountHub connection not found in global scope");
         ensureViewCountConnection();
     }
-    
+
     // Kiểm tra QuestionHub
     if (window.questionHubConnection) {
         logConnectionStatus("QuestionHub", window.questionHubConnection.state);
@@ -331,7 +337,7 @@ function checkAllConnections() {
             ensureQuestionHubConnection();
         }
     }
-    
+
     // Kiểm tra PresenceHub
     if (window.presenceConnection) {
         logConnectionStatus("PresenceHub", window.presenceConnection.state);
@@ -341,7 +347,7 @@ function checkAllConnections() {
             ensurePresenceHubConnection();
         }
     }
-    
+
     // Kiểm tra ChatHub
     if (window.chatConnection) {
         logConnectionStatus("ChatHub", window.chatConnection.state);
@@ -351,7 +357,7 @@ function checkAllConnections() {
             ensureChatHubConnection();
         }
     }
-    
+
     // Kiểm tra ActivityHub
     if (window.activityConnection) {
         logConnectionStatus("ActivityHub", window.activityConnection.state);
@@ -361,9 +367,9 @@ function checkAllConnections() {
             ensureActivityHubConnection();
         }
     }
-    
+
     console.groupEnd();
-    
+
     // Kiểm tra lại sau 30 giây
     setTimeout(checkAllConnections, 30000);
 }
@@ -388,10 +394,10 @@ function logConnectionStatus(hubName, state) {
 }
 
 // Thêm function để khởi động lại kết nối khi cần
-window.restartSignalRConnection = function(connectionName) {
+window.restartSignalRConnection = function (connectionName) {
     let connection = null;
-    
-    switch(connectionName) {
+
+    switch (connectionName) {
         case "notification":
             connection = window.notificationConnection;
             break;
@@ -411,7 +417,7 @@ window.restartSignalRConnection = function(connectionName) {
             connection = window.activityConnection;
             break;
     }
-    
+
     if (connection) {
         console.log(`Attempting to restart ${connectionName} connection...`);
         connection.stop().then(() => {
@@ -433,16 +439,16 @@ window.restartSignalRConnection = function(connectionName) {
     } else {
         console.error(`Connection ${connectionName} not found`);
     }
-}; 
+};
 
 // Thêm hàm tiện ích để hiển thị thông báo toast nếu hàm của notification-service không tồn tại
-window.showNotificationToast = window.showNotificationToast || function(notification) {
+window.showNotificationToast = window.showNotificationToast || function (notification) {
     if (typeof Toastify === 'undefined') {
         console.warn('Toastify library not loaded, using alert instead');
         alert(`Notification: ${notification.title || notification.message}`);
         return;
     }
-    
+
     Toastify({
         text: notification.title || notification.message,
         duration: 5000,
@@ -452,26 +458,26 @@ window.showNotificationToast = window.showNotificationToast || function(notifica
         backgroundColor: "#4caf50",
         stopOnFocus: true
     }).showToast();
-}; 
+};
 
 // Tạo và hiển thị SignalR debug panel cho developers
 function createSignalRDebugPanel() {
     if (document.querySelector('.signalr-debug-panel')) return;
-    
+
     // Kiểm tra thời gian ẩn trong localStorage
     const hideTimestamp = localStorage.getItem('signalRDebugPanelHideTime');
     const currentTime = new Date().getTime();
     const fiveHoursInMs = 5 * 60 * 60 * 1000; // 5 giờ tính bằng mili giây
-    
+
     // Nếu chưa đủ 5 tiếng từ lần ẩn trước, không hiển thị panel
     const initiallyHidden = hideTimestamp && (currentTime - parseInt(hideTimestamp) < fiveHoursInMs);
-    
+
     const debugPanel = document.createElement('div');
     debugPanel.className = 'signalr-debug-panel';
     if (initiallyHidden) {
         debugPanel.classList.add('hidden');
     }
-    
+
     debugPanel.innerHTML = `
         <h5>SignalR Connections <button class="btn-sm btn-outline-secondary float-end" id="toggleDebugPanel">Hide</button></h5>
         <div class="connections-container">
@@ -505,17 +511,17 @@ function createSignalRDebugPanel() {
             <button class="btn-sm btn-danger" id="restartAllConnections">Restart All</button>
         </div>
     `;
-    
+
     document.body.appendChild(debugPanel);
-    
+
     // Xử lý sự kiện
-    document.getElementById('toggleDebugPanel').addEventListener('click', function() {
+    document.getElementById('toggleDebugPanel').addEventListener('click', function () {
         debugPanel.classList.add('hidden');
         this.textContent = 'Show';
-        
+
         // Lưu thời điểm ẩn vào localStorage
         localStorage.setItem('signalRDebugPanelHideTime', new Date().getTime().toString());
-        
+
         // Hiển thị thông báo về thời gian hiện lại
         if (window.showNotificationToast) {
             window.showNotificationToast({
@@ -524,23 +530,23 @@ function createSignalRDebugPanel() {
             });
         }
     });
-    
-    document.getElementById('checkConnections').addEventListener('click', function() {
+
+    document.getElementById('checkConnections').addEventListener('click', function () {
         checkAllConnections();
         updateDebugPanel();
     });
-    
-    document.getElementById('restartAllConnections').addEventListener('click', function() {
+
+    document.getElementById('restartAllConnections').addEventListener('click', function () {
         if (window.notificationConnection) window.restartSignalRConnection('notification');
         if (window.viewCountConnection) window.restartSignalRConnection('viewCount');
         if (window.questionHubConnection) window.restartSignalRConnection('question');
         if (window.presenceConnection) window.restartSignalRConnection('presence');
         if (window.chatConnection) window.restartSignalRConnection('chat');
         if (window.activityConnection) window.restartSignalRConnection('activity');
-        
+
         setTimeout(updateDebugPanel, 1000);
     });
-    
+
     function updateDebugPanel() {
         updateDebugStatus('notification', window.notificationConnection);
         updateDebugStatus('viewcount', window.viewCountConnection);
@@ -549,20 +555,20 @@ function createSignalRDebugPanel() {
         updateDebugStatus('chat', window.chatConnection);
         updateDebugStatus('activity', window.activityConnection);
     }
-    
+
     function updateDebugStatus(id, connection) {
         const statusEl = document.getElementById(`status-${id}`);
         if (!statusEl) return;
-        
+
         statusEl.className = 'connection-status';
-        
+
         if (!connection) {
             statusEl.textContent = 'Not found';
             statusEl.classList.add('status-disconnected');
             return;
         }
-        
-        switch(connection.state) {
+
+        switch (connection.state) {
             case 'Connected':
                 statusEl.textContent = 'Connected';
                 statusEl.classList.add('status-connected');
@@ -581,7 +587,7 @@ function createSignalRDebugPanel() {
                 statusEl.classList.add('status-disconnected');
         }
     }
-    
+
     // Khởi tạo panel
     updateDebugPanel();
     setInterval(updateDebugPanel, 2000);
@@ -589,12 +595,12 @@ function createSignalRDebugPanel() {
 
 // Chỉ tạo debug panel trong môi trường development và kiểm tra thời gian ẩn
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Kiểm tra xem đã đủ 5 tiếng kể từ lần ẩn gần nhất chưa
         const hideTimestamp = localStorage.getItem('signalRDebugPanelHideTime');
         const currentTime = new Date().getTime();
         const fiveHoursInMs = 5 * 60 * 60 * 1000; // 5 giờ tính bằng mili giây
-        
+
         // Nếu đã đủ 5 tiếng hoặc chưa từng ẩn, tạo panel
         if (!hideTimestamp || (currentTime - parseInt(hideTimestamp) >= fiveHoursInMs)) {
             createSignalRDebugPanel();
@@ -610,17 +616,17 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
 function createDebugPanelToggle() {
     // Kiểm tra nếu nút đã tồn tại
     if (document.querySelector('.signalr-debug-panel-toggle')) return;
-    
+
     const toggleBtn = document.createElement('div');
     toggleBtn.className = 'signalr-debug-panel-toggle';
     toggleBtn.innerHTML = '<i class="bi bi-hdd-network"></i>';
     toggleBtn.title = 'Toggle SignalR Debug Panel';
-    
+
     document.body.appendChild(toggleBtn);
-    
-    toggleBtn.addEventListener('click', function() {
+
+    toggleBtn.addEventListener('click', function () {
         let debugPanel = document.querySelector('.signalr-debug-panel');
-        
+
         if (!debugPanel) {
             // Nếu panel chưa tồn tại, tạo mới nó
             createSignalRDebugPanel();
@@ -628,20 +634,20 @@ function createDebugPanelToggle() {
             // Xóa timestamp để panel hiển thị bình thường
             localStorage.removeItem('signalRDebugPanelHideTime');
         }
-        
+
         if (debugPanel) {
             const wasHidden = debugPanel.classList.contains('hidden');
             debugPanel.classList.toggle('hidden');
-            
+
             // Nếu đang ẩn panel, lưu thời điểm
             if (!wasHidden) { // Nếu trước đó không ẩn, tức là đang ẩn
                 localStorage.setItem('signalRDebugPanelHideTime', new Date().getTime().toString());
             } else { // Nếu trước đó ẩn, tức là đang hiện
                 localStorage.removeItem('signalRDebugPanelHideTime');
             }
-            
-            this.innerHTML = debugPanel.classList.contains('hidden') ? 
-                '<i class="bi bi-hdd-network"></i>' : 
+
+            this.innerHTML = debugPanel.classList.contains('hidden') ?
+                '<i class="bi bi-hdd-network"></i>' :
                 '<i class="bi bi-x-lg"></i>';
         }
     });
