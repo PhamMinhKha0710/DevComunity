@@ -69,9 +69,11 @@ export default function RootLayout({
         <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js" async></script>
       </head>
       <body className={`${inter.variable} d-flex flex-column`}>
-        <Providers>{children}</Providers>
-        {/* Legacy JS Scripts for effects and interactions */}
-        <LegacyScripts />
+        <Providers>
+          {children}
+          {/* Legacy JS Scripts for effects and interactions */}
+          <LegacyScripts />
+        </Providers>
       </body>
     </html>
   );
