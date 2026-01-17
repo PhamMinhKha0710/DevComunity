@@ -2,12 +2,15 @@
 
 import Script from 'next/script';
 import { useEffect } from 'react';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 /**
  * Component to load legacy JavaScript files from public/js/
  * These scripts provide additional UI effects and handlers
  */
 export function LegacyScripts() {
+    const { isAuthenticated } = useAuth();
+
     useEffect(() => {
         // Initialize AOS when component mounts
         if (typeof window !== 'undefined' && (window as any).AOS) {
@@ -36,13 +39,17 @@ export function LegacyScripts() {
             <Script src="/js/view-counter-fixed.js" strategy="lazyOnload" />
             <Script src="/js/activity-handler.js" strategy="lazyOnload" />
 
-            {/* SignalR Real-time Features */}
-            <Script src="/js/signalr-loader.js" strategy="lazyOnload" />
-            <Script src="/js/signalr-connection-check.js" strategy="lazyOnload" />
-            <Script src="/js/question-realtime-client.js" strategy="lazyOnload" />
-            <Script src="/js/chat-client.js" strategy="lazyOnload" />
-            <Script src="/js/notification-service-fixed.js" strategy="lazyOnload" />
-            <Script src="/js/presence-handler.js" strategy="lazyOnload" />
+            {/* SignalR Scripts - Only load when authenticated */}
+            {isAuthenticated && (
+                <>
+                    <Script src="/js/signalr-loader.js" strategy="lazyOnload" />
+                    <Script src="/js/signalr-connection-check.js" strategy="lazyOnload" />
+                    <Script src="/js/question-realtime-client.js" strategy="lazyOnload" />
+                    <Script src="/js/chat-client.js" strategy="lazyOnload" />
+                    <Script src="/js/notification-service-fixed.js" strategy="lazyOnload" />
+                    <Script src="/js/presence-handler.js" strategy="lazyOnload" />
+                </>
+            )}
 
             {/* Search and Tags */}
             <Script src="/js/search-autocomplete.js" strategy="lazyOnload" />
