@@ -16,7 +16,7 @@ export default function HomePage() {
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({ users: 1000, questions: 5000 });
+  const [stats] = useState({ users: 1000, questions: 5000 });
 
   useEffect(() => {
     fetchQuestions();
@@ -34,37 +34,41 @@ export default function HomePage() {
   };
 
   return (
-    <>
-      {/* Hero Banner Section */}
-      <div className="hero-banner bg-gradient-primary text-white rounded-4 mb-4 p-4 p-md-5 mx-3">
-        <div className="container">
-          <div className="row align-items-center">
-            <div className="col-lg-7">
-              <h1 className="display-5 fw-bold mb-3 hero-title">
-                Welcome back, {user?.displayName || user?.username || 'Guest'}!
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+                Welcome back, {user?.displayName || user?.username || 'Developer'}!
               </h1>
-              <p className="lead mb-4 hero-subtitle opacity-90">
+              <p className="text-lg md:text-xl opacity-90 mb-6">
                 Find answers to your technical questions and help others in our developer community.
               </p>
-              <div className="d-grid gap-2 d-md-flex">
-                <Link href="/questions/ask" className="btn btn-light btn-lg px-4 text-primary rounded-pill me-md-2">
-                  <i className="bi bi-plus-circle me-2"></i>Ask a Question
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/questions/ask"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-white text-orange-600 font-semibold rounded-full hover:bg-gray-100 transition"
+                >
+                  <i className="bi bi-plus-circle mr-2"></i>Ask a Question
                 </Link>
-                <Link href="/questions" className="btn btn-outline-light btn-lg px-4 rounded-pill">
-                  <i className="bi bi-search me-2"></i>Browse Questions
+                <Link
+                  href="/questions"
+                  className="inline-flex items-center justify-center px-6 py-3 border-2 border-white text-white font-semibold rounded-full hover:bg-white/10 transition"
+                >
+                  <i className="bi bi-search mr-2"></i>Browse Questions
                 </Link>
               </div>
             </div>
-            <div className="col-lg-5 d-none d-lg-block">
-              <div className="hero-illustration text-center">
-                <i className="bi bi-chat-quote-fill display-1 mb-3 hero-icon"></i>
-                <div className="d-flex justify-content-center position-relative">
-                  <div className="stat-badge rounded-pill shadow-sm px-3 py-2 bg-white text-primary position-absolute" style={{ top: '-20px', right: '20px' }}>
-                    <i className="bi bi-people-fill me-2"></i>{stats.users}+ Users
-                  </div>
-                  <div className="stat-badge rounded-pill shadow-sm px-3 py-2 bg-white text-primary position-absolute" style={{ bottom: '-20px', left: '20px' }}>
-                    <i className="bi bi-chat-dots-fill me-2"></i>{stats.questions}+ Questions
-                  </div>
+            <div className="hidden md:flex justify-center relative">
+              <div className="text-center">
+                <i className="bi bi-code-slash text-8xl opacity-50"></i>
+                <div className="absolute top-0 right-10 bg-white text-orange-600 px-4 py-2 rounded-full shadow-lg text-sm font-medium">
+                  <i className="bi bi-people-fill mr-1"></i>{stats.users}+ Users
+                </div>
+                <div className="absolute bottom-0 left-10 bg-white text-orange-600 px-4 py-2 rounded-full shadow-lg text-sm font-medium">
+                  <i className="bi bi-chat-dots-fill mr-1"></i>{stats.questions}+ Questions
                 </div>
               </div>
             </div>
@@ -72,179 +76,180 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="container">
-        <div className="row g-4">
-          {/* Main Content Area */}
-          <div className="col-lg-8 order-2 order-lg-1">
-            {/* Featured Questions Section */}
-            <div className="card border-0 rounded-4 shadow-sm mb-4 hover-lift">
-              <div className="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Questions List */}
+          <div className="lg:col-span-2">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm">
+              <div className="p-4 md:p-6 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
                 <div>
-                  <h4 className="fw-bold mb-1">Interesting Questions</h4>
-                  <p className="text-muted small">Based on your interests and activity</p>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Interesting Questions</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Based on your interests</p>
                 </div>
-                <div className="dropdown">
-                  <button className="btn btn-sm btn-outline-secondary rounded-pill" type="button" data-bs-toggle="dropdown">
-                    <i className="bi bi-sort-down me-1"></i>Sort
-                  </button>
-                  <ul className="dropdown-menu dropdown-menu-end">
-                    <li><a className="dropdown-item" href="#"><i className="bi bi-fire me-2"></i>Hot</a></li>
-                    <li><a className="dropdown-item" href="#"><i className="bi bi-clock-history me-2"></i>Recent</a></li>
-                    <li><a className="dropdown-item" href="#"><i className="bi bi-graph-up me-2"></i>Most Answered</a></li>
-                  </ul>
-                </div>
+                <select className="text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700">
+                  <option>Hot</option>
+                  <option>Recent</option>
+                  <option>Most Voted</option>
+                </select>
               </div>
-              <div className="card-body p-0">
-                {isLoading ? (
-                  <div className="p-5 text-center">
-                    <div className="spinner-border text-primary" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                  </div>
-                ) : questions.length > 0 ? (
-                  <div className="list-group list-group-flush">
-                    {questions.map((question) => (
-                      <div key={question.questionId} className="list-group-item question-item p-4 border-0 border-bottom">
-                        <div className="row align-items-center">
-                          <div className="col-auto d-none d-sm-block">
-                            <div className="question-stats d-flex flex-column align-items-center text-center" style={{ minWidth: '80px' }}>
-                              <div className={`votes mb-2 py-2 px-3 rounded-pill ${question.score > 0 ? 'bg-success-subtle' : 'bg-light'}`}>
-                                <span className={`fw-bold ${question.score > 0 ? 'text-success' : ''}`}>{question.score}</span>
-                                <small className="d-block">votes</small>
-                              </div>
-                              <div className={`answers py-2 px-3 rounded-pill ${question.answerCount > 0 ? 'bg-primary-subtle' : 'bg-light'}`}>
-                                <span className={`fw-bold ${question.answerCount > 0 ? 'text-primary' : ''}`}>{question.answerCount}</span>
-                                <small className="d-block">answers</small>
-                              </div>
-                            </div>
+
+              {isLoading ? (
+                <div className="p-12 text-center">
+                  <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : questions.length > 0 ? (
+                <div className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {questions.map((question) => (
+                    <div key={question.questionId} className="p-4 md:p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                      <div className="flex gap-4">
+                        {/* Stats */}
+                        <div className="hidden sm:flex flex-col items-center gap-2 text-center min-w-[70px]">
+                          <div className={`px-3 py-1 rounded-full text-sm ${question.score > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                            <span className="font-bold">{question.score}</span>
+                            <span className="block text-xs">votes</span>
                           </div>
-                          <div className="col">
-                            <div className="question-content">
-                              <h5 className="mb-2 fw-bold question-title">
-                                <Link href={`/questions/${question.questionId}`} className="stretched-link text-decoration-none text-dark">
-                                  {question.title}
+                          <div className={`px-3 py-1 rounded-full text-sm ${question.answerCount > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                            <span className="font-bold">{question.answerCount}</span>
+                            <span className="block text-xs">answers</span>
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-orange-500 transition">
+                            <Link href={`/questions/${question.questionId}`}>
+                              {question.title}
+                            </Link>
+                          </h3>
+                          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
+                            {stripHtml(question.bodyExcerpt || question.body || '')}...
+                          </p>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap gap-1">
+                              {question.tags?.slice(0, 4).map((tag: Tag) => (
+                                <Link
+                                  key={tag.tagId}
+                                  href={`/questions?tag=${tag.tagName}`}
+                                  className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs rounded-md hover:bg-orange-200 transition"
+                                >
+                                  {tag.tagName}
                                 </Link>
-                              </h5>
-                              <p className="mb-3 question-excerpt text-muted">
-                                {stripHtml(question.bodyExcerpt || question.body || '')}...
-                              </p>
-                              <div className="d-flex flex-wrap justify-content-between align-items-center">
-                                <div className="tags mb-2 mb-sm-0">
-                                  {question.tags?.slice(0, 4).map((tag: Tag) => (
-                                    <Link key={tag.tagId} href={`/questions?tag=${tag.tagName}`} className="badge rounded-pill bg-light text-dark hover-primary me-1 text-decoration-none">
-                                      {tag.tagName}
-                                    </Link>
-                                  ))}
-                                  {question.tags?.length > 4 && (
-                                    <span className="badge bg-light text-muted rounded-pill">+{question.tags.length - 4}</span>
-                                  )}
-                                </div>
-                                <div className="user-info d-flex align-items-center small text-muted">
-                                  <img src={question.authorProfilePicture || '/images/default-avatar.png'} className="avatar avatar-xs rounded-circle me-1" alt="User Avatar" style={{ width: '24px', height: '24px' }} />
-                                  <span>asked {new Date(question.createdDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} by <a href="#" className="text-decoration-none fw-medium">{question.authorUsername || 'Anonymous'}</a></span>
-                                </div>
-                              </div>
+                              ))}
+                              {question.tags?.length > 4 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded-md">
+                                  +{question.tags.length - 4}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center text-xs text-gray-500">
+                              <img
+                                src={question.authorProfilePicture || '/images/default-avatar.png'}
+                                className="w-5 h-5 rounded-full mr-1"
+                                alt=""
+                              />
+                              <span>
+                                asked {new Date(question.createdDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} by{' '}
+                                <span className="text-orange-500 font-medium">{question.authorUsername || 'Anonymous'}</span>
+                              </span>
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-5 text-center empty-state">
-                    <div className="empty-state-icon bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style={{ width: '90px', height: '90px' }}>
-                      <i className="bi bi-chat-square-dots text-secondary fs-1"></i>
                     </div>
-                    <h5 className="fw-bold mb-2">No questions found</h5>
-                    <p className="text-muted mb-4">Be the first to ask a question and start the conversation!</p>
-                    <Link href="/questions/ask" className="btn btn-primary rounded-pill px-4">
-                      <i className="bi bi-plus-circle me-2"></i>Ask a Question
-                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-12 text-center">
+                  <div className="w-20 h-20 bg-gray-100 dark:bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <i className="bi bi-chat-square-dots text-4xl text-gray-400"></i>
                   </div>
-                )}
-                {questions.length > 0 && (
-                  <div className="p-4 text-center">
-                    <Link href="/questions" className="btn btn-outline-primary rounded-pill">
-                      View All Questions <i className="bi bi-arrow-right ms-1"></i>
-                    </Link>
-                  </div>
-                )}
-              </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No questions found</h3>
+                  <p className="text-gray-500 mb-4">Be the first to ask a question!</p>
+                  <Link href="/questions/ask" className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition">
+                    <i className="bi bi-plus-circle mr-2"></i>Ask a Question
+                  </Link>
+                </div>
+              )}
+
+              {questions.length > 0 && (
+                <div className="p-4 text-center border-t border-gray-100 dark:border-slate-700">
+                  <Link href="/questions" className="inline-flex items-center text-orange-500 hover:text-orange-600 font-medium">
+                    View All Questions <i className="bi bi-arrow-right ml-1"></i>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Sidebar */}
-          <div className="col-lg-4 order-1 order-lg-2">
-            {/* Profile & Stats Card */}
-            <div className="card border-0 rounded-4 shadow-sm mb-4 hover-lift d-none d-md-block">
+          <div className="space-y-6">
+            {/* User Card */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
               {user ? (
-                <div className="card-body p-4">
-                  <div className="text-center mb-4">
-                    <div className="position-relative d-inline-block">
-                      <img src={user.profilePicture || '/images/default-avatar.png'} className="rounded-circle img-thumbnail mb-3" width="100" height="100" alt="Profile Image" />
-                      <span className="position-absolute bottom-0 end-0 bg-success rounded-circle p-1 border border-white" style={{ width: '20px', height: '20px' }}></span>
+                <div className="text-center">
+                  <img
+                    src={user.profilePicture || '/images/default-avatar.png'}
+                    className="w-20 h-20 rounded-full mx-auto mb-3 border-4 border-gray-100"
+                    alt="Profile"
+                  />
+                  <h3 className="font-bold text-gray-900 dark:text-white">{user.displayName || user.username}</h3>
+                  <p className="text-sm text-gray-500 mb-4">@{user.username}</p>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-2 text-center">
+                      <div className="font-bold text-orange-500">{user.reputationPoints || 0}</div>
+                      <div className="text-xs text-gray-500">Reputation</div>
                     </div>
-                    <h5 className="fw-bold mb-1">{user.displayName || user.username}</h5>
-                    <p className="text-muted mb-0">@{user.username}</p>
-                  </div>
-                  <div className="row g-3 text-center mb-4">
-                    <div className="col-4">
-                      <div className="p-3 rounded-4 bg-light">
-                        <h5 className="fw-bold mb-0 text-primary">{user.reputationPoints || 0}</h5>
-                        <small className="text-muted">Reputation</small>
-                      </div>
+                    <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-2 text-center">
+                      <div className="font-bold text-gray-900 dark:text-white">0</div>
+                      <div className="text-xs text-gray-500">Questions</div>
                     </div>
-                    <div className="col-4">
-                      <div className="p-3 rounded-4 bg-light">
-                        <h5 className="fw-bold mb-0">0</h5>
-                        <small className="text-muted">Questions</small>
-                      </div>
-                    </div>
-                    <div className="col-4">
-                      <div className="p-3 rounded-4 bg-light">
-                        <h5 className="fw-bold mb-0">0</h5>
-                        <small className="text-muted">Answers</small>
-                      </div>
+                    <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-2 text-center">
+                      <div className="font-bold text-gray-900 dark:text-white">0</div>
+                      <div className="text-xs text-gray-500">Answers</div>
                     </div>
                   </div>
-                  <Link href="/profile" className="btn btn-outline-primary rounded-pill d-block">View Profile</Link>
+                  <Link href="/profile" className="block w-full py-2 border border-orange-500 text-orange-500 rounded-full hover:bg-orange-50 transition">
+                    View Profile
+                  </Link>
                 </div>
               ) : (
-                <div className="card-body p-4 text-center">
-                  <div className="mb-4">
-                    <div className="empty-state-icon bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style={{ width: '90px', height: '90px' }}>
-                      <i className="bi bi-person-circle text-secondary fs-1"></i>
-                    </div>
-                    <h5 className="fw-bold mb-2">Join our community</h5>
-                    <p className="text-muted">Sign up to ask questions, follow topics, and engage with the community.</p>
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-gray-100 dark:bg-slate-700 rounded-full mx-auto mb-3 flex items-center justify-center">
+                    <i className="bi bi-person-circle text-4xl text-gray-400"></i>
                   </div>
-                  <div className="d-grid gap-2">
-                    <Link href="/register" className="btn btn-primary rounded-pill">Sign Up</Link>
-                    <Link href="/login" className="btn btn-outline-secondary rounded-pill">Log In</Link>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">Join our community</h3>
+                  <p className="text-sm text-gray-500 mb-4">Sign up to ask questions and engage!</p>
+                  <div className="space-y-2">
+                    <Link href="/register" className="block w-full py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition">
+                      Sign Up
+                    </Link>
+                    <Link href="/login" className="block w-full py-2 border border-gray-300 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-slate-700 transition">
+                      Log In
+                    </Link>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Trending Topics Card */}
-            <div className="card border-0 rounded-4 shadow-sm mb-4 hover-lift">
-              <div className="card-body p-4">
-                <h5 className="fw-bold card-title mb-3">Trending Topics</h5>
-                <div className="trending-tags">
-                  <a href="#" className="btn btn-sm btn-outline-primary rounded-pill mb-2 me-1">react</a>
-                  <a href="#" className="btn btn-sm btn-outline-primary rounded-pill mb-2 me-1">javascript</a>
-                  <a href="#" className="btn btn-sm btn-outline-primary rounded-pill mb-2 me-1">c#</a>
-                  <a href="#" className="btn btn-sm btn-outline-primary rounded-pill mb-2 me-1">python</a>
-                  <a href="#" className="btn btn-sm btn-outline-primary rounded-pill mb-2 me-1">asp.net-core</a>
-                  <a href="#" className="btn btn-sm btn-outline-primary rounded-pill mb-2 me-1">sql</a>
-                  <a href="#" className="btn btn-sm btn-outline-primary rounded-pill mb-2 me-1">docker</a>
-                  <a href="#" className="btn btn-sm btn-outline-primary rounded-pill mb-2 me-1">next.js</a>
-                </div>
+            {/* Trending Tags */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-4">Trending Topics</h3>
+              <div className="flex flex-wrap gap-2">
+                {['react', 'javascript', 'c#', 'python', 'asp.net-core', 'sql', 'docker', 'next.js'].map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/questions?tag=${tag}`}
+                    className="px-3 py-1 border border-orange-500 text-orange-500 text-sm rounded-full hover:bg-orange-500 hover:text-white transition"
+                  >
+                    {tag}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

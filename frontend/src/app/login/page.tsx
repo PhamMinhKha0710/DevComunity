@@ -35,130 +35,163 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="account-page">
-            <link href="/css/account-styles.css" rel="stylesheet" />
-            <div className="account-container">
-                <div className="row g-0">
-                    <div className="col-lg-6">
-                        <div className="account-card h-100">
-                            <div className="account-header">
-                                <h2 className="account-title">Welcome Back</h2>
-                                <p className="account-subtitle">Sign in to continue to DevCommunity</p>
-                            </div>
-
-                            <div className="account-body">
-                                {error && (
-                                    <div className="alert alert-danger d-flex align-items-center">
-                                        <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                                        <div>{error}</div>
-                                    </div>
-                                )}
-
-                                <form onSubmit={handleSubmit}>
-                                    <div className="account-form-group">
-                                        <i className="bi bi-person account-form-icon"></i>
-                                        <input
-                                            type="text"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            className="form-control account-form-control"
-                                            placeholder="Username or Email"
-                                            autoComplete="username"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="account-form-group">
-                                        <i className="bi bi-lock account-form-icon"></i>
-                                        <input
-                                            type="password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            className="form-control account-form-control"
-                                            placeholder="Password"
-                                            autoComplete="current-password"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="d-flex justify-content-between mb-4">
-                                        <div className="form-check">
-                                            <input
-                                                type="checkbox"
-                                                id="rememberMe"
-                                                checked={rememberMe}
-                                                onChange={(e) => setRememberMe(e.target.checked)}
-                                                className="form-check-input"
-                                            />
-                                            <label htmlFor="rememberMe" className="form-check-label">Remember me</label>
-                                        </div>
-                                        <a href="#" className="text-decoration-none">Forgot password?</a>
-                                    </div>
-
-                                    <button type="submit" className="btn btn-primary account-submit-btn w-100" disabled={isLoading}>
-                                        {isLoading ? 'Signing in...' : 'Sign In'}
-                                    </button>
-
-                                    <div className="social-login">
-                                        <a href="#" className="social-btn google">
-                                            <i className="bi bi-google"></i> Google
-                                        </a>
-                                        <a href="#" className="social-btn github">
-                                            <i className="bi bi-github"></i> GitHub
-                                        </a>
-                                    </div>
-                                </form>
-                            </div>
-
-                            <div className="account-footer text-center">
-                                <p className="mb-0">
-                                    Don&apos;t have an account?
-                                    <Link href="/register" className="text-decoration-none fw-medium ms-1">Create an account</Link>
-                                </p>
-                            </div>
-                        </div>
+        <div className="min-h-screen flex">
+            {/* Left Side - Form */}
+            <div className="flex-1 flex items-center justify-center p-8 bg-white dark:bg-slate-900">
+                <div className="w-full max-w-md">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h1>
+                        <p className="text-gray-500 dark:text-gray-400">Sign in to continue to DevCommunity</p>
                     </div>
 
-                    <div className="col-lg-6 d-none d-lg-block">
-                        <div className="h-100 bg-primary" style={{ background: 'linear-gradient(rgba(42, 26, 135, 0.9), rgba(65, 48, 192, 0.8)), url("/images/code-bg.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
-                            <div className="d-flex flex-column justify-content-center align-items-center h-100 text-white p-5">
-                                <div className="mb-4 text-center">
-                                    <i className="bi bi-code-square display-1 mb-3"></i>
-                                    <h2 className="fw-bold">DevCommunity</h2>
-                                    <p className="lead opacity-75">A place for developers to learn, share & build together</p>
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center text-red-700 dark:text-red-400">
+                            <i className="bi bi-exclamation-triangle-fill mr-2"></i>
+                            <span>{error}</span>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Email or Username
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i className="bi bi-person text-gray-400"></i>
                                 </div>
+                                <input
+                                    type="text"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                                    placeholder="Enter your email or username"
+                                    autoComplete="username"
+                                    required
+                                />
+                            </div>
+                        </div>
 
-                                <div className="register-benefits w-100">
-                                    <div className="benefit-item">
-                                        <div className="benefit-icon">
-                                            <i className="bi bi-question-circle"></i>
-                                        </div>
-                                        <div>
-                                            <h5 className="mb-1">Ask Questions</h5>
-                                            <p className="mb-0 opacity-75">Get answers from a community of developers</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="benefit-item">
-                                        <div className="benefit-icon">
-                                            <i className="bi bi-share"></i>
-                                        </div>
-                                        <div>
-                                            <h5 className="mb-1">Share Knowledge</h5>
-                                            <p className="mb-0 opacity-75">Help others by sharing your expertise</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="benefit-item">
-                                        <div className="benefit-icon">
-                                            <i className="bi bi-person-badge"></i>
-                                        </div>
-                                        <div>
-                                            <h5 className="mb-1">Build Reputation</h5>
-                                            <p className="mb-0 opacity-75">Earn recognition for your contributions</p>
-                                        </div>
-                                    </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Password
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i className="bi bi-lock text-gray-400"></i>
                                 </div>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                                    placeholder="Enter your password"
+                                    autoComplete="current-password"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                                />
+                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Remember me</span>
+                            </label>
+                            <Link href="/forgot-password" className="text-sm text-orange-500 hover:text-orange-600">
+                                Forgot password?
+                            </Link>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 focus:ring-4 focus:ring-orange-500/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? (
+                                <span className="inline-flex items-center">
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Signing in...
+                                </span>
+                            ) : 'Sign In'}
+                        </button>
+
+                        <div className="relative my-6">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-gray-300 dark:border-slate-600"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                                <span className="px-2 bg-white dark:bg-slate-900 text-gray-500">Or continue with</span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                className="flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+                            >
+                                <i className="bi bi-google text-red-500 mr-2"></i>
+                                <span className="text-gray-700 dark:text-gray-300 font-medium">Google</span>
+                            </button>
+                            <button
+                                type="button"
+                                className="flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+                            >
+                                <i className="bi bi-github text-gray-900 dark:text-white mr-2"></i>
+                                <span className="text-gray-700 dark:text-gray-300 font-medium">GitHub</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <p className="mt-8 text-center text-gray-600 dark:text-gray-400">
+                        Don&apos;t have an account?{' '}
+                        <Link href="/register" className="text-orange-500 hover:text-orange-600 font-medium">
+                            Create an account
+                        </Link>
+                    </p>
+                </div>
+            </div>
+
+            {/* Right Side - Branding */}
+            <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center p-12">
+                <div className="text-white text-center max-w-lg">
+                    <i className="bi bi-code-square text-7xl mb-6"></i>
+                    <h2 className="text-3xl font-bold mb-4">DevCommunity</h2>
+                    <p className="text-xl opacity-90 mb-8">A place for developers to learn, share & build together</p>
+
+                    <div className="space-y-4 text-left">
+                        <div className="flex items-start gap-4 bg-white/10 rounded-lg p-4">
+                            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                                <i className="bi bi-question-circle"></i>
+                            </div>
+                            <div>
+                                <h3 className="font-semibold mb-1">Ask Questions</h3>
+                                <p className="text-sm opacity-75">Get answers from a community of developers</p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-4 bg-white/10 rounded-lg p-4">
+                            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                                <i className="bi bi-share"></i>
+                            </div>
+                            <div>
+                                <h3 className="font-semibold mb-1">Share Knowledge</h3>
+                                <p className="text-sm opacity-75">Help others by sharing your expertise</p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-4 bg-white/10 rounded-lg p-4">
+                            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                                <i className="bi bi-trophy"></i>
+                            </div>
+                            <div>
+                                <h3 className="font-semibold mb-1">Build Reputation</h3>
+                                <p className="text-sm opacity-75">Earn recognition for your contributions</p>
                             </div>
                         </div>
                     </div>
