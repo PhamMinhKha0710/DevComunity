@@ -99,8 +99,7 @@ public class AnswersController : ControllerBase
 
         _logger.LogInformation("Creating answer for question {QuestionId}", command.QuestionId);
 
-        // TODO: Get user ID from JWT claims
-        // command.UserId = GetCurrentUserId();
+        command.UserId = GetCurrentUserId();
 
         var result = await _createHandler.HandleAsync(command, cancellationToken);
 
@@ -127,7 +126,7 @@ public class AnswersController : ControllerBase
             return BadRequest(ModelState);
 
         command.AnswerId = id;
-        // TODO: command.UserId = GetCurrentUserId();
+        command.UserId = GetCurrentUserId();
 
         _logger.LogInformation("Updating answer {AnswerId}", id);
 
@@ -150,8 +149,7 @@ public class AnswersController : ControllerBase
     {
         _logger.LogInformation("Deleting answer {AnswerId}", id);
 
-        var command = new DeleteAnswerCommand { AnswerId = id };
-        // TODO: command.UserId = GetCurrentUserId();
+        var command = new DeleteAnswerCommand { AnswerId = id, UserId = GetCurrentUserId() };
 
         var success = await _deleteHandler.HandleAsync(command, cancellationToken);
 
@@ -179,8 +177,8 @@ public class AnswersController : ControllerBase
         var command = new AcceptAnswerCommand
         {
             AnswerId = id,
-            QuestionId = questionId
-            // TODO: UserId = GetCurrentUserId()
+            QuestionId = questionId,
+            UserId = GetCurrentUserId()
         };
 
         var success = await _acceptHandler.HandleAsync(command, cancellationToken);
@@ -189,5 +187,13 @@ public class AnswersController : ControllerBase
             return NotFound();
 
         return Ok(new { message = "Answer accepted successfully" });
+    }
+
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?? User.FindFirst("sub")
+            ?? User.FindFirst("userId");
+        return userIdClaim != null ? int.Parse(userIdClaim.Value) : 0;
     }
 }

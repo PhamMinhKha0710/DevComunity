@@ -36,68 +36,66 @@ export default function TagsPage() {
     );
 
     return (
-        <div className="container py-4">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2 className="fw-bold mb-1">Tags</h2>
-                    <p className="text-muted mb-0">Browse tags to find questions on topics you're interested in</p>
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Tags</h1>
+                    <p className="text-gray-500">Browse tags to find questions on topics you&apos;re interested in</p>
                 </div>
-            </div>
 
-            {/* Search */}
-            <div className="card border-0 shadow-sm rounded-4 mb-4">
-                <div className="card-body p-3">
-                    <div className="input-group">
-                        <span className="input-group-text bg-transparent border-end-0">
-                            <i className="bi bi-search"></i>
-                        </span>
+                {/* Search */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 mb-6">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i className="bi bi-search text-gray-400"></i>
+                        </div>
                         <input
                             type="text"
-                            className="form-control border-start-0"
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                             placeholder="Filter by tag name..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
                 </div>
-            </div>
 
-            {/* Tags Grid */}
-            {isLoading ? (
-                <div className="text-center py-5">
-                    <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
+                {/* Tags Grid */}
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
                     </div>
-                </div>
-            ) : (
-                <div className="row g-4">
-                    {filteredTags.map((tag) => (
-                        <div key={tag.tagId} className="col-md-6 col-lg-4">
-                            <div className="card border-0 shadow-sm rounded-4 h-100 hover-lift">
-                                <div className="card-body">
-                                    <div className="d-flex justify-content-between align-items-start mb-2">
-                                        <Link href={`/questions?tag=${tag.tagName}`} className="btn btn-sm btn-outline-primary rounded-pill">
-                                            {tag.tagName}
-                                        </Link>
-                                        <span className="badge bg-light text-dark">{tag.questionCount} questions</span>
-                                    </div>
-                                    <p className="text-muted small mb-0">
-                                        {tag.description || `Questions about ${tag.tagName}`}
-                                    </p>
+                ) : filteredTags.length > 0 ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredTags.map((tag) => (
+                            <div key={tag.tagId} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 hover:shadow-md transition">
+                                <div className="flex items-start justify-between mb-2">
+                                    <Link
+                                        href={`/questions?tag=${tag.tagName}`}
+                                        className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-sm font-medium rounded-md hover:bg-orange-200 transition"
+                                    >
+                                        {tag.tagName}
+                                    </Link>
+                                    <span className="text-xs text-gray-500 bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded">
+                                        {tag.questionCount} questions
+                                    </span>
                                 </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                    {tag.description || `Questions about ${tag.tagName}`}
+                                </p>
                             </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <i className="bi bi-tags text-3xl text-gray-400"></i>
                         </div>
-                    ))}
-                </div>
-            )}
-
-            {filteredTags.length === 0 && !isLoading && (
-                <div className="text-center py-5">
-                    <i className="bi bi-tags fs-1 text-muted mb-3"></i>
-                    <h5>No tags found</h5>
-                    <p className="text-muted">Try a different search term</p>
-                </div>
-            )}
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No tags found</h3>
+                        <p className="text-gray-500">Try a different search term</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
