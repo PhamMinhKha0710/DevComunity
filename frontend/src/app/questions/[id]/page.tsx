@@ -22,12 +22,18 @@ export default function QuestionDetailPage() {
 
     const fetchQuestion = async () => {
         try {
-            const [questionRes, answersRes] = await Promise.all([
-                apiClient.get<Question>(`/questions/${id}`),
-                apiClient.get<Answer[]>(`/questions/${id}/answers`),
-            ]);
+            // Fetch question first
+            const questionRes = await apiClient.get<Question>(`/questions/${id}`);
             setQuestion(questionRes.data);
-            setAnswers(answersRes.data || []);
+
+            // Fetch answers separately to handle 404 gracefully
+            try {
+                const answersRes = await apiClient.get<Answer[]>(`/answers/question/${id}`);
+                setAnswers(answersRes.data || []);
+            } catch {
+                // If answers endpoint fails, just set empty array
+                setAnswers([]);
+            }
         } catch (error) {
             console.error('Failed to fetch question:', error);
         } finally {
@@ -120,8 +126,8 @@ export default function QuestionDetailPage() {
                             <button
                                 onClick={() => handleVote('up', 'question', question.questionId)}
                                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${question.userVoteType === 'up'
-                                        ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
+                                    ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                                    : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
                                     }`}
                             >
                                 <i className="bi bi-caret-up-fill text-xl"></i>
@@ -130,8 +136,8 @@ export default function QuestionDetailPage() {
                             <button
                                 onClick={() => handleVote('down', 'question', question.questionId)}
                                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${question.userVoteType === 'down'
-                                        ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
+                                    ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                                    : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
                                     }`}
                             >
                                 <i className="bi bi-caret-down-fill text-xl"></i>
@@ -197,8 +203,8 @@ export default function QuestionDetailPage() {
                                             <button
                                                 onClick={() => handleVote('up', 'answer', answer.answerId)}
                                                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${answer.userVoteType === 'up'
-                                                        ? 'bg-green-100 text-green-600'
-                                                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
+                                                    ? 'bg-green-100 text-green-600'
+                                                    : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
                                                     }`}
                                             >
                                                 <i className="bi bi-caret-up-fill text-xl"></i>
@@ -207,8 +213,8 @@ export default function QuestionDetailPage() {
                                             <button
                                                 onClick={() => handleVote('down', 'answer', answer.answerId)}
                                                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${answer.userVoteType === 'down'
-                                                        ? 'bg-red-100 text-red-600'
-                                                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
+                                                    ? 'bg-red-100 text-red-600'
+                                                    : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
                                                     }`}
                                             >
                                                 <i className="bi bi-caret-down-fill text-xl"></i>
