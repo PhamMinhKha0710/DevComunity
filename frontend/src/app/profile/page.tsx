@@ -4,19 +4,48 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import apiClient from '@/lib/api/client';
 
 type Tab = 'questions' | 'answers' | 'saved';
+
+interface UserProfile {
+    userId: number;
+    username: string;
+    email: string;
+    displayName?: string;
+    profilePicture?: string;
+    reputationPoints: number;
+    questionCount: number;
+    answerCount: number;
+    createdDate: string;
+}
 
 export default function ProfilePage() {
     const { user, isLoading } = useAuth();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<Tab>('questions');
+    const [profile, setProfile] = useState<UserProfile | null>(null);
 
     useEffect(() => {
         if (!isLoading && !user) {
             router.push('/login');
         }
     }, [user, isLoading, router]);
+
+    useEffect(() => {
+        if (user?.userId) {
+            fetchProfile();
+        }
+    }, [user?.userId]);
+
+    const fetchProfile = async () => {
+        try {
+            const response = await apiClient.get<UserProfile>(`/users/${user?.userId}`);
+            setProfile(response.data);
+        } catch (error) {
+            console.error('Failed to fetch profile:', error);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -28,6 +57,8 @@ export default function ProfilePage() {
 
     if (!user) return null;
 
+    const displayUser = profile || user;
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,28 +69,28 @@ export default function ProfilePage() {
                         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 text-center">
                             <div className="relative inline-block mb-4">
                                 <img
-                                    src={user.profilePicture || '/images/default-avatar.png'}
+                                    src={displayUser.profilePicture || '/images/default-avatar.png'}
                                     className="w-28 h-28 rounded-full border-4 border-gray-100 dark:border-slate-700"
                                     alt="Profile"
                                 />
                                 <div className="absolute bottom-0 right-0 w-6 h-6 bg-green-500 rounded-full border-2 border-white dark:border-slate-800"></div>
                             </div>
                             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-                                {user.displayName || user.username}
+                                {displayUser.displayName || displayUser.username}
                             </h2>
-                            <p className="text-gray-500 mb-4">@{user.username}</p>
+                            <p className="text-gray-500 mb-4">@{displayUser.username}</p>
 
                             <div className="grid grid-cols-3 gap-3 mb-6">
                                 <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-center">
-                                    <div className="text-xl font-bold text-orange-500">{user.reputationPoints || 0}</div>
+                                    <div className="text-xl font-bold text-orange-500">{profile?.reputationPoints || user.reputationPoints || 0}</div>
                                     <div className="text-xs text-gray-500">Reputation</div>
                                 </div>
                                 <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-3 text-center">
-                                    <div className="text-xl font-bold text-gray-900 dark:text-white">0</div>
+                                    <div className="text-xl font-bold text-gray-900 dark:text-white">{profile?.questionCount || 0}</div>
                                     <div className="text-xs text-gray-500">Questions</div>
                                 </div>
                                 <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-3 text-center">
-                                    <div className="text-xl font-bold text-gray-900 dark:text-white">0</div>
+                                    <div className="text-xl font-bold text-gray-900 dark:text-white">{profile?.answerCount || 0}</div>
                                     <div className="text-xs text-gray-500">Answers</div>
                                 </div>
                             </div>
@@ -120,8 +151,8 @@ export default function ProfilePage() {
                                             key={key}
                                             onClick={() => setActiveTab(key)}
                                             className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition ${activeTab === key
-                                                    ? 'bg-orange-500 text-white'
-                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                                                ? 'bg-orange-500 text-white'
+                                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
                                                 }`}
                                         >
                                             <i className={`bi ${icon} mr-2`}></i>{label}
