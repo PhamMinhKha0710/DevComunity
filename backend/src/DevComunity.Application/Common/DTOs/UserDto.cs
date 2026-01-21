@@ -12,4 +12,8 @@ public class UserDto
     public string? ProfilePicture { get; set; }
     public int ReputationPoints { get; set; }
     public bool IsEmailVerified { get; set; }
+    public int QuestionCount { get; set; }
+    public int AnswerCount { get; set; }
+    public DateTime CreatedDate { get; set; }
 }
+
