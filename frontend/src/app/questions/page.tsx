@@ -45,154 +45,194 @@ function QuestionsContent() {
     };
 
     return (
-        <div className="container py-4">
-            <div className="row">
-                {/* Main Content */}
-                <div className="col-lg-9">
-                    {/* Header */}
-                    <div className="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h2 className="fw-bold mb-1">
-                                {tag ? `Questions tagged [${tag}]` : search ? `Search results for "${search}"` : 'All Questions'}
-                            </h2>
-                            <p className="text-muted small mb-0">
-                                {questions.length} questions found
-                            </p>
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="grid lg:grid-cols-4 gap-8">
+                    {/* Main Content */}
+                    <div className="lg:col-span-3">
+                        {/* Header */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {tag ? `Questions tagged [${tag}]` : search ? `Search results for "${search}"` : 'All Questions'}
+                                </h1>
+                                <p className="text-gray-500 text-sm mt-1">
+                                    {questions.length} questions found
+                                </p>
+                            </div>
+                            <Link
+                                href="/questions/ask"
+                                className="inline-flex items-center px-4 py-2 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 transition"
+                            >
+                                <i className="bi bi-plus-circle mr-2"></i>Ask Question
+                            </Link>
                         </div>
-                        <Link href="/questions/ask" className="btn btn-primary rounded-pill">
-                            <i className="bi bi-plus-circle me-2"></i>Ask Question
-                        </Link>
-                    </div>
 
-                    {/* Filters */}
-                    <div className="card border-0 shadow-sm rounded-4 mb-4">
-                        <div className="card-body p-3">
-                            <div className="d-flex gap-2 flex-wrap">
-                                <button
-                                    className={`btn btn-sm ${sortBy === 'newest' ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill`}
-                                    onClick={() => setSortBy('newest')}
-                                >
-                                    <i className="bi bi-clock me-1"></i>Newest
-                                </button>
-                                <button
-                                    className={`btn btn-sm ${sortBy === 'active' ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill`}
-                                    onClick={() => setSortBy('active')}
-                                >
-                                    <i className="bi bi-activity me-1"></i>Active
-                                </button>
-                                <button
-                                    className={`btn btn-sm ${sortBy === 'unanswered' ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill`}
-                                    onClick={() => setSortBy('unanswered')}
-                                >
-                                    <i className="bi bi-question-circle me-1"></i>Unanswered
-                                </button>
-                                <button
-                                    className={`btn btn-sm ${sortBy === 'votes' ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill`}
-                                    onClick={() => setSortBy('votes')}
-                                >
-                                    <i className="bi bi-graph-up me-1"></i>Most Votes
-                                </button>
+                        {/* Filters */}
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 mb-6">
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { key: 'newest', icon: 'bi-clock', label: 'Newest' },
+                                    { key: 'active', icon: 'bi-activity', label: 'Active' },
+                                    { key: 'unanswered', icon: 'bi-question-circle', label: 'Unanswered' },
+                                    { key: 'votes', icon: 'bi-graph-up', label: 'Most Votes' },
+                                ].map(({ key, icon, label }) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setSortBy(key)}
+                                        className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition ${sortBy === key
+                                                ? 'bg-orange-500 text-white'
+                                                : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                                            }`}
+                                    >
+                                        <i className={`bi ${icon} mr-2`}></i>{label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Questions List */}
-                    <div className="card border-0 shadow-sm rounded-4">
-                        {isLoading ? (
-                            <div className="card-body p-5 text-center">
-                                <div className="spinner-border text-primary" role="status">
-                                    <span className="visually-hidden">Loading...</span>
+                        {/* Questions List */}
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden">
+                            {isLoading ? (
+                                <div className="p-12 text-center">
+                                    <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
                                 </div>
-                            </div>
-                        ) : questions.length > 0 ? (
-                            <div className="list-group list-group-flush">
-                                {questions.map((question) => (
-                                    <div key={question.questionId} className="list-group-item p-4 border-0 border-bottom">
-                                        <div className="row align-items-center">
-                                            <div className="col-auto d-none d-sm-block">
-                                                <div className="question-stats d-flex flex-column align-items-center text-center" style={{ minWidth: '80px' }}>
-                                                    <div className={`votes mb-2 py-2 px-3 rounded-pill ${question.score > 0 ? 'bg-success-subtle' : 'bg-light'}`}>
-                                                        <span className={`fw-bold ${question.score > 0 ? 'text-success' : ''}`}>{question.score}</span>
-                                                        <small className="d-block">votes</small>
+                            ) : questions.length > 0 ? (
+                                <div className="divide-y divide-gray-100 dark:divide-slate-700">
+                                    {questions.map((question) => (
+                                        <div key={question.questionId} className="p-4 md:p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                                            <div className="flex gap-4">
+                                                {/* Stats */}
+                                                <div className="hidden sm:flex flex-col items-center gap-2 text-center min-w-[70px]">
+                                                    <div className={`px-3 py-2 rounded-lg text-sm ${question.score > 0
+                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                            : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400'
+                                                        }`}>
+                                                        <span className="font-bold block">{question.score}</span>
+                                                        <span className="text-xs">votes</span>
                                                     </div>
-                                                    <div className={`answers py-2 px-3 rounded-pill ${question.hasAcceptedAnswer ? 'bg-success' : question.answerCount > 0 ? 'bg-primary-subtle' : 'bg-light'}`}>
-                                                        <span className={`fw-bold ${question.hasAcceptedAnswer ? 'text-white' : question.answerCount > 0 ? 'text-primary' : ''}`}>
-                                                            {question.answerCount}
-                                                        </span>
-                                                        <small className={`d-block ${question.hasAcceptedAnswer ? 'text-white' : ''}`}>answers</small>
+                                                    <div className={`px-3 py-2 rounded-lg text-sm ${question.hasAcceptedAnswer
+                                                            ? 'bg-green-500 text-white'
+                                                            : question.answerCount > 0
+                                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                                                : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400'
+                                                        }`}>
+                                                        <span className="font-bold block">{question.answerCount}</span>
+                                                        <span className="text-xs">answers</span>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="col">
-                                                <h5 className="mb-2 fw-bold">
-                                                    <Link href={`/questions/${question.questionId}`} className="text-decoration-none text-dark">
-                                                        {question.title}
-                                                    </Link>
-                                                </h5>
-                                                <p className="mb-3 text-muted small">
-                                                    {stripHtml(question.bodyExcerpt || question.body || '')}...
-                                                </p>
-                                                <div className="d-flex flex-wrap justify-content-between align-items-center">
-                                                    <div className="tags mb-2 mb-sm-0">
-                                                        {question.tags?.slice(0, 5).map((t: Tag) => (
-                                                            <Link key={t.tagId} href={`/questions?tag=${t.tagName}`} className="badge rounded-pill bg-light text-dark me-1 text-decoration-none">
-                                                                {t.tagName}
-                                                            </Link>
-                                                        ))}
-                                                    </div>
-                                                    <div className="small text-muted">
-                                                        <img src={question.authorProfilePicture || '/images/default-avatar.png'} className="rounded-circle me-1" width="20" height="20" alt="" />
-                                                        asked {new Date(question.createdDate).toLocaleDateString()} by <span className="text-primary">{question.authorUsername}</span>
+
+                                                {/* Content */}
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-orange-500 transition">
+                                                        <Link href={`/questions/${question.questionId}`}>
+                                                            {question.title}
+                                                        </Link>
+                                                    </h3>
+                                                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
+                                                        {stripHtml(question.bodyExcerpt || question.body || '')}...
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {question.tags?.slice(0, 5).map((t: Tag) => (
+                                                                <Link
+                                                                    key={t.tagId}
+                                                                    href={`/questions?tag=${t.tagName}`}
+                                                                    className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs rounded-md hover:bg-orange-200 transition"
+                                                                >
+                                                                    {t.tagName}
+                                                                </Link>
+                                                            ))}
+                                                        </div>
+                                                        <div className="flex items-center text-xs text-gray-500">
+                                                            <img
+                                                                src={question.authorProfilePicture || '/images/default-avatar.png'}
+                                                                className="w-5 h-5 rounded-full mr-1"
+                                                                alt=""
+                                                            />
+                                                            <span>
+                                                                asked {new Date(question.createdDate).toLocaleDateString()} by{' '}
+                                                                <span className="text-orange-500 font-medium">{question.authorUsername}</span>
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-12 text-center">
+                                    <i className="bi bi-search text-4xl text-gray-300 dark:text-slate-600 mb-3"></i>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No questions found</h3>
+                                    <p className="text-gray-500">Try adjusting your search or filters</p>
+                                </div>
+                            )}
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="p-4 border-t border-gray-100 dark:border-slate-700">
+                                    <div className="flex justify-center items-center gap-2">
+                                        <button
+                                            onClick={() => setPage(p => p - 1)}
+                                            disabled={page === 1}
+                                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                            Previous
+                                        </button>
+                                        {[...Array(Math.min(5, totalPages))].map((_, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => setPage(i + 1)}
+                                                className={`w-10 h-10 rounded-lg font-medium transition ${page === i + 1
+                                                        ? 'bg-orange-500 text-white'
+                                                        : 'border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                                                    }`}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                        <button
+                                            onClick={() => setPage(p => p + 1)}
+                                            disabled={page === totalPages}
+                                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                            Next
+                                        </button>
                                     </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Sidebar */}
+                    <div className="space-y-6">
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
+                            <h3 className="font-bold text-gray-900 dark:text-white mb-4">Related Tags</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {['javascript', 'react', 'csharp', 'python', 'sql', 'docker', 'nextjs'].map((t) => (
+                                    <Link
+                                        key={t}
+                                        href={`/questions?tag=${t}`}
+                                        className="px-3 py-1 border border-orange-500 text-orange-500 text-sm rounded-full hover:bg-orange-500 hover:text-white transition"
+                                    >
+                                        {t}
+                                    </Link>
                                 ))}
                             </div>
-                        ) : (
-                            <div className="card-body p-5 text-center">
-                                <i className="bi bi-search fs-1 text-muted mb-3"></i>
-                                <h5>No questions found</h5>
-                                <p className="text-muted">Try adjusting your search or filters</p>
-                            </div>
-                        )}
+                        </div>
 
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="card-footer bg-transparent border-0 p-3">
-                                <nav>
-                                    <ul className="pagination justify-content-center mb-0">
-                                        <li className={`page-item ${page === 1 ? 'disabled' : ''}`}>
-                                            <button className="page-link" onClick={() => setPage(p => p - 1)}>Previous</button>
-                                        </li>
-                                        {[...Array(Math.min(5, totalPages))].map((_, i) => (
-                                            <li key={i} className={`page-item ${page === i + 1 ? 'active' : ''}`}>
-                                                <button className="page-link" onClick={() => setPage(i + 1)}>{i + 1}</button>
-                                            </li>
-                                        ))}
-                                        <li className={`page-item ${page === totalPages ? 'disabled' : ''}`}>
-                                            <button className="page-link" onClick={() => setPage(p => p + 1)}>Next</button>
-                                        </li>
-                                    </ul>
-                                </nav>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Sidebar */}
-                <div className="col-lg-3">
-                    <div className="card border-0 shadow-sm rounded-4 mb-4">
-                        <div className="card-body">
-                            <h6 className="fw-bold mb-3">Related Tags</h6>
-                            <div className="d-flex flex-wrap gap-2">
-                                <Link href="/questions?tag=javascript" className="btn btn-sm btn-outline-primary rounded-pill">javascript</Link>
-                                <Link href="/questions?tag=react" className="btn btn-sm btn-outline-primary rounded-pill">react</Link>
-                                <Link href="/questions?tag=csharp" className="btn btn-sm btn-outline-primary rounded-pill">c#</Link>
-                                <Link href="/questions?tag=python" className="btn btn-sm btn-outline-primary rounded-pill">python</Link>
-                                <Link href="/questions?tag=sql" className="btn btn-sm btn-outline-primary rounded-pill">sql</Link>
-                            </div>
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
+                            <h3 className="font-bold text-gray-900 dark:text-white mb-4">Looking for more?</h3>
+                            <p className="text-gray-500 text-sm mb-4">
+                                Browse our complete list of questions or ask your own
+                            </p>
+                            <Link
+                                href="/questions/ask"
+                                className="block w-full py-2 text-center bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+                            >
+                                Ask a Question
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -204,10 +244,8 @@ function QuestionsContent() {
 export default function QuestionsPage() {
     return (
         <Suspense fallback={
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
+                <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         }>
             <QuestionsContent />
