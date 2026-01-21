@@ -70,19 +70,23 @@ export default function QuestionDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
+                <div className="inline-block w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
 
     if (!question) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900">Question not found</h2>
-                    <Link href="/" className="mt-4 inline-block text-orange-500 hover:text-orange-600">
-                        ← Back to home
+                    <div className="w-20 h-20 bg-gray-200 dark:bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <i className="bi bi-question-circle text-4xl text-gray-400"></i>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Question not found</h2>
+                    <p className="text-gray-500 mb-4">The question you&apos;re looking for doesn&apos;t exist.</p>
+                    <Link href="/" className="inline-flex items-center text-orange-500 hover:text-orange-600 font-medium">
+                        <i className="bi bi-arrow-left mr-2"></i>Back to home
                     </Link>
                 </div>
             </div>
@@ -90,52 +94,79 @@ export default function QuestionDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow-sm border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <Link href="/" className="text-2xl font-bold text-orange-500">
-                        DevComunity
-                    </Link>
-                </div>
-            </header>
-
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Question */}
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">{question.title}</h1>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden mb-6">
+                    {/* Question Header */}
+                    <div className="p-6 border-b border-gray-100 dark:border-slate-700">
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{question.title}</h1>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span>
+                                <i className="bi bi-clock mr-1"></i>
+                                Asked {new Date(question.createdDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                            <span>
+                                <i className="bi bi-eye mr-1"></i>
+                                {question.viewCount || 0} views
+                            </span>
+                        </div>
+                    </div>
 
-                    <div className="flex gap-6">
+                    {/* Question Body */}
+                    <div className="p-6 flex gap-6">
                         {/* Voting */}
-                        <div className="flex flex-col items-center gap-2">
+                        <div className="flex flex-col items-center gap-1 shrink-0">
                             <button
                                 onClick={() => handleVote('up', 'question', question.questionId)}
-                                className={`p-2 rounded hover:bg-gray-100 ${question.userVoteType === 'up' ? 'text-orange-500' : 'text-gray-400'}`}
+                                className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${question.userVoteType === 'up'
+                                        ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
+                                    }`}
                             >
-                                ▲
+                                <i className="bi bi-caret-up-fill text-xl"></i>
                             </button>
-                            <span className="text-xl font-semibold">{question.score}</span>
+                            <span className="text-xl font-bold text-gray-900 dark:text-white py-1">{question.score}</span>
                             <button
                                 onClick={() => handleVote('down', 'question', question.questionId)}
-                                className={`p-2 rounded hover:bg-gray-100 ${question.userVoteType === 'down' ? 'text-orange-500' : 'text-gray-400'}`}
+                                className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${question.userVoteType === 'down'
+                                        ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
+                                    }`}
                             >
-                                ▼
+                                <i className="bi bi-caret-down-fill text-xl"></i>
+                            </button>
+                            <button className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 mt-2">
+                                <i className="bi bi-bookmark"></i>
                             </button>
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1">
-                            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: question.body }} />
+                        <div className="flex-1 min-w-0">
+                            <div
+                                className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
+                                dangerouslySetInnerHTML={{ __html: question.body }}
+                            />
 
-                            <div className="mt-6 flex gap-2 flex-wrap">
+                            <div className="mt-6 flex flex-wrap gap-2">
                                 {question.tags?.map((tag) => (
-                                    <span key={tag.tagId} className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-sm">
+                                    <Link
+                                        key={tag.tagId}
+                                        href={`/questions?tag=${tag.tagName}`}
+                                        className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-sm rounded-md hover:bg-orange-200 dark:hover:bg-orange-900/50 transition"
+                                    >
                                         {tag.tagName}
-                                    </span>
+                                    </Link>
                                 ))}
                             </div>
 
-                            <div className="mt-4 text-sm text-gray-500">
-                                asked by <span className="text-blue-600">{question.authorUsername}</span>
+                            <div className="mt-6 flex items-center justify-end">
+                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm">
+                                    <span className="text-gray-500 dark:text-gray-400">asked by </span>
+                                    <Link href={`/users/${question.authorUsername}`} className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+                                        {question.authorUsername}
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -143,71 +174,118 @@ export default function QuestionDetailPage() {
 
                 {/* Answers */}
                 <div className="mb-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">{answers.length} Answers</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                        <span>{answers.length} Answer{answers.length !== 1 ? 's' : ''}</span>
+                    </h2>
 
-                    {answers.map((answer) => (
-                        <div key={answer.answerId} className={`bg-white rounded-lg shadow p-6 mb-4 ${answer.isAccepted ? 'border-l-4 border-green-500' : ''}`}>
-                            <div className="flex gap-6">
-                                <div className="flex flex-col items-center gap-2">
-                                    <button
-                                        onClick={() => handleVote('up', 'answer', answer.answerId)}
-                                        className={`p-2 rounded hover:bg-gray-100 ${answer.userVoteType === 'up' ? 'text-orange-500' : 'text-gray-400'}`}
-                                    >
-                                        ▲
-                                    </button>
-                                    <span className="text-xl font-semibold">{answer.score}</span>
-                                    <button
-                                        onClick={() => handleVote('down', 'answer', answer.answerId)}
-                                        className={`p-2 rounded hover:bg-gray-100 ${answer.userVoteType === 'down' ? 'text-orange-500' : 'text-gray-400'}`}
-                                    >
-                                        ▼
-                                    </button>
-                                    {answer.isAccepted && (
-                                        <span className="text-green-500 text-2xl">✓</span>
-                                    )}
-                                </div>
+                    {answers.length === 0 ? (
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-8 text-center">
+                            <i className="bi bi-chat-square-text text-4xl text-gray-300 dark:text-slate-600 mb-3"></i>
+                            <p className="text-gray-500">No answers yet. Be the first to answer!</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {answers.map((answer) => (
+                                <div
+                                    key={answer.answerId}
+                                    className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden ${answer.isAccepted ? 'ring-2 ring-green-500' : ''
+                                        }`}
+                                >
+                                    <div className="p-6 flex gap-6">
+                                        {/* Voting */}
+                                        <div className="flex flex-col items-center gap-1 shrink-0">
+                                            <button
+                                                onClick={() => handleVote('up', 'answer', answer.answerId)}
+                                                className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${answer.userVoteType === 'up'
+                                                        ? 'bg-green-100 text-green-600'
+                                                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
+                                                    }`}
+                                            >
+                                                <i className="bi bi-caret-up-fill text-xl"></i>
+                                            </button>
+                                            <span className="text-xl font-bold text-gray-900 dark:text-white py-1">{answer.score}</span>
+                                            <button
+                                                onClick={() => handleVote('down', 'answer', answer.answerId)}
+                                                className={`w-10 h-10 rounded-lg flex items-center justify-center transition ${answer.userVoteType === 'down'
+                                                        ? 'bg-red-100 text-red-600'
+                                                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400'
+                                                    }`}
+                                            >
+                                                <i className="bi bi-caret-down-fill text-xl"></i>
+                                            </button>
+                                            {answer.isAccepted && (
+                                                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center text-white mt-2">
+                                                    <i className="bi bi-check-lg text-xl"></i>
+                                                </div>
+                                            )}
+                                        </div>
 
-                                <div className="flex-1">
-                                    <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: answer.body }} />
-                                    <div className="mt-4 text-sm text-gray-500">
-                                        answered by <span className="text-blue-600">{answer.authorUsername}</span>
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0">
+                                            <div
+                                                className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
+                                                dangerouslySetInnerHTML={{ __html: answer.body }}
+                                            />
+                                            <div className="mt-4 flex items-center justify-end">
+                                                <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-3 text-sm">
+                                                    <span className="text-gray-500 dark:text-gray-400">answered by </span>
+                                                    <Link href={`/users/${answer.authorUsername}`} className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+                                                        {answer.authorUsername}
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
 
                 {/* Add Answer Form */}
                 {user ? (
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Answer</h3>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Your Answer</h3>
                         <form onSubmit={handleSubmitAnswer}>
                             <textarea
                                 value={newAnswer}
                                 onChange={(e) => setNewAnswer(e.target.value)}
                                 rows={8}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                                placeholder="Write your answer here..."
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition resize-none"
+                                placeholder="Write your answer here... You can use Markdown!"
                                 required
                             />
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
-                            >
-                                {isSubmitting ? 'Posting...' : 'Post Your Answer'}
-                            </button>
+                            <div className="mt-4 flex justify-end">
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || !newAnswer.trim()}
+                                    className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 focus:ring-4 focus:ring-orange-500/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmitting ? (
+                                        <span className="inline-flex items-center">
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Posting...
+                                        </span>
+                                    ) : 'Post Your Answer'}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-lg shadow p-6 text-center">
-                        <p className="text-gray-600">
-                            <Link href="/login" className="text-orange-500 hover:text-orange-600">Log in</Link> to post an answer
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-8 text-center">
+                        <i className="bi bi-person-circle text-4xl text-gray-300 dark:text-slate-600 mb-3"></i>
+                        <p className="text-gray-600 dark:text-gray-400">
+                            <Link href="/login" className="text-orange-500 hover:text-orange-600 font-medium">Log in</Link>
+                            {' '}or{' '}
+                            <Link href="/register" className="text-orange-500 hover:text-orange-600 font-medium">sign up</Link>
+                            {' '}to post an answer
                         </p>
                     </div>
                 )}
-            </main>
+            </div>
         </div>
     );
 }
