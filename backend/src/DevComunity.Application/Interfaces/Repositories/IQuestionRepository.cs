@@ -20,4 +20,5 @@ public interface IQuestionRepository
     Task UpdateAsync(Question question, CancellationToken cancellationToken = default);
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default);
+    Task IncrementViewCountAsync(int id, CancellationToken cancellationToken = default);
 }
