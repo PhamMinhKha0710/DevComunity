@@ -27,6 +27,10 @@ using DevComunity.Application.QueryHandlers.Notifications;
 // Vote handlers
 using DevComunity.Application.CommandHandlers.Votes;
 
+// SavedItems handlers
+using DevComunity.Application.CommandHandlers.SavedItems;
+using DevComunity.Application.QueryHandlers.SavedItems;
+
 namespace DevComunity.Application;
 
 /// <summary>
@@ -86,6 +90,15 @@ public static class DependencyInjection
         services.AddScoped<VoteQuestionCommandHandler>();
         services.AddScoped<VoteAnswerCommandHandler>();
         services.AddScoped<RemoveVoteCommandHandler>();
+
+        // SavedItems Command Handlers
+        services.AddScoped<SaveQuestionCommandHandler>();
+        services.AddScoped<UnsaveQuestionCommandHandler>();
+        services.AddScoped<SaveAnswerCommandHandler>();
+        services.AddScoped<UnsaveAnswerCommandHandler>();
+
+        // SavedItems Query Handlers
+        services.AddScoped<GetSavedItemsQueryHandler>();
 
         return services;
     }
