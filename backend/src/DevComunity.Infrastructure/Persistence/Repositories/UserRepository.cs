@@ -73,5 +73,39 @@ public class UserRepository : IUserRepository
 
         return (user, questionCount, answerCount);
     }
+
+    public async Task<(IEnumerable<User> Items, int TotalCount)> GetPaginatedAsync(
+        int page, 
+        int pageSize, 
+        string? search, 
+        string sortBy, 
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Users.AsQueryable();
+
+        // Filter by search
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(u => 
+                u.Username.Contains(search) || 
+                (u.DisplayName != null && u.DisplayName.Contains(search)));
+        }
+
+        // Sort
+        query = sortBy switch
+        {
+            "newest" => query.OrderByDescending(u => u.CreatedDate),
+            _ => query.OrderByDescending(u => u.ReputationPoints) // reputation
+        };
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
 }
 

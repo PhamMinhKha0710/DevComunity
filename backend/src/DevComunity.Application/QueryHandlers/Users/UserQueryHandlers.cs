@@ -73,3 +73,42 @@ public class GetUserByIdQueryHandler
     }
 }
 
+/// <summary>
+/// Handler for GetUsersQuery - paginated list of users
+/// </summary>
+public class GetUsersQueryHandler
+{
+    private readonly IUserRepository _userRepository;
+
+    public GetUsersQueryHandler(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    public async Task<PaginatedResponse<UserDto>> HandleAsync(GetUsersQuery query, CancellationToken cancellationToken = default)
+    {
+        var (items, totalCount) = await _userRepository.GetPaginatedAsync(
+            query.Page,
+            query.PageSize,
+            query.Search,
+            query.SortBy,
+            cancellationToken);
+
+        return new PaginatedResponse<UserDto>
+        {
+            Items = items.Select(u => new UserDto
+            {
+                UserId = u.UserId,
+                Username = u.Username,
+                DisplayName = u.DisplayName,
+                ProfilePicture = u.ProfilePicture,
+                ReputationPoints = u.ReputationPoints,
+                CreatedDate = u.CreatedDate
+            }).ToList(),
+            Page = query.Page,
+            PageSize = query.PageSize,
+            TotalCount = totalCount
+        };
+    }
+}
+
