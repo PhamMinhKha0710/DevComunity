@@ -113,4 +113,11 @@ public class QuestionRepository : IQuestionRepository
     {
         return await _context.Questions.AnyAsync(q => q.QuestionId == id, cancellationToken);
     }
+
+    public async Task IncrementViewCountAsync(int id, CancellationToken cancellationToken = default)
+    {
+        await _context.Questions
+            .Where(q => q.QuestionId == id)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(q => q.ViewCount, q => q.ViewCount + 1), cancellationToken);
+    }
 }

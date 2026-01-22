@@ -5,6 +5,7 @@ using DevComunity.Application.CommandHandlers.Questions;
 using DevComunity.Application.Queries.Questions;
 using DevComunity.Application.QueryHandlers.Questions;
 using DevComunity.Application.Common.DTOs;
+using DevComunity.Application.Interfaces.Repositories;
 
 namespace DevComunity.Api.Controllers;
 
@@ -21,6 +22,7 @@ public class QuestionsController : ControllerBase
     private readonly DeleteQuestionCommandHandler _deleteHandler;
     private readonly GetQuestionsQueryHandler _getQuestionsHandler;
     private readonly GetQuestionByIdQueryHandler _getQuestionByIdHandler;
+    private readonly IQuestionRepository _questionRepository;
 
     public QuestionsController(
         ILogger<QuestionsController> logger,
@@ -28,7 +30,8 @@ public class QuestionsController : ControllerBase
         UpdateQuestionCommandHandler updateHandler,
         DeleteQuestionCommandHandler deleteHandler,
         GetQuestionsQueryHandler getQuestionsHandler,
-        GetQuestionByIdQueryHandler getQuestionByIdHandler)
+        GetQuestionByIdQueryHandler getQuestionByIdHandler,
+        IQuestionRepository questionRepository)
     {
         _logger = logger;
         _createHandler = createHandler;
@@ -36,6 +39,7 @@ public class QuestionsController : ControllerBase
         _deleteHandler = deleteHandler;
         _getQuestionsHandler = getQuestionsHandler;
         _getQuestionByIdHandler = getQuestionByIdHandler;
+        _questionRepository = questionRepository;
     }
 
     /// <summary>
@@ -68,6 +72,9 @@ public class QuestionsController : ControllerBase
         
         if (result == null)
             return NotFound(new { message = $"Question with ID {id} not found" });
+        
+        // Increment view count asynchronously (fire and forget)
+        _ = _questionRepository.IncrementViewCountAsync(id, CancellationToken.None);
             
         return Ok(result);
     }
