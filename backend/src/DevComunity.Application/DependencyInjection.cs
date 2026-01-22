@@ -101,6 +101,9 @@ public static class DependencyInjection
         // SavedItems Query Handlers
         services.AddScoped<GetSavedItemsQueryHandler>();
 
+        // Search Query Handlers
+        services.AddScoped<DevComunity.Application.QueryHandlers.Search.SearchQueryHandler>();
+
         return services;
     }
 }
