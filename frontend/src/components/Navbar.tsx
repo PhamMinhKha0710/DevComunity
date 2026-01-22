@@ -12,14 +12,22 @@ export default function Navbar() {
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'light';
         setTheme(savedTheme);
-        document.documentElement.setAttribute('data-theme', savedTheme);
+        if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
     }, []);
 
     const toggleTheme = () => {
         const newTheme = theme === 'light' ? 'dark' : 'light';
         setTheme(newTheme);
         localStorage.setItem('theme', newTheme);
-        document.documentElement.setAttribute('data-theme', newTheme);
+        if (newTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
     };
 
     return (
@@ -166,6 +174,19 @@ export default function Navbar() {
                             <Link href="/users" className="block py-2 text-gray-600 dark:text-gray-300 hover:text-orange-500">
                                 Users
                             </Link>
+
+                            {/* Dark Mode Toggle - Mobile */}
+                            <button
+                                onClick={toggleTheme}
+                                className="flex items-center w-full py-2 text-gray-600 dark:text-gray-300 hover:text-orange-500"
+                            >
+                                {theme === 'light' ? (
+                                    <><i className="bi bi-moon-fill mr-2"></i>Dark Mode</>
+                                ) : (
+                                    <><i className="bi bi-sun-fill text-yellow-400 mr-2"></i>Light Mode</>
+                                )}
+                            </button>
+
                             {!isAuthenticated && (
                                 <div className="flex gap-2 pt-4">
                                     <Link href="/login" className="flex-1 text-center py-2 border border-orange-500 text-orange-500 rounded-lg">
