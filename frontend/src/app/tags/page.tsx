@@ -22,10 +22,19 @@ export default function TagsPage() {
 
     const fetchTags = async () => {
         try {
-            const response = await apiClient.get<Tag[]>('/tags');
-            setTags(response.data || []);
+            const response = await apiClient.get<{ items: Tag[] } | Tag[]>('/tags');
+            // Handle both array and paginated response formats
+            const data = response.data;
+            if (Array.isArray(data)) {
+                setTags(data);
+            } else if (data && 'items' in data) {
+                setTags(data.items || []);
+            } else {
+                setTags([]);
+            }
         } catch (error) {
             console.error('Failed to fetch tags:', error);
+            setTags([]);
         } finally {
             setIsLoading(false);
         }

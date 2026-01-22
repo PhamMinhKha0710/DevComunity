@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using DevComunity.Application.Common.DTOs;
+using DevComunity.Application.Queries.Tags;
+using DevComunity.Application.QueryHandlers.Tags;
 
 namespace DevComunity.Api.Controllers;
 
@@ -11,10 +13,17 @@ namespace DevComunity.Api.Controllers;
 public class TagsController : ControllerBase
 {
     private readonly ILogger<TagsController> _logger;
+    private readonly GetTagsQueryHandler _getTagsHandler;
+    private readonly GetTagByNameQueryHandler _getTagByNameHandler;
 
-    public TagsController(ILogger<TagsController> logger)
+    public TagsController(
+        ILogger<TagsController> logger,
+        GetTagsQueryHandler getTagsHandler,
+        GetTagByNameQueryHandler getTagByNameHandler)
     {
         _logger = logger;
+        _getTagsHandler = getTagsHandler;
+        _getTagByNameHandler = getTagByNameHandler;
     }
 
     /// <summary>
@@ -26,19 +35,21 @@ public class TagsController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 36,
-        [FromQuery] string sort = "popular", // popular, name, newest
+        [FromQuery] string sort = "popular",
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting tags with search: {Search}", search);
 
-        // TODO: Implement GetTagsQueryHandler
-        return Ok(new PaginatedResponse<TagDto>
+        var query = new GetTagsQuery
         {
-            Items = new List<TagDto>(),
             Page = page,
             PageSize = pageSize,
-            TotalCount = 0
-        });
+            Search = search,
+            Sort = sort
+        };
+
+        var result = await _getTagsHandler.HandleAsync(query, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -51,8 +62,13 @@ public class TagsController : ControllerBase
     {
         _logger.LogInformation("Getting tag: {TagName}", tagName);
 
-        // TODO: Implement GetTagByNameQueryHandler
-        return NotFound(new { message = $"Tag '{tagName}' not found" });
+        var query = new GetTagByNameQuery { TagName = tagName };
+        var result = await _getTagByNameHandler.HandleAsync(query, cancellationToken);
+
+        if (result == null)
+            return NotFound(new { message = $"Tag '{tagName}' not found" });
+
+        return Ok(result);
     }
 
     /// <summary>

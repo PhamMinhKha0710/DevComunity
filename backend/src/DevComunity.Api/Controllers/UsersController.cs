@@ -15,13 +15,42 @@ public class UsersController : ControllerBase
 {
     private readonly ILogger<UsersController> _logger;
     private readonly GetUserByIdQueryHandler _getUserByIdHandler;
+    private readonly GetUsersQueryHandler _getUsersHandler;
 
     public UsersController(
         ILogger<UsersController> logger,
-        GetUserByIdQueryHandler getUserByIdHandler)
+        GetUserByIdQueryHandler getUserByIdHandler,
+        GetUsersQueryHandler getUsersHandler)
     {
         _logger = logger;
         _getUserByIdHandler = getUserByIdHandler;
+        _getUsersHandler = getUsersHandler;
+    }
+
+    /// <summary>
+    /// Get paginated list of users
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PaginatedResponse<UserDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<UserDto>>> GetUsers(
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 36,
+        [FromQuery] string sortBy = "reputation",
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting users with search: {Search}, sortBy: {SortBy}", search, sortBy);
+
+        var query = new GetUsersQuery
+        {
+            Page = page,
+            PageSize = pageSize,
+            Search = search,
+            SortBy = sortBy
+        };
+
+        var result = await _getUsersHandler.HandleAsync(query, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>

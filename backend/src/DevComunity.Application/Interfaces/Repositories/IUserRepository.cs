@@ -15,5 +15,6 @@ public interface IUserRepository
     Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default);
     Task<bool> UsernameExistsAsync(string username, CancellationToken cancellationToken = default);
     Task<(User User, int QuestionCount, int AnswerCount)?> GetUserWithStatsAsync(int id, CancellationToken cancellationToken = default);
+    Task<(IEnumerable<User> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize, string? search, string sortBy, CancellationToken cancellationToken = default);
 }
 
