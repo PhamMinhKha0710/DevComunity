@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ================================================================
    DevCommunity Design System - Tailwind + Custom Styles
    ================================================================ */
@@ -35,7 +38,7 @@
 }
 
 /* Theme Variables - Dark Mode */
-html[data-theme="dark"] {
+html.dark {
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --bg-tertiary: #334155;
