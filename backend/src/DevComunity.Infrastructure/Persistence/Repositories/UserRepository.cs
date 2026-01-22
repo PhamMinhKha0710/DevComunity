@@ -107,5 +107,16 @@ public class UserRepository : IUserRepository
 
         return (items, totalCount);
     }
+
+    public async Task UpdateReputationAsync(int userId, int change, CancellationToken cancellationToken = default)
+    {
+        // Atomic update ensuring reputation doesn't go below 1
+        await _context.Users
+            .Where(u => u.UserId == userId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                u => u.ReputationPoints, 
+                u => u.ReputationPoints + change < 1 ? 1 : u.ReputationPoints + change
+            ), cancellationToken);
+    }
 }
 
