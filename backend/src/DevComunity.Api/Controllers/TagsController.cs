@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using DevComunity.Application.Common.DTOs;
 using DevComunity.Application.Queries.Tags;
+using DevComunity.Application.Queries.Questions;
 using DevComunity.Application.QueryHandlers.Tags;
+using DevComunity.Application.QueryHandlers.Questions;
 
 namespace DevComunity.Api.Controllers;
 
@@ -15,15 +17,18 @@ public class TagsController : ControllerBase
     private readonly ILogger<TagsController> _logger;
     private readonly GetTagsQueryHandler _getTagsHandler;
     private readonly GetTagByNameQueryHandler _getTagByNameHandler;
+    private readonly GetQuestionsQueryHandler _getQuestionsHandler;
 
     public TagsController(
         ILogger<TagsController> logger,
         GetTagsQueryHandler getTagsHandler,
-        GetTagByNameQueryHandler getTagByNameHandler)
+        GetTagByNameQueryHandler getTagByNameHandler,
+        GetQuestionsQueryHandler getQuestionsHandler)
     {
         _logger = logger;
         _getTagsHandler = getTagsHandler;
         _getTagByNameHandler = getTagByNameHandler;
+        _getQuestionsHandler = getQuestionsHandler;
     }
 
     /// <summary>
@@ -35,7 +40,7 @@ public class TagsController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 36,
-        [FromQuery] string sort = "popular",
+        [FromQuery] string sortBy = "popular",
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting tags with search: {Search}", search);
@@ -45,7 +50,7 @@ public class TagsController : ControllerBase
             Page = page,
             PageSize = pageSize,
             Search = search,
-            Sort = sort
+            Sort = sortBy
         };
 
         var result = await _getTagsHandler.HandleAsync(query, cancellationToken);
@@ -80,17 +85,20 @@ public class TagsController : ControllerBase
         string tagName,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 15,
+        [FromQuery] string sort = "newest",
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting questions for tag: {TagName}", tagName);
 
-        // TODO: Implement GetQuestionsByTagQueryHandler
-        return Ok(new PaginatedResponse<QuestionDto>
+        var query = new GetQuestionsQuery
         {
-            Items = new List<QuestionDto>(),
             Page = page,
             PageSize = pageSize,
-            TotalCount = 0
-        });
+            Tag = tagName,
+            Sort = sort
+        };
+
+        var result = await _getQuestionsHandler.HandleAsync(query, cancellationToken);
+        return Ok(result);
     }
 }
