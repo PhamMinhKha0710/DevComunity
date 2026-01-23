@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using DevComunity.Application.Common.DTOs;
+using DevComunity.Application.QueryHandlers.Badges;
 
 namespace DevComunity.Api.Controllers;
 
@@ -11,45 +12,59 @@ namespace DevComunity.Api.Controllers;
 public class BadgesController : ControllerBase
 {
     private readonly ILogger<BadgesController> _logger;
+    private readonly GetBadgesQueryHandler _getBadgesHandler;
+    private readonly GetBadgeByIdQueryHandler _getBadgeByIdHandler;
+    private readonly GetBadgeUsersQueryHandler _getBadgeUsersHandler;
 
-    public BadgesController(ILogger<BadgesController> logger)
+    public BadgesController(
+        ILogger<BadgesController> logger,
+        GetBadgesQueryHandler getBadgesHandler,
+        GetBadgeByIdQueryHandler getBadgeByIdHandler,
+        GetBadgeUsersQueryHandler getBadgeUsersHandler)
     {
         _logger = logger;
+        _getBadgesHandler = getBadgesHandler;
+        _getBadgeByIdHandler = getBadgeByIdHandler;
+        _getBadgeUsersHandler = getBadgeUsersHandler;
     }
 
     /// <summary>
     /// Get all available badges
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetBadges(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(IEnumerable<BadgeDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<BadgeDto>>> GetBadges(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Getting all badges");
 
-        // TODO: Implement GetBadgesQueryHandler
-        return Ok(new List<object>());
+        var result = await _getBadgesHandler.HandleAsync(cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
     /// Get badge by ID
     /// </summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BadgeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetBadge(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<BadgeDto>> GetBadge(int id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Getting badge {BadgeId}", id);
 
-        // TODO: Implement GetBadgeByIdQueryHandler
-        return NotFound(new { message = $"Badge with ID {id} not found" });
+        var result = await _getBadgeByIdHandler.HandleAsync(id, cancellationToken);
+        
+        if (result == null)
+            return NotFound(new { message = $"Badge with ID {id} not found" });
+
+        return Ok(result);
     }
 
     /// <summary>
     /// Get users who earned a badge
     /// </summary>
     [HttpGet("{id:int}/users")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetBadgeUsers(
+    [ProducesResponseType(typeof(PaginatedResponse<UserDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<UserDto>>> GetBadgeUsers(
         int id,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -57,7 +72,7 @@ public class BadgesController : ControllerBase
     {
         _logger.LogInformation("Getting users for badge {BadgeId}", id);
 
-        // TODO: Implement GetBadgeUsersQueryHandler
-        return Ok(new { items = new List<object>(), page, pageSize, totalCount = 0 });
+        var result = await _getBadgeUsersHandler.HandleAsync(id, page, pageSize, cancellationToken);
+        return Ok(result);
     }
 }

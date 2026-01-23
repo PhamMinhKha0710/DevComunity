@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using DevComunity.Application.Common.DTOs;
 using DevComunity.Application.Queries.Users;
 using DevComunity.Application.QueryHandlers.Users;
+using DevComunity.Application.QueryHandlers.Badges;
 
 namespace DevComunity.Api.Controllers;
 
@@ -18,19 +19,22 @@ public class UsersController : ControllerBase
     private readonly GetUsersQueryHandler _getUsersHandler;
     private readonly GetUserQuestionsQueryHandler _getUserQuestionsHandler;
     private readonly GetUserAnswersQueryHandler _getUserAnswersHandler;
+    private readonly GetUserBadgesQueryHandler _getUserBadgesHandler;
 
     public UsersController(
         ILogger<UsersController> logger,
         GetUserByIdQueryHandler getUserByIdHandler,
         GetUsersQueryHandler getUsersHandler,
         GetUserQuestionsQueryHandler getUserQuestionsHandler,
-        GetUserAnswersQueryHandler getUserAnswersHandler)
+        GetUserAnswersQueryHandler getUserAnswersHandler,
+        GetUserBadgesQueryHandler getUserBadgesHandler)
     {
         _logger = logger;
         _getUserByIdHandler = getUserByIdHandler;
         _getUsersHandler = getUsersHandler;
         _getUserQuestionsHandler = getUserQuestionsHandler;
         _getUserAnswersHandler = getUserAnswersHandler;
+        _getUserBadgesHandler = getUserBadgesHandler;
     }
 
     /// <summary>
@@ -116,12 +120,12 @@ public class UsersController : ControllerBase
     /// Get user's badges
     /// </summary>
     [HttpGet("{id:int}/badges")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetUserBadges(int id, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(IEnumerable<UserBadgeDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<UserBadgeDto>>> GetUserBadges(int id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Getting badges for user {UserId}", id);
 
-        // TODO: Implement GetUserBadgesQueryHandler
-        return Ok(new List<object>());
+        var result = await _getUserBadgesHandler.HandleAsync(id, cancellationToken);
+        return Ok(result);
     }
 }
