@@ -67,6 +67,8 @@ public static class DependencyInjection
         services.AddScoped<GetCurrentUserQueryHandler>();
         services.AddScoped<GetUserByIdQueryHandler>();
         services.AddScoped<GetUsersQueryHandler>();
+        services.AddScoped<GetUserQuestionsQueryHandler>();
+        services.AddScoped<GetUserAnswersQueryHandler>();
 
         // Comment Command Handlers
         services.AddScoped<CreateQuestionCommentCommandHandler>();

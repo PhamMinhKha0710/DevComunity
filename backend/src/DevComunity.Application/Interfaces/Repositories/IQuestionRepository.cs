@@ -21,4 +21,5 @@ public interface IQuestionRepository
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default);
     Task IncrementViewCountAsync(int id, CancellationToken cancellationToken = default);
+    Task<(IEnumerable<Question> Items, int TotalCount)> GetByUserIdAsync(int userId, int page, int pageSize, CancellationToken cancellationToken = default);
 }
