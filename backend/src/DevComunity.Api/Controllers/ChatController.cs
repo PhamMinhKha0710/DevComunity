@@ -1,5 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using DevComunity.Application.Common.DTOs;
+using DevComunity.Application.QueryHandlers.Chat;
+using DevComunity.Application.CommandHandlers.Chat;
+using System.Security.Claims;
 
 namespace DevComunity.Api.Controllers;
 
@@ -12,85 +16,146 @@ namespace DevComunity.Api.Controllers;
 public class ChatController : ControllerBase
 {
     private readonly ILogger<ChatController> _logger;
+    private readonly GetConversationsQueryHandler _getConversationsHandler;
+    private readonly GetConversationByIdQueryHandler _getConversationByIdHandler;
+    private readonly GetMessagesQueryHandler _getMessagesHandler;
+    private readonly StartConversationCommandHandler _startConversationHandler;
+    private readonly SendMessageCommandHandler _sendMessageHandler;
+    private readonly MarkConversationReadCommandHandler _markReadHandler;
 
-    public ChatController(ILogger<ChatController> logger)
+    public ChatController(
+        ILogger<ChatController> logger,
+        GetConversationsQueryHandler getConversationsHandler,
+        GetConversationByIdQueryHandler getConversationByIdHandler,
+        GetMessagesQueryHandler getMessagesHandler,
+        StartConversationCommandHandler startConversationHandler,
+        SendMessageCommandHandler sendMessageHandler,
+        MarkConversationReadCommandHandler markReadHandler)
     {
         _logger = logger;
+        _getConversationsHandler = getConversationsHandler;
+        _getConversationByIdHandler = getConversationByIdHandler;
+        _getMessagesHandler = getMessagesHandler;
+        _startConversationHandler = startConversationHandler;
+        _sendMessageHandler = sendMessageHandler;
+        _markReadHandler = markReadHandler;
+    }
+
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(userIdClaim, out var userId) ? userId : 0;
     }
 
     /// <summary>
     /// Get user's conversations
     /// </summary>
     [HttpGet("conversations")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetConversations(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(IEnumerable<ConversationDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<ConversationDto>>> GetConversations(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting conversations");
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
 
-        // TODO: Implement GetConversationsQueryHandler
-        return Ok(new List<object>());
+        _logger.LogInformation("Getting conversations for user {UserId}", userId);
+
+        var result = await _getConversationsHandler.HandleAsync(userId, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
     /// Get conversation by ID
     /// </summary>
     [HttpGet("conversations/{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ConversationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetConversation(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ConversationDto>> GetConversation(int id, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting conversation {ConversationId}", id);
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
 
-        // TODO: Implement GetConversationByIdQueryHandler
-        return Ok(new { conversationId = id, messages = new List<object>() });
+        _logger.LogInformation("Getting conversation {ConversationId} for user {UserId}", id, userId);
+
+        var result = await _getConversationByIdHandler.HandleAsync(id, userId, cancellationToken);
+        if (result == null)
+            return NotFound(new { message = "Conversation not found or access denied" });
+
+        return Ok(result);
     }
 
     /// <summary>
     /// Get messages in a conversation
     /// </summary>
     [HttpGet("conversations/{id:int}/messages")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMessages(
+    [ProducesResponseType(typeof(PaginatedResponse<MessageDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<MessageDto>>> GetMessages(
         int id,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
         _logger.LogInformation("Getting messages for conversation {ConversationId}", id);
 
-        // TODO: Implement GetMessagesQueryHandler
-        return Ok(new { items = new List<object>(), page, pageSize, totalCount = 0 });
+        var result = await _getMessagesHandler.HandleAsync(id, page, pageSize, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
     /// Start a new conversation
     /// </summary>
     [HttpPost("conversations")]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    public async Task<IActionResult> StartConversation(
+    [ProducesResponseType(typeof(ConversationDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<ConversationDto>> StartConversation(
         [FromBody] StartConversationRequest request,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Starting conversation with user {UserId}", request.RecipientId);
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
 
-        // TODO: Implement StartConversationCommandHandler
-        return Created("", new { conversationId = 1 });
+        _logger.LogInformation("User {UserId} starting conversation with user {RecipientId}", userId, request.RecipientId);
+
+        var command = new StartConversationCommand
+        {
+            InitiatorId = userId,
+            RecipientId = request.RecipientId,
+            InitialMessage = request.InitialMessage
+        };
+
+        var result = await _startConversationHandler.HandleAsync(command, cancellationToken);
+        return Created($"/api/chat/conversations/{result.ConversationId}", result);
     }
 
     /// <summary>
     /// Send a message
     /// </summary>
     [HttpPost("conversations/{id:int}/messages")]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    public async Task<IActionResult> SendMessage(
+    [ProducesResponseType(typeof(MessageDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MessageDto>> SendMessage(
         int id,
         [FromBody] SendMessageRequest request,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Sending message in conversation {ConversationId}", id);
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
 
-        // TODO: Implement SendMessageCommandHandler
-        return Created("", new { messageId = 1, content = request.Content, sentAt = DateTime.UtcNow });
+        _logger.LogInformation("User {UserId} sending message in conversation {ConversationId}", userId, id);
+
+        var command = new SendMessageCommand
+        {
+            ConversationId = id,
+            SenderId = userId,
+            Content = request.Content
+        };
+
+        var result = await _sendMessageHandler.HandleAsync(command, cancellationToken);
+        if (result == null)
+            return NotFound(new { message = "Conversation not found or access denied" });
+
+        return Created($"/api/chat/conversations/{id}/messages/{result.MessageId}", result);
     }
 
     /// <summary>
@@ -100,9 +165,18 @@ public class ChatController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> MarkAsRead(int id, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Marking conversation {ConversationId} as read", id);
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
 
-        // TODO: Implement MarkConversationReadCommandHandler
+        _logger.LogInformation("User {UserId} marking conversation {ConversationId} as read", userId, id);
+
+        var command = new MarkConversationReadCommand
+        {
+            ConversationId = id,
+            UserId = userId
+        };
+
+        await _markReadHandler.HandleAsync(command, cancellationToken);
         return Ok(new { message = "Messages marked as read" });
     }
 }
