@@ -16,15 +16,21 @@ public class UsersController : ControllerBase
     private readonly ILogger<UsersController> _logger;
     private readonly GetUserByIdQueryHandler _getUserByIdHandler;
     private readonly GetUsersQueryHandler _getUsersHandler;
+    private readonly GetUserQuestionsQueryHandler _getUserQuestionsHandler;
+    private readonly GetUserAnswersQueryHandler _getUserAnswersHandler;
 
     public UsersController(
         ILogger<UsersController> logger,
         GetUserByIdQueryHandler getUserByIdHandler,
-        GetUsersQueryHandler getUsersHandler)
+        GetUsersQueryHandler getUsersHandler,
+        GetUserQuestionsQueryHandler getUserQuestionsHandler,
+        GetUserAnswersQueryHandler getUserAnswersHandler)
     {
         _logger = logger;
         _getUserByIdHandler = getUserByIdHandler;
         _getUsersHandler = getUsersHandler;
+        _getUserQuestionsHandler = getUserQuestionsHandler;
+        _getUserAnswersHandler = getUserAnswersHandler;
     }
 
     /// <summary>
@@ -85,14 +91,8 @@ public class UsersController : ControllerBase
     {
         _logger.LogInformation("Getting questions for user {UserId}", id);
 
-        // TODO: Implement GetUserQuestionsQueryHandler
-        return Ok(new PaginatedResponse<QuestionDto>
-        {
-            Items = new List<QuestionDto>(),
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = 0
-        });
+        var result = await _getUserQuestionsHandler.HandleAsync(id, page, pageSize, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -108,14 +108,8 @@ public class UsersController : ControllerBase
     {
         _logger.LogInformation("Getting answers for user {UserId}", id);
 
-        // TODO: Implement GetUserAnswersQueryHandler
-        return Ok(new PaginatedResponse<AnswerDto>
-        {
-            Items = new List<AnswerDto>(),
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = 0
-        });
+        var result = await _getUserAnswersHandler.HandleAsync(id, page, pageSize, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>

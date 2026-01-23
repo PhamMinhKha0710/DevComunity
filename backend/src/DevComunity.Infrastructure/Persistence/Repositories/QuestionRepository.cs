@@ -120,4 +120,25 @@ public class QuestionRepository : IQuestionRepository
             .Where(q => q.QuestionId == id)
             .ExecuteUpdateAsync(setters => setters.SetProperty(q => q.ViewCount, q => q.ViewCount + 1), cancellationToken);
     }
+
+    public async Task<(IEnumerable<Question> Items, int TotalCount)> GetByUserIdAsync(
+        int userId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Questions
+            .Include(q => q.User)
+            .Include(q => q.QuestionTags)
+                .ThenInclude(qt => qt.Tag)
+            .Include(q => q.Answers)
+            .Where(q => q.UserId == userId)
+            .OrderByDescending(q => q.CreatedDate);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
 }
