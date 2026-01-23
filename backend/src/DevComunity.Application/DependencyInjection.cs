@@ -112,6 +112,16 @@ public static class DependencyInjection
         services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetBadgeUsersQueryHandler>();
         services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetUserBadgesQueryHandler>();
 
+        // Chat Query Handlers
+        services.AddScoped<DevComunity.Application.QueryHandlers.Chat.GetConversationsQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Chat.GetConversationByIdQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Chat.GetMessagesQueryHandler>();
+
+        // Chat Command Handlers
+        services.AddScoped<DevComunity.Application.CommandHandlers.Chat.StartConversationCommandHandler>();
+        services.AddScoped<DevComunity.Application.CommandHandlers.Chat.SendMessageCommandHandler>();
+        services.AddScoped<DevComunity.Application.CommandHandlers.Chat.MarkConversationReadCommandHandler>();
+
         return services;
     }
 }
