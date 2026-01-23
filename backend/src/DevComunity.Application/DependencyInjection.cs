@@ -122,6 +122,16 @@ public static class DependencyInjection
         services.AddScoped<DevComunity.Application.CommandHandlers.Chat.SendMessageCommandHandler>();
         services.AddScoped<DevComunity.Application.CommandHandlers.Chat.MarkConversationReadCommandHandler>();
 
+        // Repository Query Handlers
+        services.AddScoped<DevComunity.Application.QueryHandlers.Repositories.GetRepositoriesQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Repositories.GetRepositoryByIdQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Repositories.GetUserRepositoriesQueryHandler>();
+
+        // Repository Command Handlers
+        services.AddScoped<DevComunity.Application.CommandHandlers.Repositories.CreateRepositoryCommandHandler>();
+        services.AddScoped<DevComunity.Application.CommandHandlers.Repositories.UpdateRepositoryCommandHandler>();
+        services.AddScoped<DevComunity.Application.CommandHandlers.Repositories.DeleteRepositoryCommandHandler>();
+
         return services;
     }
 }

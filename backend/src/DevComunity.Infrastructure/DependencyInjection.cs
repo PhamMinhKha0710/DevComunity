@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<ISavedItemRepository, SavedItemRepository>();
         services.AddScoped<IBadgeRepository, BadgeRepository>();
+        services.AddScoped<ICodeRepository, CodeRepository>();
 
         // Register services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
