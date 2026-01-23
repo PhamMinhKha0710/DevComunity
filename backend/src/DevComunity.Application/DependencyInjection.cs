@@ -106,6 +106,12 @@ public static class DependencyInjection
         // Search Query Handlers
         services.AddScoped<DevComunity.Application.QueryHandlers.Search.SearchQueryHandler>();
 
+        // Badge Query Handlers
+        services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetBadgesQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetBadgeByIdQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetBadgeUsersQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetUserBadgesQueryHandler>();
+
         return services;
     }
 }
