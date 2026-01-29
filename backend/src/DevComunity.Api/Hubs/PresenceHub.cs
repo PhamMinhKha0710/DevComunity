@@ -7,6 +7,7 @@ namespace DevComunity.Api.Hubs;
 /// <summary>
 /// SignalR Hub for user presence/online status
 /// </summary>
+[Authorize]
 public class PresenceHub : Hub
 {
     private static readonly ConcurrentDictionary<string, HashSet<string>> OnlineUsers = new();

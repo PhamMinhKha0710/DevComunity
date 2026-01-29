@@ -134,7 +134,7 @@ app.MapControllers();
 
 // Map SignalR hubs
 app.MapHub<DevComunity.Api.Hubs.ChatHub>("/hubs/chat");
-app.MapHub<DevComunity.Api.Hubs.NotificationHub>("/hubs/notification");
+app.MapHub<DevComunity.Api.Hubs.NotificationHub>("/hubs/notifications");
 app.MapHub<DevComunity.Api.Hubs.QuestionHub>("/hubs/question");
 app.MapHub<DevComunity.Api.Hubs.PresenceHub>("/hubs/presence");
 app.MapHub<DevComunity.Api.Hubs.ActivityHub>("/hubs/activity");
