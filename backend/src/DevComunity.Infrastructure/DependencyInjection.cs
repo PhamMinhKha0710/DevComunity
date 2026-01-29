@@ -37,6 +37,13 @@ public static class DependencyInjection
         services.AddScoped<IBadgeRepository, BadgeRepository>();
         services.AddScoped<ICodeRepository, CodeRepository>();
 
+        // Social Networking repositories
+        services.AddScoped<IFriendshipRepository, FriendshipRepository>();
+        services.AddScoped<IFollowRepository, FollowRepository>();
+        services.AddScoped<IGroupRepository, GroupRepository>();
+        services.AddScoped<IPostRepository, PostRepository>();
+
+
         // Register services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
