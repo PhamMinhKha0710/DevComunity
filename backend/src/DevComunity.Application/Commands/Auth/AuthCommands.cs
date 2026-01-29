@@ -8,7 +8,6 @@ namespace DevComunity.Application.Commands.Auth;
 public class LoginCommand
 {
     [Required]
-    [EmailAddress]
     public string Email { get; set; } = null!;
 
     [Required]
