@@ -23,3 +23,14 @@ public class GetUserByUsernameQuery
 {
     public string Username { get; set; } = null!;
 }
+
+/// <summary>
+/// Query to get paginated list of users
+/// </summary>
+public class GetUsersQuery
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 36;
+    public string? Search { get; set; }
+    public string SortBy { get; set; } = "reputation"; // reputation, newest
+}

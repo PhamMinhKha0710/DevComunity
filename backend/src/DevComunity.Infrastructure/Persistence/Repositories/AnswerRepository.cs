@@ -84,4 +84,23 @@ public class AnswerRepository : IAnswerRepository
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    public async Task<(IEnumerable<Answer> Items, int TotalCount)> GetByUserIdAsync(
+        int userId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Answers
+            .Include(a => a.User)
+            .Include(a => a.Question)
+            .Where(a => a.UserId == userId)
+            .OrderByDescending(a => a.CreatedDate);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
 }

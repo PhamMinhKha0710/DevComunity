@@ -5,6 +5,8 @@ using DevComunity.Application.CommandHandlers.Questions;
 using DevComunity.Application.Queries.Questions;
 using DevComunity.Application.QueryHandlers.Questions;
 using DevComunity.Application.Common.DTOs;
+using DevComunity.Application.Interfaces.Repositories;
+using System.Security.Claims;
 
 namespace DevComunity.Api.Controllers;
 
@@ -21,6 +23,7 @@ public class QuestionsController : ControllerBase
     private readonly DeleteQuestionCommandHandler _deleteHandler;
     private readonly GetQuestionsQueryHandler _getQuestionsHandler;
     private readonly GetQuestionByIdQueryHandler _getQuestionByIdHandler;
+    private readonly IQuestionRepository _questionRepository;
 
     public QuestionsController(
         ILogger<QuestionsController> logger,
@@ -28,7 +31,8 @@ public class QuestionsController : ControllerBase
         UpdateQuestionCommandHandler updateHandler,
         DeleteQuestionCommandHandler deleteHandler,
         GetQuestionsQueryHandler getQuestionsHandler,
-        GetQuestionByIdQueryHandler getQuestionByIdHandler)
+        GetQuestionByIdQueryHandler getQuestionByIdHandler,
+        IQuestionRepository questionRepository)
     {
         _logger = logger;
         _createHandler = createHandler;
@@ -36,6 +40,13 @@ public class QuestionsController : ControllerBase
         _deleteHandler = deleteHandler;
         _getQuestionsHandler = getQuestionsHandler;
         _getQuestionByIdHandler = getQuestionByIdHandler;
+        _questionRepository = questionRepository;
+    }
+
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(userIdClaim, out var userId) ? userId : 0;
     }
 
     /// <summary>
@@ -68,6 +79,9 @@ public class QuestionsController : ControllerBase
         
         if (result == null)
             return NotFound(new { message = $"Question with ID {id} not found" });
+        
+        // Increment view count asynchronously (fire and forget)
+        _ = _questionRepository.IncrementViewCountAsync(id, CancellationToken.None);
             
         return Ok(result);
     }
@@ -84,13 +98,15 @@ public class QuestionsController : ControllerBase
         [FromBody] CreateQuestionCommand command,
         CancellationToken cancellationToken)
     {
+        var userId = GetCurrentUserId();
+        if (userId == 0)
+            return Unauthorized();
+
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        _logger.LogInformation("Creating question: {Title}", command.Title);
-        
-        // TODO: Get user ID from JWT claims
-        // command.UserId = GetCurrentUserId();
+        command.UserId = userId;
+        _logger.LogInformation("User {UserId} creating question: {Title}", userId, command.Title);
         
         var result = await _createHandler.HandleAsync(command, cancellationToken);
         
@@ -113,14 +129,17 @@ public class QuestionsController : ControllerBase
         [FromBody] UpdateQuestionCommand command,
         CancellationToken cancellationToken)
     {
+        var userId = GetCurrentUserId();
+        if (userId == 0)
+            return Unauthorized();
+
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
         command.QuestionId = id;
-        // TODO: Get user ID from JWT claims
-        // command.UserId = GetCurrentUserId();
+        command.UserId = userId;
 
-        _logger.LogInformation("Updating question {QuestionId}", id);
+        _logger.LogInformation("User {UserId} updating question {QuestionId}", userId, id);
         
         var success = await _updateHandler.HandleAsync(command, cancellationToken);
         
@@ -140,12 +159,16 @@ public class QuestionsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeleteQuestion(int id, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting question {QuestionId}", id);
+        var userId = GetCurrentUserId();
+        if (userId == 0)
+            return Unauthorized();
+
+        _logger.LogInformation("User {UserId} deleting question {QuestionId}", userId, id);
         
         var command = new DeleteQuestionCommand 
         { 
-            QuestionId = id 
-            // TODO: UserId = GetCurrentUserId()
+            QuestionId = id,
+            UserId = userId
         };
         
         var success = await _deleteHandler.HandleAsync(command, cancellationToken);

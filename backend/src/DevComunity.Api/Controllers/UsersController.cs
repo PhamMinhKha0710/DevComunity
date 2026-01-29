@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using DevComunity.Application.Common.DTOs;
 using DevComunity.Application.Queries.Users;
 using DevComunity.Application.QueryHandlers.Users;
+using DevComunity.Application.QueryHandlers.Badges;
 
 namespace DevComunity.Api.Controllers;
 
@@ -15,13 +16,51 @@ public class UsersController : ControllerBase
 {
     private readonly ILogger<UsersController> _logger;
     private readonly GetUserByIdQueryHandler _getUserByIdHandler;
+    private readonly GetUsersQueryHandler _getUsersHandler;
+    private readonly GetUserQuestionsQueryHandler _getUserQuestionsHandler;
+    private readonly GetUserAnswersQueryHandler _getUserAnswersHandler;
+    private readonly GetUserBadgesQueryHandler _getUserBadgesHandler;
 
     public UsersController(
         ILogger<UsersController> logger,
-        GetUserByIdQueryHandler getUserByIdHandler)
+        GetUserByIdQueryHandler getUserByIdHandler,
+        GetUsersQueryHandler getUsersHandler,
+        GetUserQuestionsQueryHandler getUserQuestionsHandler,
+        GetUserAnswersQueryHandler getUserAnswersHandler,
+        GetUserBadgesQueryHandler getUserBadgesHandler)
     {
         _logger = logger;
         _getUserByIdHandler = getUserByIdHandler;
+        _getUsersHandler = getUsersHandler;
+        _getUserQuestionsHandler = getUserQuestionsHandler;
+        _getUserAnswersHandler = getUserAnswersHandler;
+        _getUserBadgesHandler = getUserBadgesHandler;
+    }
+
+    /// <summary>
+    /// Get paginated list of users
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PaginatedResponse<UserDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<UserDto>>> GetUsers(
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 36,
+        [FromQuery] string sortBy = "reputation",
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting users with search: {Search}, sortBy: {SortBy}", search, sortBy);
+
+        var query = new GetUsersQuery
+        {
+            Page = page,
+            PageSize = pageSize,
+            Search = search,
+            SortBy = sortBy
+        };
+
+        var result = await _getUsersHandler.HandleAsync(query, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -56,14 +95,8 @@ public class UsersController : ControllerBase
     {
         _logger.LogInformation("Getting questions for user {UserId}", id);
 
-        // TODO: Implement GetUserQuestionsQueryHandler
-        return Ok(new PaginatedResponse<QuestionDto>
-        {
-            Items = new List<QuestionDto>(),
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = 0
-        });
+        var result = await _getUserQuestionsHandler.HandleAsync(id, page, pageSize, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -79,26 +112,20 @@ public class UsersController : ControllerBase
     {
         _logger.LogInformation("Getting answers for user {UserId}", id);
 
-        // TODO: Implement GetUserAnswersQueryHandler
-        return Ok(new PaginatedResponse<AnswerDto>
-        {
-            Items = new List<AnswerDto>(),
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = 0
-        });
+        var result = await _getUserAnswersHandler.HandleAsync(id, page, pageSize, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
     /// Get user's badges
     /// </summary>
     [HttpGet("{id:int}/badges")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetUserBadges(int id, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(IEnumerable<UserBadgeDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<UserBadgeDto>>> GetUserBadges(int id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Getting badges for user {UserId}", id);
 
-        // TODO: Implement GetUserBadgesQueryHandler
-        return Ok(new List<object>());
+        var result = await _getUserBadgesHandler.HandleAsync(id, cancellationToken);
+        return Ok(result);
     }
 }
