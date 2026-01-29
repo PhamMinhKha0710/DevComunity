@@ -13,4 +13,5 @@ public interface IAnswerRepository
     Task UpdateAsync(Answer answer, CancellationToken cancellationToken = default);
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
     Task<bool> AcceptAnswerAsync(int answerId, int questionId, CancellationToken cancellationToken = default);
+    Task<(IEnumerable<Answer> Items, int TotalCount)> GetByUserIdAsync(int userId, int page, int pageSize, CancellationToken cancellationToken = default);
 }

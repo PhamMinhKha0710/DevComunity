@@ -1,5 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using DevComunity.Application.Common.DTOs;
+using DevComunity.Application.Queries.Tags;
+using DevComunity.Application.Queries.Questions;
+using DevComunity.Application.QueryHandlers.Tags;
+using DevComunity.Application.QueryHandlers.Questions;
 
 namespace DevComunity.Api.Controllers;
 
@@ -11,10 +15,20 @@ namespace DevComunity.Api.Controllers;
 public class TagsController : ControllerBase
 {
     private readonly ILogger<TagsController> _logger;
+    private readonly GetTagsQueryHandler _getTagsHandler;
+    private readonly GetTagByNameQueryHandler _getTagByNameHandler;
+    private readonly GetQuestionsQueryHandler _getQuestionsHandler;
 
-    public TagsController(ILogger<TagsController> logger)
+    public TagsController(
+        ILogger<TagsController> logger,
+        GetTagsQueryHandler getTagsHandler,
+        GetTagByNameQueryHandler getTagByNameHandler,
+        GetQuestionsQueryHandler getQuestionsHandler)
     {
         _logger = logger;
+        _getTagsHandler = getTagsHandler;
+        _getTagByNameHandler = getTagByNameHandler;
+        _getQuestionsHandler = getQuestionsHandler;
     }
 
     /// <summary>
@@ -26,19 +40,21 @@ public class TagsController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 36,
-        [FromQuery] string sort = "popular", // popular, name, newest
+        [FromQuery] string sortBy = "popular",
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting tags with search: {Search}", search);
 
-        // TODO: Implement GetTagsQueryHandler
-        return Ok(new PaginatedResponse<TagDto>
+        var query = new GetTagsQuery
         {
-            Items = new List<TagDto>(),
             Page = page,
             PageSize = pageSize,
-            TotalCount = 0
-        });
+            Search = search,
+            Sort = sortBy
+        };
+
+        var result = await _getTagsHandler.HandleAsync(query, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -51,8 +67,13 @@ public class TagsController : ControllerBase
     {
         _logger.LogInformation("Getting tag: {TagName}", tagName);
 
-        // TODO: Implement GetTagByNameQueryHandler
-        return NotFound(new { message = $"Tag '{tagName}' not found" });
+        var query = new GetTagByNameQuery { TagName = tagName };
+        var result = await _getTagByNameHandler.HandleAsync(query, cancellationToken);
+
+        if (result == null)
+            return NotFound(new { message = $"Tag '{tagName}' not found" });
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -64,17 +85,20 @@ public class TagsController : ControllerBase
         string tagName,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 15,
+        [FromQuery] string sort = "newest",
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting questions for tag: {TagName}", tagName);
 
-        // TODO: Implement GetQuestionsByTagQueryHandler
-        return Ok(new PaginatedResponse<QuestionDto>
+        var query = new GetQuestionsQuery
         {
-            Items = new List<QuestionDto>(),
             Page = page,
             PageSize = pageSize,
-            TotalCount = 0
-        });
+            Tag = tagName,
+            Sort = sort
+        };
+
+        var result = await _getQuestionsHandler.HandleAsync(query, cancellationToken);
+        return Ok(result);
     }
 }

@@ -1,6 +1,5 @@
 using DevComunity.Application.Interfaces.Repositories;
 using DevComunity.Domain.Entities;
-using DevComunity.Domain.Enums;
 using DevComunity.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +25,18 @@ public class VoteRepository : IVoteRepository
                 v.QuestionId == questionId && 
                 v.AnswerId == answerId, 
                 cancellationToken);
+    }
+
+    public async Task<Vote?> GetUserVoteOnQuestionAsync(int userId, int questionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Votes
+            .FirstOrDefaultAsync(v => v.UserId == userId && v.QuestionId == questionId, cancellationToken);
+    }
+
+    public async Task<Vote?> GetUserVoteOnAnswerAsync(int userId, int answerId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Votes
+            .FirstOrDefaultAsync(v => v.UserId == userId && v.AnswerId == answerId, cancellationToken);
     }
 
     public async Task<Vote> AddAsync(Vote vote, CancellationToken cancellationToken = default)
@@ -56,7 +67,24 @@ public class VoteRepository : IVoteRepository
         var votes = await _context.Votes
             .Where(v => v.QuestionId == questionId && v.AnswerId == answerId)
             .ToListAsync(cancellationToken);
+        return votes.Sum(v => v.IsUpvote ? 1 : -1);
+    }
 
+    public async Task<int> GetQuestionScoreAsync(int questionId, CancellationToken cancellationToken = default)
+    {
+        var votes = await _context.Votes
+            .Where(v => v.QuestionId == questionId)
+            .ToListAsync(cancellationToken);
+        return votes.Sum(v => v.IsUpvote ? 1 : -1);
+    }
+
+    public async Task<int> GetAnswerScoreAsync(int answerId, CancellationToken cancellationToken = default)
+    {
+        var votes = await _context.Votes
+            .Where(v => v.AnswerId == answerId)
+            .ToListAsync(cancellationToken);
         return votes.Sum(v => v.IsUpvote ? 1 : -1);
     }
 }
+
+

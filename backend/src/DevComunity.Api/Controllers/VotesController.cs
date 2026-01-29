@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using DevComunity.Application.Commands.Votes;
+using DevComunity.Application.CommandHandlers.Votes;
+using System.Security.Claims;
 
 namespace DevComunity.Api.Controllers;
 
@@ -11,10 +14,26 @@ namespace DevComunity.Api.Controllers;
 public class VotesController : ControllerBase
 {
     private readonly ILogger<VotesController> _logger;
+    private readonly VoteQuestionCommandHandler _voteQuestionHandler;
+    private readonly VoteAnswerCommandHandler _voteAnswerHandler;
+    private readonly RemoveVoteCommandHandler _removeVoteHandler;
 
-    public VotesController(ILogger<VotesController> logger)
+    public VotesController(
+        ILogger<VotesController> logger,
+        VoteQuestionCommandHandler voteQuestionHandler,
+        VoteAnswerCommandHandler voteAnswerHandler,
+        RemoveVoteCommandHandler removeVoteHandler)
     {
         _logger = logger;
+        _voteQuestionHandler = voteQuestionHandler;
+        _voteAnswerHandler = voteAnswerHandler;
+        _removeVoteHandler = removeVoteHandler;
+    }
+
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(userIdClaim, out var userId) ? userId : 0;
     }
 
     /// <summary>
@@ -24,15 +43,31 @@ public class VotesController : ControllerBase
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> VoteQuestion(
         int questionId,
         [FromBody] VoteRequest request,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Voting on question {QuestionId}: {VoteType}", questionId, request.VoteType);
+        var userId = GetCurrentUserId();
+        if (userId == 0)
+            return Unauthorized();
 
-        // TODO: Implement VoteQuestionCommandHandler
-        return Ok(new { score = 0, userVote = request.VoteType });
+        _logger.LogInformation("User {UserId} voting on question {QuestionId}: {VoteType}", userId, questionId, request.VoteType);
+
+        var command = new VoteQuestionCommand
+        {
+            UserId = userId,
+            QuestionId = questionId,
+            VoteType = request.VoteType
+        };
+
+        var result = await _voteQuestionHandler.HandleAsync(command, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(new { message = result.Message });
+
+        return Ok(new { score = result.Score, userVote = result.UserVote });
     }
 
     /// <summary>
@@ -42,15 +77,31 @@ public class VotesController : ControllerBase
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> VoteAnswer(
         int answerId,
         [FromBody] VoteRequest request,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Voting on answer {AnswerId}: {VoteType}", answerId, request.VoteType);
+        var userId = GetCurrentUserId();
+        if (userId == 0)
+            return Unauthorized();
 
-        // TODO: Implement VoteAnswerCommandHandler
-        return Ok(new { score = 0, userVote = request.VoteType });
+        _logger.LogInformation("User {UserId} voting on answer {AnswerId}: {VoteType}", userId, answerId, request.VoteType);
+
+        var command = new VoteAnswerCommand
+        {
+            UserId = userId,
+            AnswerId = answerId,
+            VoteType = request.VoteType
+        };
+
+        var result = await _voteAnswerHandler.HandleAsync(command, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(new { message = result.Message });
+
+        return Ok(new { score = result.Score, userVote = result.UserVote });
     }
 
     /// <summary>
@@ -61,10 +112,20 @@ public class VotesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> RemoveQuestionVote(int questionId, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Removing vote from question {QuestionId}", questionId);
+        var userId = GetCurrentUserId();
+        if (userId == 0)
+            return Unauthorized();
 
-        // TODO: Implement RemoveVoteCommandHandler
-        return Ok(new { score = 0 });
+        _logger.LogInformation("User {UserId} removing vote from question {QuestionId}", userId, questionId);
+
+        var command = new RemoveVoteCommand
+        {
+            UserId = userId,
+            QuestionId = questionId
+        };
+
+        var result = await _removeVoteHandler.HandleAsync(command, cancellationToken);
+        return Ok(new { score = result.Score });
     }
 
     /// <summary>
@@ -75,10 +136,20 @@ public class VotesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> RemoveAnswerVote(int answerId, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Removing vote from answer {AnswerId}", answerId);
+        var userId = GetCurrentUserId();
+        if (userId == 0)
+            return Unauthorized();
 
-        // TODO: Implement RemoveVoteCommandHandler
-        return Ok(new { score = 0 });
+        _logger.LogInformation("User {UserId} removing vote from answer {AnswerId}", userId, answerId);
+
+        var command = new RemoveVoteCommand
+        {
+            UserId = userId,
+            AnswerId = answerId
+        };
+
+        var result = await _removeVoteHandler.HandleAsync(command, cancellationToken);
+        return Ok(new { score = result.Score });
     }
 }
 

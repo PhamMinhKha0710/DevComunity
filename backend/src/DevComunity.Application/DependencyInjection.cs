@@ -14,6 +14,23 @@ using DevComunity.Application.QueryHandlers.Answers;
 // User handlers
 using DevComunity.Application.QueryHandlers.Users;
 
+// Comment handlers
+using DevComunity.Application.CommandHandlers.Comments;
+
+// Tag handlers
+using DevComunity.Application.QueryHandlers.Tags;
+
+// Notification handlers
+using DevComunity.Application.CommandHandlers.Notifications;
+using DevComunity.Application.QueryHandlers.Notifications;
+
+// Vote handlers
+using DevComunity.Application.CommandHandlers.Votes;
+
+// SavedItems handlers
+using DevComunity.Application.CommandHandlers.SavedItems;
+using DevComunity.Application.QueryHandlers.SavedItems;
+
 namespace DevComunity.Application;
 
 /// <summary>
@@ -49,7 +66,73 @@ public static class DependencyInjection
         // User Query Handlers
         services.AddScoped<GetCurrentUserQueryHandler>();
         services.AddScoped<GetUserByIdQueryHandler>();
+        services.AddScoped<GetUsersQueryHandler>();
+        services.AddScoped<GetUserQuestionsQueryHandler>();
+        services.AddScoped<GetUserAnswersQueryHandler>();
+
+        // Comment Command Handlers
+        services.AddScoped<CreateQuestionCommentCommandHandler>();
+        services.AddScoped<CreateAnswerCommentCommandHandler>();
+        services.AddScoped<UpdateCommentCommandHandler>();
+        services.AddScoped<DeleteCommentCommandHandler>();
+
+        // Tag Query Handlers
+        services.AddScoped<GetTagsQueryHandler>();
+        services.AddScoped<GetTagByNameQueryHandler>();
+
+        // Notification Command Handlers
+        services.AddScoped<MarkNotificationReadCommandHandler>();
+        services.AddScoped<MarkAllNotificationsReadCommandHandler>();
+        services.AddScoped<DeleteNotificationCommandHandler>();
+
+        // Notification Query Handlers
+        services.AddScoped<GetNotificationsQueryHandler>();
+        services.AddScoped<GetUnreadCountQueryHandler>();
+
+        // Vote Command Handlers
+        services.AddScoped<VoteQuestionCommandHandler>();
+        services.AddScoped<VoteAnswerCommandHandler>();
+        services.AddScoped<RemoveVoteCommandHandler>();
+
+        // SavedItems Command Handlers
+        services.AddScoped<SaveQuestionCommandHandler>();
+        services.AddScoped<UnsaveQuestionCommandHandler>();
+        services.AddScoped<SaveAnswerCommandHandler>();
+        services.AddScoped<UnsaveAnswerCommandHandler>();
+
+        // SavedItems Query Handlers
+        services.AddScoped<GetSavedItemsQueryHandler>();
+
+        // Search Query Handlers
+        services.AddScoped<DevComunity.Application.QueryHandlers.Search.SearchQueryHandler>();
+
+        // Badge Query Handlers
+        services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetBadgesQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetBadgeByIdQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetBadgeUsersQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Badges.GetUserBadgesQueryHandler>();
+
+        // Chat Query Handlers
+        services.AddScoped<DevComunity.Application.QueryHandlers.Chat.GetConversationsQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Chat.GetConversationByIdQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Chat.GetMessagesQueryHandler>();
+
+        // Chat Command Handlers
+        services.AddScoped<DevComunity.Application.CommandHandlers.Chat.StartConversationCommandHandler>();
+        services.AddScoped<DevComunity.Application.CommandHandlers.Chat.SendMessageCommandHandler>();
+        services.AddScoped<DevComunity.Application.CommandHandlers.Chat.MarkConversationReadCommandHandler>();
+
+        // Repository Query Handlers
+        services.AddScoped<DevComunity.Application.QueryHandlers.Repositories.GetRepositoriesQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Repositories.GetRepositoryByIdQueryHandler>();
+        services.AddScoped<DevComunity.Application.QueryHandlers.Repositories.GetUserRepositoriesQueryHandler>();
+
+        // Repository Command Handlers
+        services.AddScoped<DevComunity.Application.CommandHandlers.Repositories.CreateRepositoryCommandHandler>();
+        services.AddScoped<DevComunity.Application.CommandHandlers.Repositories.UpdateRepositoryCommandHandler>();
+        services.AddScoped<DevComunity.Application.CommandHandlers.Repositories.DeleteRepositoryCommandHandler>();
 
         return services;
     }
 }
+

@@ -50,10 +50,12 @@ public class GetUserByIdQueryHandler
 
     public async Task<UserDto?> HandleAsync(GetUserByIdQuery query, CancellationToken cancellationToken = default)
     {
-        var user = await _userRepository.GetByIdAsync(query.UserId, cancellationToken);
+        var result = await _userRepository.GetUserWithStatsAsync(query.UserId, cancellationToken);
         
-        if (user == null)
+        if (result == null)
             return null;
+
+        var (user, questionCount, answerCount) = result.Value;
 
         return new UserDto
         {
@@ -63,7 +65,50 @@ public class GetUserByIdQueryHandler
             DisplayName = user.DisplayName,
             ProfilePicture = user.ProfilePicture,
             ReputationPoints = user.ReputationPoints,
-            IsEmailVerified = user.IsEmailVerified
+            IsEmailVerified = user.IsEmailVerified,
+            QuestionCount = questionCount,
+            AnswerCount = answerCount,
+            CreatedDate = user.CreatedDate
         };
     }
 }
+
+/// <summary>
+/// Handler for GetUsersQuery - paginated list of users
+/// </summary>
+public class GetUsersQueryHandler
+{
+    private readonly IUserRepository _userRepository;
+
+    public GetUsersQueryHandler(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    public async Task<PaginatedResponse<UserDto>> HandleAsync(GetUsersQuery query, CancellationToken cancellationToken = default)
+    {
+        var (items, totalCount) = await _userRepository.GetPaginatedAsync(
+            query.Page,
+            query.PageSize,
+            query.Search,
+            query.SortBy,
+            cancellationToken);
+
+        return new PaginatedResponse<UserDto>
+        {
+            Items = items.Select(u => new UserDto
+            {
+                UserId = u.UserId,
+                Username = u.Username,
+                DisplayName = u.DisplayName,
+                ProfilePicture = u.ProfilePicture,
+                ReputationPoints = u.ReputationPoints,
+                CreatedDate = u.CreatedDate
+            }).ToList(),
+            Page = query.Page,
+            PageSize = query.PageSize,
+            TotalCount = totalCount
+        };
+    }
+}
+
