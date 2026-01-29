@@ -4,6 +4,7 @@ import { AuthProvider } from '@/lib/contexts/AuthContext';
 import { NotificationProvider } from '@/lib/contexts/NotificationContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import ChatWidget from '@/components/ChatWidget';
 import { useEffect } from 'react';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                     {children}
                 </main>
                 <Footer />
+                <ChatWidget />
             </NotificationProvider>
         </AuthProvider>
     );
