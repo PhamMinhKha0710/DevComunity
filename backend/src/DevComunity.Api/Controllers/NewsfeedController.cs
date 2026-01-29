@@ -1,0 +1,270 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using DevComunity.Application.Common.DTOs;
+using DevComunity.Application.Interfaces.Repositories;
+using DevComunity.Domain.Entities;
+using System.Security.Claims;
+
+namespace DevComunity.Api.Controllers;
+
+/// <summary>
+/// API Controller for Newsfeed and Posts
+/// </summary>
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class NewsfeedController : ControllerBase
+{
+    private readonly ILogger<NewsfeedController> _logger;
+    private readonly IPostRepository _postRepository;
+    private readonly IGroupRepository _groupRepository;
+
+    public NewsfeedController(
+        ILogger<NewsfeedController> logger,
+        IPostRepository postRepository,
+        IGroupRepository groupRepository)
+    {
+        _logger = logger;
+        _postRepository = postRepository;
+        _groupRepository = groupRepository;
+    }
+
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(userIdClaim, out var userId) ? userId : 0;
+    }
+
+    /// <summary>
+    /// Get personalized newsfeed (posts from friends, followed users, and groups)
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PaginatedResponse<PostDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<PostDto>>> GetNewsfeed(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        var (items, totalCount) = await _postRepository.GetNewsfeedAsync(userId, page, pageSize, cancellationToken);
+
+        return Ok(new PaginatedResponse<PostDto>
+        {
+            Items = items.Select(MapToDto),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
+    }
+
+    /// <summary>
+    /// Get posts from a specific group
+    /// </summary>
+    [HttpGet("groups/{groupId:int}")]
+    [ProducesResponseType(typeof(PaginatedResponse<PostDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<PostDto>>> GetGroupPosts(
+        int groupId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        // Check if user is a member of the group
+        var group = await _groupRepository.GetByIdAsync(groupId, cancellationToken);
+        if (group == null) return NotFound(new { message = "Group not found" });
+
+        if (group.IsPrivate)
+        {
+            var isMember = await _groupRepository.IsMemberAsync(groupId, userId, cancellationToken);
+            if (!isMember) return Forbid();
+        }
+
+        var (items, totalCount) = await _postRepository.GetGroupPostsAsync(groupId, page, pageSize, cancellationToken);
+
+        return Ok(new PaginatedResponse<PostDto>
+        {
+            Items = items.Select(MapToDto),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
+    }
+
+    /// <summary>
+    /// Get posts by a specific user
+    /// </summary>
+    [HttpGet("users/{targetUserId:int}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PaginatedResponse<PostDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<PostDto>>> GetUserPosts(
+        int targetUserId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var (items, totalCount) = await _postRepository.GetUserPostsAsync(targetUserId, page, pageSize, cancellationToken);
+
+        // Filter to only public posts for non-friends
+        var publicPosts = items.Where(p => p.GroupId == null);
+
+        return Ok(new PaginatedResponse<PostDto>
+        {
+            Items = publicPosts.Select(MapToDto),
+            TotalCount = publicPosts.Count(),
+            Page = page,
+            PageSize = pageSize
+        });
+    }
+
+    /// <summary>
+    /// Create a new post
+    /// </summary>
+    [HttpPost("posts")]
+    [ProducesResponseType(typeof(PostDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<PostDto>> CreatePost(
+        [FromBody] CreatePostRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        // If posting to a group, verify membership
+        if (request.GroupId.HasValue)
+        {
+            var group = await _groupRepository.GetByIdAsync(request.GroupId.Value, cancellationToken);
+            if (group == null) return NotFound(new { message = "Group not found" });
+
+            var isMember = await _groupRepository.IsMemberAsync(request.GroupId.Value, userId, cancellationToken);
+            if (!isMember) return Forbid();
+        }
+
+        var post = new Post
+        {
+            AuthorId = userId,
+            GroupId = request.GroupId,
+            Content = request.Content
+        };
+
+        var created = await _postRepository.AddAsync(post, cancellationToken);
+        
+        // Reload with navigation properties
+        var result = await _postRepository.GetByIdAsync(created.PostId, cancellationToken);
+
+        _logger.LogInformation("User {UserId} created post {PostId}", userId, created.PostId);
+
+        return Created($"/api/newsfeed/posts/{result!.PostId}", MapToDto(result));
+    }
+
+    /// <summary>
+    /// Get a specific post
+    /// </summary>
+    [HttpGet("posts/{postId:int}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PostDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PostDto>> GetPost(int postId, CancellationToken cancellationToken)
+    {
+        var post = await _postRepository.GetByIdAsync(postId, cancellationToken);
+        if (post == null) return NotFound(new { message = "Post not found" });
+
+        // Check access for group posts
+        if (post.GroupId.HasValue && post.Group?.IsPrivate == true)
+        {
+            var userId = GetCurrentUserId();
+            if (userId > 0)
+            {
+                var isMember = await _groupRepository.IsMemberAsync(post.GroupId.Value, userId, cancellationToken);
+                if (!isMember) return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
+        }
+
+        return Ok(MapToDto(post));
+    }
+
+    /// <summary>
+    /// Update a post
+    /// </summary>
+    [HttpPut("posts/{postId:int}")]
+    [ProducesResponseType(typeof(PostDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PostDto>> UpdatePost(
+        int postId,
+        [FromBody] UpdatePostRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        var post = await _postRepository.GetByIdAsync(postId, cancellationToken);
+        if (post == null) return NotFound(new { message = "Post not found" });
+
+        // Only author can edit
+        if (post.AuthorId != userId) return Forbid();
+
+        post.Content = request.Content;
+        await _postRepository.UpdateAsync(post, cancellationToken);
+
+        _logger.LogInformation("User {UserId} updated post {PostId}", userId, postId);
+
+        return Ok(MapToDto(post));
+    }
+
+    /// <summary>
+    /// Delete a post
+    /// </summary>
+    [HttpDelete("posts/{postId:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeletePost(int postId, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        var post = await _postRepository.GetByIdAsync(postId, cancellationToken);
+        if (post == null) return NotFound(new { message = "Post not found" });
+
+        // Author or group admin can delete
+        if (post.AuthorId != userId)
+        {
+            if (post.GroupId.HasValue)
+            {
+                var member = await _groupRepository.GetMemberAsync(post.GroupId.Value, userId, cancellationToken);
+                if (member == null || (member.Role != GroupRole.Admin && member.Role != GroupRole.Moderator))
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
+        }
+
+        await _postRepository.DeleteAsync(postId, cancellationToken);
+
+        _logger.LogInformation("User {UserId} deleted post {PostId}", userId, postId);
+
+        return Ok(new { message = "Post deleted" });
+    }
+
+    private static PostDto MapToDto(Post p) => new()
+    {
+        PostId = p.PostId,
+        Author = new UserSummaryDto
+        {
+            UserId = p.Author.UserId,
+            Username = p.Author.Username,
+            DisplayName = p.Author.DisplayName,
+            ProfilePicture = p.Author.ProfilePicture
+        },
+        GroupId = p.GroupId,
+        GroupName = p.Group?.Name,
+        Content = p.Content,
+        CreatedAt = p.CreatedAt,
+        UpdatedAt = p.UpdatedAt
+    };
+}

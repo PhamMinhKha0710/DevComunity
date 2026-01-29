@@ -42,6 +42,14 @@ public class DevComunityDbContext : DbContext
     public DbSet<SavedItem> SavedItems => Set<SavedItem>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
 
+    // Social Networking
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+    public DbSet<UserFollow> UserFollows => Set<UserFollow>();
+    public DbSet<Group> Groups => Set<Group>();
+    public DbSet<GroupMember> GroupMembers => Set<GroupMember>();
+    public DbSet<Post> Posts => Set<Post>();
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

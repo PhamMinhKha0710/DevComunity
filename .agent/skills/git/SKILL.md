@@ -33,10 +33,19 @@ Mỗi branch, mỗi commit, mỗi merge đều phản ánh:
 
 | Loại | Format | Mục đích |
 |------|--------|----------|
+| **Main** | `main` | Production code, luôn stable |
+| **Develop** | `develop` | Integration branch, merge features vào đây trước |
 | Feature | `feature/ten-tinh-nang` | Phát triển tính năng mới |
 | Bugfix | `bugfix/mo-ta-loi` | Sửa lỗi đã biết |
 | Hotfix | `hotfix/mo-ta` | Sửa lỗi khẩn cấp production |
 | Experiment | `experiment/thu-nghiem` | Thử nghiệm ý tưởng mới |
+
+**Git Flow:**
+```
+feature/* ─→ develop ─→ main (production)
+bugfix/*  ─→ develop ─→ main
+hotfix/*  ─────────────→ main (urgent fixes)
+```
 
 **Ví dụ thực tế:**
 ```
