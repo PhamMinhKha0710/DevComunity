@@ -37,19 +37,25 @@
   --code-color: #e2e8f0;
 }
 
-/* Theme Variables - Dark Mode */
+/* Theme Variables - Dark Mode (Modern Discord/GitHub style) */
 html.dark {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --border-color: #334155;
-  --shadow-color: rgba(0, 0, 0, 0.3);
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d24;
+  --bg-tertiary: #252830;
+  --bg-card: #1e2228;
+  --bg-hover: #2a2f38;
+  --text-primary: #f8fafc;
+  --text-secondary: #a1a8b3;
+  --text-muted: #6b7280;
+  --border-color: #2d333b;
+  --shadow-color: rgba(0, 0, 0, 0.4);
 
   --primary-light: rgba(249, 115, 22, 0.15);
-  --code-bg: #0f172a;
+  --code-bg: #161b22;
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(30, 34, 40, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.1);
 }
 
 /* Base Styles */

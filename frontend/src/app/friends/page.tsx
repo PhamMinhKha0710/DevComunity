@@ -2,23 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout';
+import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface Friend {
-    friendshipId: number;
     userId: number;
     username: string;
     displayName: string;
     profilePicture: string | null;
-    status: string;
-    createdAt: string;
+    friendshipDate: string;
 }
 
 interface FriendRequest {
-    friendshipId: number;
-    requesterId: number;
-    requesterName: string;
+    requestId: number;
+    sender: {
+        userId: number;
+        username: string;
+        displayName: string;
+        profilePicture: string | null;
+    };
     createdAt: string;
 }
 
@@ -27,7 +29,7 @@ export default function FriendsPage() {
     const [friends, setFriends] = useState<Friend[]>([]);
     const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'friends' | 'pending' | 'followers'>('friends');
+    const [activeTab, setActiveTab] = useState<'friends' | 'pending'>('friends');
 
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5164';
     const getToken = () => localStorage.getItem('accessToken');
@@ -48,7 +50,7 @@ export default function FriendsPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setFriends(data || []);
+                setFriends(data.items || []);
             }
         } catch (error) {
             console.error('Error fetching friends:', error);
@@ -64,16 +66,16 @@ export default function FriendsPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setPendingRequests(data || []);
+                setPendingRequests(data.items || []);
             }
         } catch (error) {
             console.error('Error fetching pending requests:', error);
         }
     };
 
-    const handleAcceptRequest = async (friendshipId: number) => {
+    const handleAccept = async (requestId: number) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/Friendship/${friendshipId}/accept`, {
+            const response = await fetch(`${API_BASE_URL}/api/Friendship/accept/${requestId}`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${getToken()}` }
             });
@@ -86,9 +88,9 @@ export default function FriendsPage() {
         }
     };
 
-    const handleRejectRequest = async (friendshipId: number) => {
+    const handleDecline = async (requestId: number) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/Friendship/${friendshipId}/reject`, {
+            const response = await fetch(`${API_BASE_URL}/api/Friendship/decline/${requestId}`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${getToken()}` }
             });
@@ -96,164 +98,164 @@ export default function FriendsPage() {
                 fetchPendingRequests();
             }
         } catch (error) {
-            console.error('Error rejecting request:', error);
+            console.error('Error declining request:', error);
         }
     };
 
+    const gradients = [
+        'from-blue-500 to-cyan-500',
+        'from-purple-500 to-pink-500',
+        'from-green-500 to-emerald-500',
+        'from-orange-500 to-red-500',
+        'from-indigo-500 to-purple-500',
+    ];
+
     if (!isAuthenticated) {
         return (
-            <MainLayout>
-                <div className="text-center py-20">
-                    <i className="bi bi-lock text-6xl text-gray-400 mb-4"></i>
-                    <h2 className="text-2xl font-bold text-gray-600 dark:text-gray-300 mb-4">
-                        Login Required
-                    </h2>
-                    <p className="text-gray-500 mb-6">Please login to view your friends</p>
-                    <Link href="/login" className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition">
+            <AppLayout>
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-20 h-20 bg-[var(--bg-tertiary)] rounded-full flex items-center justify-center mb-6">
+                        <i className="bi bi-lock text-4xl text-[var(--text-muted)]"></i>
+                    </div>
+                    <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3">Login Required</h2>
+                    <p className="text-[var(--text-muted)] mb-6 max-w-md">
+                        Please login to view and manage your friends.
+                    </p>
+                    <Link href="/login" className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition">
                         Login Now
                     </Link>
                 </div>
-            </MainLayout>
+            </AppLayout>
         );
     }
 
     return (
-        <MainLayout>
-            <div className="max-w-3xl mx-auto">
-                {/* Header */}
-                <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        <i className="bi bi-person-hearts text-orange-500 mr-2"></i>
-                        Friends
-                    </h1>
-                    <p className="text-gray-600 dark:text-gray-400">
-                        Manage your connections and friend requests
-                    </p>
-                </div>
+        <AppLayout>
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <i className="bi bi-people-fill text-[var(--primary)]"></i>
+                    Friends
+                </h1>
+                <p className="text-[var(--text-muted)]">Manage your connections and friend requests</p>
+            </div>
 
-                {/* Tabs */}
-                <div className="flex gap-2 mb-6">
-                    <button
-                        onClick={() => setActiveTab('friends')}
-                        className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${activeTab === 'friends'
-                            ? 'bg-orange-500 text-white'
-                            : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-                            }`}
-                    >
-                        <i className="bi bi-people"></i>
-                        Friends ({friends.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('pending')}
-                        className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${activeTab === 'pending'
-                            ? 'bg-orange-500 text-white'
-                            : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-                            }`}
-                    >
-                        <i className="bi bi-person-plus"></i>
-                        Pending ({pendingRequests.length})
-                        {pendingRequests.length > 0 && (
-                            <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
-                                {pendingRequests.length}
-                            </span>
-                        )}
-                    </button>
-                </div>
+            {/* Tabs */}
+            <div className="flex bg-[var(--bg-secondary)] rounded-xl p-1 border border-[var(--border-color)] mb-6 w-fit">
+                <button
+                    onClick={() => setActiveTab('friends')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition ${activeTab === 'friends' ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                >
+                    <i className="bi bi-people"></i>
+                    Friends ({friends.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('pending')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition ${activeTab === 'pending' ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                >
+                    <i className="bi bi-person-plus"></i>
+                    Pending ({pendingRequests.length})
+                    {pendingRequests.length > 0 && (
+                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    )}
+                </button>
+            </div>
 
-                {/* Content */}
-                {loading ? (
-                    <div className="text-center py-10">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            ) : activeTab === 'friends' ? (
+                /* Friends List */
+                friends.length === 0 ? (
+                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                        <i className="bi bi-person-hearts text-5xl text-[var(--text-muted)] mb-4"></i>
+                        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No friends yet</h3>
+                        <p className="text-[var(--text-muted)] mb-4">Start connecting with other developers!</p>
+                        <Link href="/users" className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition">
+                            <i className="bi bi-search"></i>
+                            Browse Users
+                        </Link>
                     </div>
-                ) : activeTab === 'friends' ? (
-                    friends.length === 0 ? (
-                        <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
-                            <i className="bi bi-person-x text-6xl text-gray-400 mb-4"></i>
-                            <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                                No friends yet
-                            </h3>
-                            <p className="text-gray-500 mb-4">
-                                Start connecting with other developers!
-                            </p>
-                            <Link href="/users" className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition">
-                                Browse Users
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {friends.map((friend) => (
-                                <div key={friend.friendshipId} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                            {friend.username?.charAt(0).toUpperCase() || 'U'}
-                                        </div>
-                                        <div>
-                                            <Link href={`/users/${friend.userId}`} className="font-semibold text-gray-900 dark:text-white hover:text-orange-500">
-                                                {friend.displayName || friend.username}
-                                            </Link>
-                                            <p className="text-sm text-gray-500">@{friend.username}</p>
-                                        </div>
+                ) : (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {friends.map((friend, index) => (
+                            <div key={friend.userId} className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--primary)]/50 transition">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradients[index % gradients.length]} flex items-center justify-center text-white text-xl font-bold relative`}>
+                                        {friend.username.charAt(0).toUpperCase()}
+                                        <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-[var(--bg-secondary)] rounded-full"></span>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <Link href={`/chat?user=${friend.userId}`} className="px-3 py-1.5 border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition">
-                                            <i className="bi bi-chat-dots"></i>
-                                        </Link>
-                                        <Link href={`/users/${friend.userId}`} className="px-3 py-1.5 border border-orange-500 text-orange-500 rounded-lg hover:bg-orange-50 dark:hover:bg-slate-700 transition">
-                                            View Profile
-                                        </Link>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-[var(--text-primary)] truncate">
+                                            {friend.displayName || friend.username}
+                                        </h3>
+                                        <p className="text-sm text-[var(--text-muted)]">@{friend.username}</p>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    )
+                                <div className="flex gap-2">
+                                    <Link
+                                        href={`/chat?user=${friend.userId}`}
+                                        className="flex-1 py-2.5 text-center bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition text-sm"
+                                    >
+                                        <i className="bi bi-chat-dots mr-2"></i>
+                                        Chat
+                                    </Link>
+                                    <Link
+                                        href={`/users/${friend.userId}`}
+                                        className="flex-1 py-2.5 text-center bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium border border-[var(--border-color)] hover:border-[var(--primary)] transition text-sm"
+                                    >
+                                        <i className="bi bi-person mr-2"></i>
+                                        Profile
+                                    </Link>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
+            ) : (
+                /* Pending Requests */
+                pendingRequests.length === 0 ? (
+                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                        <i className="bi bi-inbox text-5xl text-[var(--text-muted)] mb-4"></i>
+                        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No pending requests</h3>
+                        <p className="text-[var(--text-muted)]">Check back later for new friend requests!</p>
+                    </div>
                 ) : (
-                    pendingRequests.length === 0 ? (
-                        <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
-                            <i className="bi bi-inbox text-6xl text-gray-400 mb-4"></i>
-                            <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                                No pending requests
-                            </h3>
-                            <p className="text-gray-500">
-                                You're all caught up!
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {pendingRequests.map((request) => (
-                                <div key={request.friendshipId} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                            {request.requesterName?.charAt(0).toUpperCase() || 'U'}
-                                        </div>
-                                        <div>
-                                            <Link href={`/users/${request.requesterId}`} className="font-semibold text-gray-900 dark:text-white hover:text-orange-500">
-                                                {request.requesterName}
-                                            </Link>
-                                            <p className="text-sm text-gray-500">
-                                                Sent {new Date(request.createdAt).toLocaleDateString()}
-                                            </p>
-                                        </div>
+                    <div className="space-y-3">
+                        {pendingRequests.map((request, index) => (
+                            <div key={request.requestId} className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--primary)]/30 transition">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradients[index % gradients.length]} flex items-center justify-center text-white text-xl font-bold shrink-0`}>
+                                        {request.sender.username.charAt(0).toUpperCase()}
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-[var(--text-primary)]">
+                                            {request.sender.displayName || request.sender.username}
+                                        </h3>
+                                        <p className="text-sm text-[var(--text-muted)]">@{request.sender.username} wants to be your friend</p>
+                                    </div>
+                                    <div className="flex gap-2 shrink-0">
                                         <button
-                                            onClick={() => handleAcceptRequest(request.friendshipId)}
-                                            className="px-4 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+                                            onClick={() => handleAccept(request.requestId)}
+                                            className="px-4 py-2 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition text-sm"
                                         >
+                                            <i className="bi bi-check-lg mr-1"></i>
                                             Accept
                                         </button>
                                         <button
-                                            onClick={() => handleRejectRequest(request.friendshipId)}
-                                            className="px-4 py-1.5 bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500 transition"
+                                            onClick={() => handleDecline(request.requestId)}
+                                            className="px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-muted)] rounded-xl font-medium hover:bg-red-500/20 hover:text-red-400 transition text-sm"
                                         >
-                                            Decline
+                                            <i className="bi bi-x-lg"></i>
                                         </button>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    )
-                )}
-            </div>
-        </MainLayout>
+                            </div>
+                        ))}
+                    </div>
+                )
+            )}
+        </AppLayout>
     );
 }
