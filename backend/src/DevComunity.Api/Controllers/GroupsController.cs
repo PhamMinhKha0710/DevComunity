@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using DevComunity.Application.Common.DTOs;
 using DevComunity.Application.Interfaces.Repositories;
 using DevComunity.Domain.Entities;
+using DevComunity.Api.Hubs;
 using System.Security.Claims;
 
 namespace DevComunity.Api.Controllers;
@@ -18,15 +20,18 @@ public class GroupsController : ControllerBase
     private readonly ILogger<GroupsController> _logger;
     private readonly IGroupRepository _groupRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public GroupsController(
         ILogger<GroupsController> logger,
         IGroupRepository groupRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IHubContext<NotificationHub> hubContext)
     {
         _logger = logger;
         _groupRepository = groupRepository;
         _userRepository = userRepository;
+        _hubContext = hubContext;
     }
 
     private int GetCurrentUserId()
@@ -374,6 +379,29 @@ public class GroupsController : ControllerBase
 
         _logger.LogInformation("User {UserId} joined group {GroupId}", userId, id);
 
+        // Real-time notification to group admin
+        try
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            await _hubContext.Clients.Group($"user_{group.CreatorId}")
+                .SendAsync("MemberJoinedGroup", new
+                {
+                    groupId = id,
+                    groupName = group.Name,
+                    member = new {
+                        userId = user!.UserId,
+                        username = user.Username,
+                        displayName = user.DisplayName,
+                        profilePicture = user.ProfilePicture
+                    },
+                    joinedAt = DateTime.UtcNow
+                }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending real-time member joined notification");
+        }
+
         return Ok(new { message = "Successfully joined group" });
     }
 
@@ -397,6 +425,27 @@ public class GroupsController : ControllerBase
         await _groupRepository.RemoveMemberAsync(id, userId, cancellationToken);
 
         _logger.LogInformation("User {UserId} left group {GroupId}", userId, id);
+
+        // Real-time notification to group admin
+        try
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            await _hubContext.Clients.Group($"user_{group.CreatorId}")
+                .SendAsync("MemberLeftGroup", new
+                {
+                    groupId = id,
+                    groupName = group.Name,
+                    member = new {
+                        userId = user!.UserId,
+                        username = user.Username
+                    },
+                    leftAt = DateTime.UtcNow
+                }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending real-time member left notification");
+        }
 
         return Ok(new { message = "Successfully left group" });
     }
