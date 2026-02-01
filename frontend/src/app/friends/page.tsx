@@ -31,7 +31,7 @@ export default function FriendsPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'friends' | 'pending'>('friends');
 
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5164';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5122';
     const getToken = () => localStorage.getItem('accessToken');
 
     useEffect(() => {
