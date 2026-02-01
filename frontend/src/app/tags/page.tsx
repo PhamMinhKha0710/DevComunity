@@ -3,12 +3,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 
 interface Tag {
     tagId: number;
     tagName: string;
     description?: string;
     questionCount: number;
+}
+
+interface TagsResponse {
+    items?: Tag[];
 }
 
 export default function TagsPage() {
@@ -22,82 +27,87 @@ export default function TagsPage() {
 
     const fetchTags = async () => {
         try {
-            const response = await apiClient.get<Tag[]>('/tags');
-            setTags(response.data || []);
+            const response = await apiClient.get<TagsResponse | Tag[]>('/tags');
+            // Handle both array and object response
+            const data = response.data;
+            if (Array.isArray(data)) {
+                setTags(data);
+            } else if (data && 'items' in data) {
+                setTags(data.items || []);
+            } else {
+                setTags([]);
+            }
         } catch (error) {
             console.error('Failed to fetch tags:', error);
+            setTags([]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const filteredTags = tags.filter(tag =>
-        tag.tagName.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredTags = Array.isArray(tags)
+        ? tags.filter(tag => tag.tagName.toLowerCase().includes(search.toLowerCase()))
+        : [];
 
     return (
-        <div className="container py-4">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2 className="fw-bold mb-1">Tags</h2>
-                    <p className="text-muted mb-0">Browse tags to find questions on topics you're interested in</p>
-                </div>
+        <AppLayout>
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <i className="bi bi-tags-fill text-[var(--primary)]"></i>
+                    Tags
+                </h1>
+                <p className="text-[var(--text-muted)]">Browse tags to find questions on topics you're interested in</p>
             </div>
 
             {/* Search */}
-            <div className="card border-0 shadow-sm rounded-4 mb-4">
-                <div className="card-body p-3">
-                    <div className="input-group">
-                        <span className="input-group-text bg-transparent border-end-0">
-                            <i className="bi bi-search"></i>
-                        </span>
-                        <input
-                            type="text"
-                            className="form-control border-start-0"
-                            placeholder="Filter by tag name..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
+            <div className="mb-6">
+                <div className="relative">
+                    <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"></i>
+                    <input
+                        type="text"
+                        placeholder="Filter by tag name..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                    />
                 </div>
             </div>
 
             {/* Tags Grid */}
             {isLoading ? (
-                <div className="text-center py-5">
-                    <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                    </div>
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            ) : filteredTags.length === 0 ? (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <i className="bi bi-tags text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No tags found</h3>
+                    <p className="text-[var(--text-muted)]">Try a different search term</p>
                 </div>
             ) : (
-                <div className="row g-4">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredTags.map((tag) => (
-                        <div key={tag.tagId} className="col-md-6 col-lg-4">
-                            <div className="card border-0 shadow-sm rounded-4 h-100 hover-lift">
-                                <div className="card-body">
-                                    <div className="d-flex justify-content-between align-items-start mb-2">
-                                        <Link href={`/questions?tag=${tag.tagName}`} className="btn btn-sm btn-outline-primary rounded-pill">
-                                            {tag.tagName}
-                                        </Link>
-                                        <span className="badge bg-light text-dark">{tag.questionCount} questions</span>
-                                    </div>
-                                    <p className="text-muted small mb-0">
-                                        {tag.description || `Questions about ${tag.tagName}`}
-                                    </p>
-                                </div>
+                        <Link
+                            key={tag.tagId}
+                            href={`/questions?tag=${tag.tagName}`}
+                            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--primary)]/50 transition group"
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg font-medium text-sm">
+                                    #{tag.tagName}
+                                </span>
+                                <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-full">
+                                    {tag.questionCount} questions
+                                </span>
                             </div>
-                        </div>
+                            <p className="text-sm text-[var(--text-secondary)] line-clamp-2">
+                                {tag.description || `Questions about ${tag.tagName}`}
+                            </p>
+                        </Link>
                     ))}
                 </div>
             )}
-
-            {filteredTags.length === 0 && !isLoading && (
-                <div className="text-center py-5">
-                    <i className="bi bi-tags fs-1 text-muted mb-3"></i>
-                    <h5>No tags found</h5>
-                    <p className="text-muted">Try a different search term</p>
-                </div>
-            )}
-        </div>
+        </AppLayout>
     );
 }

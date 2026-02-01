@@ -4,6 +4,7 @@ import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import AppLayout from '@/components/AppLayout';
 
 export default function NotificationsPage() {
     const { user, isLoading } = useAuth();
@@ -18,11 +19,11 @@ export default function NotificationsPage() {
 
     if (isLoading) {
         return (
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
+            <AppLayout showRightSidebar={false}>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
@@ -30,75 +31,95 @@ export default function NotificationsPage() {
 
     const getNotificationIcon = (type: string) => {
         switch (type) {
-            case 'answer': return 'bi-chat-left-text text-success';
-            case 'comment': return 'bi-chat-dots text-info';
-            case 'vote': return 'bi-hand-thumbs-up text-warning';
-            case 'accepted': return 'bi-check-circle text-success';
-            case 'mention': return 'bi-at text-primary';
-            default: return 'bi-bell text-secondary';
+            case 'answer': return { icon: 'bi-chat-left-text-fill', color: 'text-green-500', bg: 'bg-green-500/20' };
+            case 'comment': return { icon: 'bi-chat-dots-fill', color: 'text-blue-500', bg: 'bg-blue-500/20' };
+            case 'vote': return { icon: 'bi-hand-thumbs-up-fill', color: 'text-yellow-500', bg: 'bg-yellow-500/20' };
+            case 'accepted': return { icon: 'bi-check-circle-fill', color: 'text-green-500', bg: 'bg-green-500/20' };
+            case 'mention': return { icon: 'bi-at', color: 'text-purple-500', bg: 'bg-purple-500/20' };
+            case 'follow': return { icon: 'bi-person-plus-fill', color: 'text-pink-500', bg: 'bg-pink-500/20' };
+            default: return { icon: 'bi-bell-fill', color: 'text-[var(--text-muted)]', bg: 'bg-[var(--bg-tertiary)]' };
         }
     };
 
-    return (
-        <div className="container py-4">
-            <div className="row justify-content-center">
-                <div className="col-lg-8">
-                    <div className="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h2 className="fw-bold mb-1">Notifications</h2>
-                            <p className="text-muted mb-0">
-                                {unreadCount > 0 ? `${unreadCount} unread notifications` : 'All caught up!'}
-                            </p>
-                        </div>
-                        {unreadCount > 0 && (
-                            <button className="btn btn-outline-primary rounded-pill" onClick={markAllAsRead}>
-                                <i className="bi bi-check-all me-2"></i>Mark all as read
-                            </button>
-                        )}
-                    </div>
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
 
-                    <div className="card border-0 shadow-sm rounded-4">
-                        {notifications.length > 0 ? (
-                            <div className="list-group list-group-flush">
-                                {notifications.map((notification) => (
-                                    <div
-                                        key={notification.notificationId}
-                                        className={`list-group-item p-3 border-0 border-bottom ${!notification.isRead ? 'bg-light' : ''}`}
-                                        onClick={() => !notification.isRead && markAsRead(notification.notificationId)}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        <div className="d-flex">
-                                            <div className="me-3">
-                                                <i className={`bi ${getNotificationIcon(notification.type)} fs-4`}></i>
-                                            </div>
-                                            <div className="flex-grow-1">
-                                                <p className="mb-1">{notification.message}</p>
-                                                <small className="text-muted">
-                                                    {new Date(notification.createdDate).toLocaleDateString('en-US', {
-                                                        month: 'short',
-                                                        day: 'numeric',
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })}
-                                                </small>
-                                            </div>
-                                            {!notification.isRead && (
-                                                <span className="badge bg-primary rounded-pill">New</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="card-body text-center py-5">
-                                <i className="bi bi-bell-slash fs-1 text-muted mb-3"></i>
-                                <h5>No notifications yet</h5>
-                                <p className="text-muted">When you get notifications, they'll show up here</p>
-                            </div>
-                        )}
-                    </div>
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    };
+
+    return (
+        <AppLayout showRightSidebar={false}>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                        <i className="bi bi-bell-fill text-[var(--primary)]"></i>
+                        Notifications
+                    </h1>
+                    <p className="text-[var(--text-muted)]">
+                        {unreadCount > 0 ? `${unreadCount} unread notifications` : 'All caught up!'}
+                    </p>
                 </div>
+                {unreadCount > 0 && (
+                    <button
+                        onClick={markAllAsRead}
+                        className="flex items-center gap-2 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
+                    >
+                        <i className="bi bi-check-all"></i>
+                        Mark all as read
+                    </button>
+                )}
             </div>
-        </div>
+
+            {/* Notifications List */}
+            {notifications.length > 0 ? (
+                <div className="space-y-3">
+                    {notifications.map((notification) => {
+                        const iconStyle = getNotificationIcon(notification.type);
+                        return (
+                            <button
+                                key={notification.notificationId}
+                                onClick={() => !notification.isRead && markAsRead(notification.notificationId)}
+                                className={`w-full text-left p-4 rounded-2xl border transition flex items-start gap-4 ${!notification.isRead
+                                        ? 'bg-[var(--primary)]/5 border-[var(--primary)]/30'
+                                        : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--border-color)]'
+                                    }`}
+                            >
+                                <div className={`w-10 h-10 rounded-xl ${iconStyle.bg} flex items-center justify-center flex-shrink-0`}>
+                                    <i className={`bi ${iconStyle.icon} ${iconStyle.color}`}></i>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-[var(--text-primary)] ${!notification.isRead ? 'font-medium' : ''}`}>
+                                        {notification.message}
+                                    </p>
+                                    <span className="text-sm text-[var(--text-muted)]">
+                                        {formatDate(notification.createdDate)}
+                                    </span>
+                                </div>
+                                {!notification.isRead && (
+                                    <span className="px-2 py-1 text-xs font-medium bg-[var(--primary)] text-white rounded-lg">
+                                        New
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <i className="bi bi-bell-slash text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No notifications yet</h3>
+                    <p className="text-[var(--text-muted)]">When you get notifications, they&apos;ll show up here</p>
+                </div>
+            )}
+        </AppLayout>
     );
 }
