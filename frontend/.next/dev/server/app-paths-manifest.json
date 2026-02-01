@@ -11,6 +11,8 @@
   "/questions/[id]/page": "app/questions/[id]/page.js",
   "/questions/ask/page": "app/questions/ask/page.js",
   "/questions/page": "app/questions/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/tags/page": "app/tags/page.js",
   "/users/[id]/page": "app/users/[id]/page.js",
   "/users/page": "app/users/page.js"
 }

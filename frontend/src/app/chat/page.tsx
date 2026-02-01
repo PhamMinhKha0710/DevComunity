@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import type { Conversation, ChatMessage } from '@/types';
 import apiClient from '@/lib/api/client';
+import ModernNavbar from '@/components/ModernNavbar';
 
 export default function ChatPage() {
     const { user, isLoading: authLoading } = useAuth();
@@ -16,6 +16,7 @@ export default function ChatPage() {
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [lastMessageTime, setLastMessageTime] = useState<string | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -25,16 +26,17 @@ export default function ChatPage() {
         }
     }, [user, authLoading, router]);
 
-    // Polling for new messages every 3 seconds
     useEffect(() => {
         if (!selectedConversation) return;
-
         const pollInterval = setInterval(() => {
             fetchNewMessages();
         }, 3000);
-
         return () => clearInterval(pollInterval);
     }, [selectedConversation, lastMessageTime]);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     const fetchConversations = async () => {
         try {
@@ -62,7 +64,6 @@ export default function ChatPage() {
 
     const fetchNewMessages = async () => {
         if (!selectedConversation || !lastMessageTime) return;
-
         try {
             const response = await apiClient.get<{ messages: ChatMessage[] }>(
                 `/chat/conversations/${selectedConversation}/messages/new?since=${encodeURIComponent(lastMessageTime)}`
@@ -84,13 +85,11 @@ export default function ChatPage() {
 
     const sendMessage = async () => {
         if (!newMessage.trim() || !selectedConversation) return;
-
         try {
             await apiClient.post(`/chat/conversations/${selectedConversation}/messages`, {
                 content: newMessage
             });
             setNewMessage('');
-            // Immediately fetch to show our message
             fetchMessages(selectedConversation);
         } catch (error) {
             console.error('Failed to send message:', error);
@@ -102,177 +101,170 @@ export default function ChatPage() {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
+    const selectedConv = conversations.find(c => c.conversationId === selectedConversation);
+
     if (authLoading || isLoading) {
         return (
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
+            <>
+                <ModernNavbar />
+                <div className="flex items-center justify-center min-h-screen bg-[var(--bg-primary)]">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
                 </div>
-            </div>
+            </>
         );
     }
 
     if (!user) return null;
 
     return (
-        <div className="container-fluid py-0" style={{ height: 'calc(100vh - 160px)' }}>
-            <div className="row h-100">
+        <>
+            <ModernNavbar />
+            <div className="flex h-[calc(100vh-64px)] bg-[var(--bg-primary)]">
                 {/* Conversations Sidebar */}
-                <div className="col-md-4 col-lg-3 border-end h-100 d-flex flex-column">
-                    <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0 fw-bold">
-                            <i className="bi bi-chat-dots me-2"></i>Messages
-                        </h5>
-                        <button className="btn btn-sm btn-primary rounded-circle">
-                            <i className="bi bi-plus"></i>
-                        </button>
+                <div className="w-80 bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col">
+                    {/* Sidebar Header */}
+                    <div className="p-4 border-b border-[var(--border-color)]">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                                <i className="bi bi-chat-dots-fill text-[var(--primary)]"></i>
+                                Messages
+                            </h2>
+                            <button className="w-8 h-8 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center hover:bg-[var(--primary-dark)] transition">
+                                <i className="bi bi-plus"></i>
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex-grow-1 overflow-auto">
+                    {/* Conversation List */}
+                    <div className="flex-1 overflow-y-auto">
                         {conversations.length > 0 ? (
-                            <div className="list-group list-group-flush">
-                                {conversations.map((conv) => (
-                                    <button
-                                        key={conv.conversationId}
-                                        onClick={() => selectConversation(conv.conversationId)}
-                                        className={`list-group-item list-group-item-action p-3 border-0 ${selectedConversation === conv.conversationId ? 'active' : ''
-                                            }`}
-                                    >
-                                        <div className="d-flex w-100 justify-content-between align-items-start">
-                                            <div className="d-flex">
-                                                <div className="position-relative me-3">
-                                                    {conv.participants.length > 0 ? (
-                                                        <img
-                                                            src={conv.participants[0].profilePicture || '/images/default-avatar.png'}
-                                                            className="rounded-circle"
-                                                            width="48"
-                                                            height="48"
-                                                            alt=""
-                                                        />
-                                                    ) : (
-                                                        <div className="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style={{ width: 48, height: 48 }}>
-                                                            <i className="bi bi-person text-white"></i>
-                                                        </div>
-                                                    )}
-                                                    {conv.unreadCount > 0 && (
-                                                        <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                                            {conv.unreadCount}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <h6 className="mb-1 fw-semibold">
-                                                        {conv.title || conv.participants.map(p => p.username).join(', ')}
-                                                    </h6>
-                                                    <p className="mb-0 small text-truncate" style={{ maxWidth: '150px' }}>
-                                                        {conv.lastMessage || 'No messages yet'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <small className="text-muted">{formatTime(conv.lastActivityAt)}</small>
+                            conversations.map((conv) => (
+                                <button
+                                    key={conv.conversationId}
+                                    onClick={() => selectConversation(conv.conversationId)}
+                                    className={`w-full p-4 flex items-start gap-3 border-b border-[var(--border-color)] transition ${selectedConversation === conv.conversationId
+                                        ? 'bg-[var(--primary)]/10'
+                                        : 'hover:bg-[var(--bg-tertiary)]'
+                                        }`}
+                                >
+                                    {/* Avatar */}
+                                    <div className="relative">
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                                            {conv.participants[0]?.username?.charAt(0).toUpperCase() || '?'}
                                         </div>
-                                    </button>
-                                ))}
-                            </div>
+                                        {conv.unreadCount > 0 && (
+                                            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 flex items-center justify-center px-1.5 text-xs font-bold bg-red-500 text-white rounded-full">
+                                                {conv.unreadCount}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Info */}
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="font-semibold text-[var(--text-primary)] truncate">
+                                                {conv.title || conv.participants.map(p => p.username).join(', ')}
+                                            </span>
+                                            <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
+                                                {formatTime(conv.lastActivityAt)}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-[var(--text-muted)] truncate mt-0.5">
+                                            {conv.lastMessage || 'No messages yet'}
+                                        </p>
+                                    </div>
+                                </button>
+                            ))
                         ) : (
-                            <div className="text-center py-5 text-muted">
-                                <i className="bi bi-chat-square-dots fs-1 mb-3"></i>
-                                <p>No conversations yet</p>
+                            <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                                <i className="bi bi-chat-square-dots text-5xl text-[var(--text-muted)] mb-4"></i>
+                                <p className="text-[var(--text-muted)]">No conversations yet</p>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* Chat Area */}
-                <div className="col-md-8 col-lg-9 h-100 d-flex flex-column">
+                <div className="flex-1 flex flex-col">
                     {selectedConversation ? (
                         <>
                             {/* Chat Header */}
-                            <div className="p-3 border-bottom bg-white">
-                                <div className="d-flex align-items-center">
-                                    {conversations.find(c => c.conversationId === selectedConversation)?.participants[0] && (
-                                        <img
-                                            src={conversations.find(c => c.conversationId === selectedConversation)?.participants[0].profilePicture || '/images/default-avatar.png'}
-                                            className="rounded-circle me-3"
-                                            width="40"
-                                            height="40"
-                                            alt=""
-                                        />
-                                    )}
+                            <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                                        {selectedConv?.participants[0]?.username?.charAt(0).toUpperCase() || '?'}
+                                    </div>
                                     <div>
-                                        <h6 className="mb-0 fw-bold">
-                                            {conversations.find(c => c.conversationId === selectedConversation)?.title ||
-                                                conversations.find(c => c.conversationId === selectedConversation)?.participants.map(p => p.username).join(', ')}
-                                        </h6>
-                                        <small className="text-success">
-                                            <i className="bi bi-circle-fill me-1" style={{ fontSize: '0.5rem' }}></i>Online
-                                        </small>
+                                        <h3 className="font-semibold text-[var(--text-primary)]">
+                                            {selectedConv?.title || selectedConv?.participants.map(p => p.username).join(', ')}
+                                        </h3>
+                                        <span className="text-xs text-green-500 flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                            Online
+                                        </span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Messages */}
-                            <div className="flex-grow-1 overflow-auto p-4 bg-light" id="messagesContainer">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[var(--bg-tertiary)]">
                                 {messages.map((msg) => (
                                     <div
                                         key={msg.messageId}
-                                        className={`d-flex mb-3 ${msg.senderId === user.userId ? 'justify-content-end' : 'justify-content-start'}`}
+                                        className={`flex ${msg.senderId === user.userId ? 'justify-end' : 'justify-start'}`}
                                     >
                                         {msg.senderId !== user.userId && (
-                                            <img
-                                                src={msg.senderAvatar || '/images/default-avatar.png'}
-                                                className="rounded-circle me-2 align-self-end"
-                                                width="32"
-                                                height="32"
-                                                alt=""
-                                            />
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold mr-2 flex-shrink-0">
+                                                {msg.senderName?.charAt(0).toUpperCase() || '?'}
+                                            </div>
                                         )}
                                         <div
-                                            className={`p-3 rounded-4 ${msg.senderId === user.userId
-                                                    ? 'bg-primary text-white'
-                                                    : 'bg-white border'
+                                            className={`max-w-[70%] px-4 py-3 rounded-2xl ${msg.senderId === user.userId
+                                                ? 'bg-[var(--primary)] text-white rounded-tr-sm'
+                                                : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-tl-sm'
                                                 }`}
-                                            style={{ maxWidth: '70%' }}
                                         >
-                                            <p className="mb-1">{msg.content}</p>
-                                            <small className={msg.senderId === user.userId ? 'text-white-50' : 'text-muted'}>
+                                            <p className="break-words">{msg.content}</p>
+                                            <span className={`text-xs mt-1 block ${msg.senderId === user.userId ? 'text-white/70' : 'text-[var(--text-muted)]'
+                                                }`}>
                                                 {formatTime(msg.sentAt)}
-                                            </small>
+                                            </span>
                                         </div>
                                     </div>
                                 ))}
+                                <div ref={messagesEndRef} />
                             </div>
 
                             {/* Message Input */}
-                            <div className="p-3 border-top bg-white">
-                                <div className="input-group">
+                            <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
+                                <div className="flex items-center gap-3">
                                     <input
                                         type="text"
-                                        className="form-control rounded-pill border-end-0"
                                         placeholder="Type a message..."
                                         value={newMessage}
                                         onChange={(e) => setNewMessage(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                                        className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                                     />
                                     <button
-                                        className="btn btn-primary rounded-pill ms-2"
                                         onClick={sendMessage}
                                         disabled={!newMessage.trim()}
+                                        className="w-12 h-12 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center hover:bg-[var(--primary-dark)] disabled:opacity-50 transition"
                                     >
-                                        <i className="bi bi-send"></i>
+                                        <i className="bi bi-send-fill"></i>
                                     </button>
                                 </div>
                             </div>
                         </>
                     ) : (
-                        <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-muted">
-                            <i className="bi bi-chat-square-dots fs-1 mb-3"></i>
-                            <h5>Select a conversation</h5>
-                            <p>Choose a conversation from the list or start a new one</p>
+                        <div className="flex-1 flex flex-col items-center justify-center text-center bg-[var(--bg-tertiary)]">
+                            <i className="bi bi-chat-square-dots text-6xl text-[var(--text-muted)] mb-4"></i>
+                            <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Select a conversation</h3>
+                            <p className="text-[var(--text-muted)]">Choose a conversation from the list or start a new one</p>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+        </>
     );
 }

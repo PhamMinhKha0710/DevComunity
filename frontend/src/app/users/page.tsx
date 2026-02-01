@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import apiClient from '@/lib/api/client';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import AppLayout from '@/components/AppLayout';
 
 interface User {
     userId: number;
@@ -79,7 +80,6 @@ export default function UsersPage() {
     const fetchUsers = async () => {
         try {
             const response = await apiClient.get<any>(`/users?sortBy=${sortBy}`);
-            // Handle both array and paginated response { items: [], totalCount: ... }
             const data = response.data;
             if (Array.isArray(data)) {
                 setUsers(data);
@@ -101,129 +101,119 @@ export default function UsersPage() {
         (user.displayName || '').toLowerCase().includes(search.toLowerCase())
     );
 
+    const sortOptions = [
+        { key: 'reputation', label: 'Reputation', icon: 'bi-award' },
+        { key: 'newest', label: 'New Users', icon: 'bi-person-plus' },
+    ];
+
     return (
-        <div className="container py-4">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2 className="fw-bold mb-1">Users</h2>
-                    <p className="text-muted mb-0">Connect with developers in our community</p>
-                </div>
+        <AppLayout>
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <i className="bi bi-people-fill text-[var(--primary)]"></i>
+                    Community Members
+                </h1>
+                <p className="text-[var(--text-muted)]">Connect with developers in our community</p>
             </div>
 
-            {/* Search and Filters */}
-            <div className="card border-0 shadow-sm rounded-4 mb-4">
-                <div className="card-body p-3">
-                    <div className="row g-3 align-items-center">
-                        <div className="col-md-6">
-                            <div className="input-group">
-                                <span className="input-group-text bg-transparent border-end-0">
-                                    <i className="bi bi-search"></i>
-                                </span>
-                                <input
-                                    type="text"
-                                    className="form-control border-start-0"
-                                    placeholder="Search users..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        <div className="col-md-6">
-                            <div className="d-flex gap-2 justify-content-md-end">
-                                <button
-                                    className={`btn btn-sm ${sortBy === 'reputation' ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill`}
-                                    onClick={() => setSortBy('reputation')}
-                                >
-                                    <i className="bi bi-award me-1"></i>Reputation
-                                </button>
-                                <button
-                                    className={`btn btn-sm ${sortBy === 'newest' ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill`}
-                                    onClick={() => setSortBy('newest')}
-                                >
-                                    <i className="bi bi-person-plus me-1"></i>New Users
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="relative flex-1">
+                    <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"></i>
+                    <input
+                        type="text"
+                        placeholder="Search users..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                    />
+                </div>
+                <div className="flex gap-2">
+                    {sortOptions.map((opt) => (
+                        <button
+                            key={opt.key}
+                            onClick={() => setSortBy(opt.key)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition ${sortBy === opt.key
+                                    ? 'bg-[var(--primary)] text-white'
+                                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
+                                }`}
+                        >
+                            <i className={`bi ${opt.icon}`}></i>
+                            {opt.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
             {/* Users Grid */}
             {isLoading ? (
-                <div className="text-center py-5">
-                    <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                    </div>
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            ) : filteredUsers.length === 0 ? (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <i className="bi bi-people text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No users found</h3>
+                    <p className="text-[var(--text-muted)]">Try a different search term</p>
                 </div>
             ) : (
-                <div className="row g-4">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredUsers.map((user) => (
-                        <div key={user.userId} className="col-md-6 col-lg-4 col-xl-3">
-                            <div className="card border-0 shadow-sm rounded-4 h-100 hover-lift">
-                                <div className="card-body text-center">
-                                    <Link href={`/users/${user.userId}`}>
-                                        <img
-                                            src={user.profilePicture || '/images/default-avatar.png'}
-                                            className="rounded-circle mb-3"
-                                            width="80"
-                                            height="80"
-                                            alt={user.displayName || user.username}
-                                        />
-                                    </Link>
-                                    <h6 className="fw-bold mb-1">
-                                        <Link href={`/users/${user.userId}`} className="text-decoration-none text-dark">
-                                            {user.displayName || user.username}
-                                        </Link>
-                                    </h6>
-                                    <p className="text-muted small mb-3">@{user.username}</p>
-                                    <div className="d-flex justify-content-center gap-3 text-center mb-3">
-                                        <div>
-                                            <div className="fw-bold text-primary">{user.reputationPoints}</div>
-                                            <small className="text-muted">reputation</small>
-                                        </div>
-                                        <div className="border-start"></div>
-                                        <div>
-                                            <div className="fw-bold">{user.questionCount || 0}</div>
-                                            <small className="text-muted">questions</small>
-                                        </div>
-                                        <div className="border-start"></div>
-                                        <div>
-                                            <div className="fw-bold">{user.answerCount || 0}</div>
-                                            <small className="text-muted">answers</small>
-                                        </div>
+                        <div
+                            key={user.userId}
+                            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 text-center hover:border-[var(--primary)]/50 transition"
+                        >
+                            {/* Avatar */}
+                            <Link href={`/users/${user.userId}`}>
+                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 p-0.5 mx-auto mb-3">
+                                    <div className="w-full h-full rounded-full bg-[var(--bg-secondary)] flex items-center justify-center text-2xl font-bold text-[var(--text-primary)]">
+                                        {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
                                     </div>
+                                </div>
+                            </Link>
 
-                                    {currentUser && currentUser.userId !== user.userId && (
-                                        <button
-                                            className={`btn btn-sm ${followingIds.has(user.userId) ? 'btn-outline-primary' : 'btn-primary'} rounded-pill px-4 w-75`}
-                                            onClick={() => followingIds.has(user.userId) ? handleUnfollow(user.userId) : handleFollow(user.userId)}
-                                            disabled={followLoading === user.userId}
-                                        >
-                                            {followLoading === user.userId ? (
-                                                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                            ) : (
-                                                followingIds.has(user.userId) ? (
-                                                    <><i className="bi bi-person-check me-1"></i>Following</>
-                                                ) : (
-                                                    <><i className="bi bi-person-plus me-1"></i>Follow</>
-                                                )
-                                            )}
-                                        </button>
-                                    )}
+                            <Link href={`/users/${user.userId}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--primary)] transition">
+                                {user.displayName || user.username}
+                            </Link>
+                            <p className="text-sm text-[var(--text-muted)] mb-3">@{user.username}</p>
+
+                            {/* Stats */}
+                            <div className="flex justify-center gap-4 text-center mb-4">
+                                <div>
+                                    <span className="block text-lg font-bold text-[var(--primary)]">{user.reputationPoints}</span>
+                                    <span className="text-xs text-[var(--text-muted)]">reputation</span>
+                                </div>
+                                <div className="w-px bg-[var(--border-color)]"></div>
+                                <div>
+                                    <span className="block text-lg font-bold text-[var(--text-primary)]">{user.questionCount || 0}</span>
+                                    <span className="text-xs text-[var(--text-muted)]">questions</span>
                                 </div>
                             </div>
+
+                            {/* Follow Button */}
+                            {currentUser && currentUser.userId !== user.userId && (
+                                <button
+                                    onClick={() => followingIds.has(user.userId) ? handleUnfollow(user.userId) : handleFollow(user.userId)}
+                                    disabled={followLoading === user.userId}
+                                    className={`w-full py-2 rounded-xl font-medium text-sm transition ${followingIds.has(user.userId)
+                                            ? 'border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)]/10'
+                                            : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
+                                        }`}
+                                >
+                                    {followLoading === user.userId ? (
+                                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                    ) : followingIds.has(user.userId) ? (
+                                        <><i className="bi bi-person-check mr-1"></i> Following</>
+                                    ) : (
+                                        <><i className="bi bi-person-plus mr-1"></i> Follow</>
+                                    )}
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>
             )}
-
-            {filteredUsers.length === 0 && !isLoading && (
-                <div className="text-center py-5">
-                    <i className="bi bi-people fs-1 text-muted mb-3"></i>
-                    <h5>No users found</h5>
-                    <p className="text-muted">Try a different search term</p>
-                </div>
-            )}
-        </div>
+        </AppLayout>
     );
 }

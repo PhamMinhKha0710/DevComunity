@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 
 export default function AskQuestionPage() {
     const { user, isLoading: authLoading } = useAuth();
@@ -38,107 +39,140 @@ export default function AskQuestionPage() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-            </div>
+            <AppLayout showRightSidebar={false}>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            </AppLayout>
         );
     }
 
     if (!user) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Please log in to ask a question</h2>
-                    <Link href="/login" className="bg-orange-500 text-white px-6 py-3 rounded-md hover:bg-orange-600 transition">
-                        Log in
+            <AppLayout showRightSidebar={false}>
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <i className="bi bi-lock-fill text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Please log in to ask a question</h2>
+                    <p className="text-[var(--text-muted)] mb-6">You need to be signed in to participate in discussions</p>
+                    <Link href="/login" className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition">
+                        Log in to Continue
                     </Link>
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow-sm border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <Link href="/" className="text-2xl font-bold text-orange-500">
-                        DevComunity
-                    </Link>
+        <AppLayout showRightSidebar={false}>
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <i className="bi bi-question-circle-fill text-[var(--primary)]"></i>
+                    Ask a Question
+                </h1>
+                <p className="text-[var(--text-muted)]">Get help from the community by asking a well-crafted question</p>
+            </div>
+
+            {error && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-500 flex items-center gap-2">
+                    <i className="bi bi-exclamation-circle"></i>
+                    {error}
                 </div>
-            </header>
+            )}
 
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-8">Ask a public question</h1>
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Title */}
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+                    <label htmlFor="title" className="block text-lg font-semibold text-[var(--text-primary)] mb-2">
+                        Title
+                    </label>
+                    <p className="text-sm text-[var(--text-muted)] mb-3">
+                        Be specific and imagine you&apos;re asking a question to another person.
+                    </p>
+                    <input
+                        id="title"
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="e.g. How to center a div in CSS?"
+                        required
+                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                    />
+                </div>
 
-                {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-                        {error}
+                {/* Body */}
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+                    <label htmlFor="body" className="block text-lg font-semibold text-[var(--text-primary)] mb-2">
+                        What are the details of your problem?
+                    </label>
+                    <p className="text-sm text-[var(--text-muted)] mb-3">
+                        Introduce the problem and expand on what you put in the title. Include code snippets if relevant.
+                    </p>
+                    <textarea
+                        id="body"
+                        value={body}
+                        onChange={(e) => setBody(e.target.value)}
+                        rows={12}
+                        required
+                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition resize-none"
+                        placeholder="Describe your problem in detail..."
+                    />
+                </div>
+
+                {/* Tags */}
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+                    <label htmlFor="tags" className="block text-lg font-semibold text-[var(--text-primary)] mb-2">
+                        Tags
+                    </label>
+                    <p className="text-sm text-[var(--text-muted)] mb-3">
+                        Add up to 5 tags to describe what your question is about (comma-separated).
+                    </p>
+                    <input
+                        id="tags"
+                        type="text"
+                        value={tags}
+                        onChange={(e) => setTags(e.target.value)}
+                        placeholder="e.g. javascript, react, css"
+                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                    />
+                    <div className="flex flex-wrap gap-2 mt-3">
+                        {['javascript', 'react', 'python', 'csharp', 'css'].map(t => (
+                            <button
+                                key={t}
+                                type="button"
+                                onClick={() => setTags(prev => prev ? `${prev}, ${t}` : t)}
+                                className="px-3 py-1 text-xs bg-[var(--bg-tertiary)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/20 hover:text-[var(--primary)] transition"
+                            >
+                                + {t}
+                            </button>
+                        ))}
                     </div>
-                )}
+                </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="bg-white p-6 rounded-lg shadow">
-                        <label htmlFor="title" className="block text-lg font-semibold text-gray-900 mb-2">
-                            Title
-                        </label>
-                        <p className="text-sm text-gray-500 mb-2">
-                            Be specific and imagine you&apos;re asking a question to another person.
-                        </p>
-                        <input
-                            id="title"
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="e.g. How to center a div in CSS?"
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                        />
-                    </div>
-
-                    <div className="bg-white p-6 rounded-lg shadow">
-                        <label htmlFor="body" className="block text-lg font-semibold text-gray-900 mb-2">
-                            What are the details of your problem?
-                        </label>
-                        <p className="text-sm text-gray-500 mb-2">
-                            Introduce the problem and expand on what you put in the title.
-                        </p>
-                        <textarea
-                            id="body"
-                            value={body}
-                            onChange={(e) => setBody(e.target.value)}
-                            rows={10}
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="Describe your problem in detail..."
-                        />
-                    </div>
-
-                    <div className="bg-white p-6 rounded-lg shadow">
-                        <label htmlFor="tags" className="block text-lg font-semibold text-gray-900 mb-2">
-                            Tags
-                        </label>
-                        <p className="text-sm text-gray-500 mb-2">
-                            Add up to 5 tags to describe what your question is about (comma-separated).
-                        </p>
-                        <input
-                            id="tags"
-                            type="text"
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value)}
-                            placeholder="e.g. javascript, react, css"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                        />
-                    </div>
-
+                {/* Submit */}
+                <div className="flex items-center gap-4">
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition"
+                        className="flex items-center gap-2 px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition disabled:opacity-50"
                     >
-                        {isLoading ? 'Posting...' : 'Post your question'}
+                        {isLoading ? (
+                            <>
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                Posting...
+                            </>
+                        ) : (
+                            <>
+                                <i className="bi bi-send"></i>
+                                Post your question
+                            </>
+                        )}
                     </button>
-                </form>
-            </main>
-        </div>
+                    <Link href="/questions" className="px-6 py-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition">
+                        Cancel
+                    </Link>
+                </div>
+            </form>
+        </AppLayout>
     );
 }
