@@ -38,7 +38,7 @@ export default function ModernNavbar() {
     };
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] backdrop-blur-lg">
+        <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-[var(--glass-bg)] border-b border-[var(--border-color)] backdrop-blur-lg shadow-sm">
             <div className="flex items-center justify-between h-full px-4 max-w-[1920px] mx-auto">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2 text-xl font-bold">
