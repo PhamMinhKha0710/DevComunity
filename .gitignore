@@ -365,3 +365,199 @@ FodyWeavers.xsd
 # appsettings.json
 
 appsettings.Development.json
+
+# ==========================================
+# NEXT.JS / FRONTEND
+# ==========================================
+
+# Dependencies
+frontend/node_modules/
+node_modules/
+
+# Next.js build output
+frontend/.next/
+frontend/out/
+.next/
+out/
+
+# Next.js cache
+frontend/.next/cache/
+.vercel
+
+# Production build
+frontend/build/
+dist/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Turbopack
+.turbo/
+
+# ==========================================
+# ENVIRONMENT FILES (SENSITIVE!)
+# ==========================================
+
+# Local environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Keep example env files
+!.env.example
+!.env.sample
+!frontend/.env.example
+
+# ==========================================
+# IDE / EDITOR
+# ==========================================
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# OS GENERATED FILES
+# ==========================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+
+# ==========================================
+# TESTING & COVERAGE
+# ==========================================
+
+# Test coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Playwright
+playwright-report/
+playwright/.cache/
+test-results/
+
+# Jest
+jest-results/
+
+# ==========================================
+# PACKAGE MANAGERS
+# ==========================================
+
+# npm
+package-lock.json
+# Uncomment if you want to ignore package-lock
+# frontend/package-lock.json
+
+# yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# pnpm
+pnpm-lock.yaml
+
+# ==========================================
+# LOGS & TEMP FILES
+# ==========================================
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temp files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# ==========================================
+# DATABASE FILES
+# ==========================================
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# SQL Server (already in original)
+# *.mdf
+# *.ldf
+
+# ==========================================
+# MISC
+# ==========================================
+
+# TypeScript cache
+*.tsbuildinfo
+
+# ESLint cache
+.eslintcache
+
+# Storybook
+storybook-static/
+
+# PWA files
+**/public/sw.js
+**/public/workbox-*.js
+**/public/worker-*.js
+
+# Uploaded files (if storing locally)
+uploads/
+public/uploads/
+frontend/public/uploads/
+
+# Generated thumbnails
+thumbnails/
+
+# Docker
+docker-compose.override.yml
+
+# SSL certificates (local dev)
+*.pem
+*.key
+*.crt
+*.cer
+
+# Secrets
+secrets/
+*.secret
