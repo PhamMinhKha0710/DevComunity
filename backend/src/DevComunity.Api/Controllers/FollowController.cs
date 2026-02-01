@@ -4,6 +4,8 @@ using DevComunity.Application.Common.DTOs;
 using DevComunity.Application.Interfaces.Repositories;
 using DevComunity.Domain.Entities;
 using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using DevComunity.Api.Hubs;
 
 namespace DevComunity.Api.Controllers;
 
@@ -22,12 +24,19 @@ public class FollowController : ControllerBase
     public FollowController(
         ILogger<FollowController> logger,
         IFollowRepository followRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        INotificationRepository notificationRepository,
+        IHubContext<NotificationHub> hubContext)
     {
         _logger = logger;
         _followRepository = followRepository;
         _userRepository = userRepository;
+        _notificationRepository = notificationRepository;
+        _hubContext = hubContext;
     }
+
+    private readonly INotificationRepository _notificationRepository;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     private int GetCurrentUserId()
     {
@@ -131,6 +140,34 @@ public class FollowController : ControllerBase
         await _followRepository.FollowAsync(follow, cancellationToken);
 
         _logger.LogInformation("User {UserId} followed user {TargetId}", userId, targetUserId);
+        
+        // Create and send notification
+        try 
+        {
+            var follower = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (follower != null)
+            {
+                var notification = new Notification
+                {
+                    UserId = targetUserId,
+                    FromUserId = userId,
+                    Type = "Follow",
+                    Message = $"{follower.DisplayName ?? follower.Username} started following you",
+                    Link = $"/users/{userId}",
+                    CreatedDate = DateTime.UtcNow,
+                    IsRead = false
+                };
+
+                await _notificationRepository.AddAsync(notification, cancellationToken);
+                
+                await _hubContext.Clients.Group($"user_{targetUserId}").SendAsync("ReceiveNotification", notification, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending follow notification");
+            // Don't fail the request if notification fails
+        }
         
         return Ok(new { message = "Successfully followed user" });
     }

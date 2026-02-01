@@ -74,7 +74,7 @@ export default function NotificationsPage() {
                                             <div className="flex-grow-1">
                                                 <p className="mb-1">{notification.message}</p>
                                                 <small className="text-muted">
-                                                    {new Date(notification.createdAt).toLocaleDateString('en-US', {
+                                                    {new Date(notification.createdDate).toLocaleDateString('en-US', {
                                                         month: 'short',
                                                         day: 'numeric',
                                                         hour: '2-digit',
