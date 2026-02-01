@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import type { SavedItem } from '@/types';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 
 // Strip HTML helper
 const stripHtml = (html: string): string => {
@@ -39,7 +40,9 @@ export default function SavedItemsPage() {
         }
     };
 
-    const removeSavedItem = async (id: number) => {
+    const removeSavedItem = async (e: React.MouseEvent, id: number) => {
+        e.preventDefault();
+        e.stopPropagation();
         try {
             await apiClient.delete(`/saved/${id}`);
             setSavedItems(prev => prev.filter(item => item.savedItemId !== id));
@@ -57,120 +60,132 @@ export default function SavedItemsPage() {
 
     if (authLoading || isLoading) {
         return (
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
+            <AppLayout showRightSidebar={false}>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
     if (!user) return null;
 
     return (
-        <div className="container py-4">
+        <AppLayout showRightSidebar={false}>
             {/* Header */}
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 className="fw-bold mb-1">
-                        <i className="bi bi-bookmark me-2"></i>Saved Items
-                    </h1>
-                    <p className="text-muted mb-0">{savedItems.length} items saved</p>
-                </div>
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <i className="bi bi-bookmark-fill text-[var(--primary)]"></i>
+                    Saved Items
+                </h1>
+                <p className="text-[var(--text-muted)]">Your personal collection of questions and answers</p>
             </div>
 
             {/* Filters */}
-            <div className="card border-0 shadow-sm rounded-4 mb-4">
-                <div className="card-body p-3">
-                    <div className="d-flex gap-2">
-                        <button
-                            className={`btn btn-sm rounded-pill ${filter === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                            onClick={() => setFilter('all')}
-                        >
-                            All ({savedItems.length})
-                        </button>
-                        <button
-                            className={`btn btn-sm rounded-pill ${filter === 'questions' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                            onClick={() => setFilter('questions')}
-                        >
-                            <i className="bi bi-question-circle me-1"></i>
-                            Questions ({savedItems.filter(i => i.targetType === 'Question').length})
-                        </button>
-                        <button
-                            className={`btn btn-sm rounded-pill ${filter === 'answers' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                            onClick={() => setFilter('answers')}
-                        >
-                            <i className="bi bi-chat-left-text me-1"></i>
-                            Answers ({savedItems.filter(i => i.targetType === 'Answer').length})
-                        </button>
-                    </div>
-                </div>
+            <div className="flex gap-2 mb-6">
+                <button
+                    onClick={() => setFilter('all')}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition ${filter === 'all'
+                            ? 'bg-[var(--primary)] text-white'
+                            : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
+                        }`}
+                >
+                    All ({savedItems.length})
+                </button>
+                <button
+                    onClick={() => setFilter('questions')}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 ${filter === 'questions'
+                            ? 'bg-[var(--primary)] text-white'
+                            : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
+                        }`}
+                >
+                    <i className="bi bi-question-circle"></i>
+                    Questions ({savedItems.filter(i => i.targetType === 'Question').length})
+                </button>
+                <button
+                    onClick={() => setFilter('answers')}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 ${filter === 'answers'
+                            ? 'bg-[var(--primary)] text-white'
+                            : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
+                        }`}
+                >
+                    <i className="bi bi-chat-left-text"></i>
+                    Answers ({savedItems.filter(i => i.targetType === 'Answer').length})
+                </button>
             </div>
 
             {/* Saved Items List */}
-            <div className="card border-0 shadow-sm rounded-4">
-                {filteredItems.length > 0 ? (
-                    <div className="list-group list-group-flush">
-                        {filteredItems.map((item) => (
-                            <div key={item.savedItemId} className="list-group-item p-4 border-0 border-bottom">
-                                <div className="row align-items-center">
-                                    <div className="col-auto">
-                                        <div className={`rounded-3 p-2 ${item.targetType === 'Question' ? 'bg-primary-subtle' : 'bg-success-subtle'}`}>
-                                            <i className={`bi ${item.targetType === 'Question' ? 'bi-question-circle text-primary' : 'bi-chat-left-text text-success'} fs-5`}></i>
+            {filteredItems.length > 0 ? (
+                <div className="space-y-4">
+                    {filteredItems.map((item) => (
+                        <Link
+                            key={item.savedItemId}
+                            href={item.targetType === 'Question' && item.question ? `/questions/${item.question.questionId}` : item.targetType === 'Answer' && item.answer ? `/questions/${item.answer.questionId}#answer-${item.answer.answerId}` : '#'}
+                            className="block bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--primary)]/50 transition group"
+                        >
+                            <div className="flex items-start gap-4">
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${item.targetType === 'Question'
+                                        ? 'bg-blue-500/10 text-blue-500'
+                                        : 'bg-green-500/10 text-green-500'
+                                    }`}>
+                                    <i className={`bi ${item.targetType === 'Question' ? 'bi-question-lg' : 'bi-chat-left-text'}`}></i>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold mb-2 ${item.targetType === 'Question' ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'
+                                                }`}>
+                                                {item.targetType}
+                                            </span>
+                                            <h3 className="font-bold text-[var(--text-primary)] mb-1 group-hover:text-[var(--primary)] line-clamp-1">
+                                                {item.targetType === 'Question' && item.question ? (
+                                                    item.question.title
+                                                ) : item.targetType === 'Answer' && item.answer ? (
+                                                    'Answer to a question'
+                                                ) : (
+                                                    'Saved item'
+                                                )}
+                                            </h3>
                                         </div>
-                                    </div>
-                                    <div className="col">
-                                        <span className="badge bg-light text-dark mb-2">{item.targetType}</span>
-                                        <h6 className="mb-1 fw-bold">
-                                            {item.targetType === 'Question' && item.question ? (
-                                                <Link href={`/questions/${item.question.questionId}`} className="text-decoration-none text-dark">
-                                                    {item.question.title}
-                                                </Link>
-                                            ) : item.targetType === 'Answer' && item.answer ? (
-                                                <Link href={`/questions/${item.answer.questionId}#answer-${item.answer.answerId}`} className="text-decoration-none text-dark">
-                                                    Answer to question
-                                                </Link>
-                                            ) : (
-                                                <span>Saved item</span>
-                                            )}
-                                        </h6>
-                                        <p className="text-muted small mb-0">
-                                            {item.targetType === 'Question' && item.question
-                                                ? stripHtml(item.question.body) + '...'
-                                                : item.targetType === 'Answer' && item.answer
-                                                    ? stripHtml(item.answer.body) + '...'
-                                                    : ''
-                                            }
-                                        </p>
-                                        <small className="text-muted">
-                                            Saved on {new Date(item.createdDate).toLocaleDateString()}
-                                        </small>
-                                    </div>
-                                    <div className="col-auto">
                                         <button
-                                            className="btn btn-sm btn-outline-danger rounded-pill"
-                                            onClick={() => removeSavedItem(item.savedItemId)}
+                                            onClick={(e) => removeSavedItem(e, item.savedItemId)}
+                                            className="p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition"
+                                            title="Remove from saved"
                                         >
-                                            <i className="bi bi-bookmark-x me-1"></i>Remove
+                                            <i className="bi bi-bookmark-x-fill text-lg"></i>
                                         </button>
+                                    </div>
+                                    <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
+                                        {item.targetType === 'Question' && item.question
+                                            ? stripHtml(item.question.body)
+                                            : item.targetType === 'Answer' && item.answer
+                                                ? stripHtml(item.answer.body)
+                                                : ''
+                                        }
+                                    </p>
+                                    <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                                        <i className="bi bi-clock"></i>
+                                        Saved on {new Date(item.createdDate).toLocaleDateString()}
                                     </div>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="card-body text-center py-5">
-                        <i className="bi bi-bookmark fs-1 text-muted mb-3"></i>
-                        <h5>No saved items</h5>
-                        <p className="text-muted mb-4">
-                            Save questions and answers to read later
-                        </p>
-                        <Link href="/questions" className="btn btn-primary rounded-pill">
-                            Browse Questions
                         </Link>
-                    </div>
-                )}
-            </div>
-        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <i className="bi bi-bookmark text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No saved items found</h3>
+                    <p className="text-[var(--text-muted)] mb-6">
+                        {filter === 'all'
+                            ? "You haven't saved any items yet."
+                            : `You haven't saved any ${filter} yet.`}
+                    </p>
+                    <Link href="/questions" className="inline-block px-6 py-2 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition">
+                        Browse Questions
+                    </Link>
+                </div>
+            )}
+        </AppLayout>
     );
 }
