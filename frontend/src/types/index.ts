@@ -162,8 +162,10 @@ export interface CreateRepositoryRequest {
 export interface Conversation {
     conversationId: number;
     title?: string;
-    lastMessage?: string;
-    lastActivityAt: string;
+    isGroupChat?: boolean;
+    lastMessagePreview?: string;
+    lastMessageDate?: string;
+    createdDate?: string;
     participants: ConversationParticipant[];
     unreadCount: number;
 }
@@ -171,6 +173,7 @@ export interface Conversation {
 export interface ConversationParticipant {
     userId: number;
     username: string;
+    displayName?: string;
     profilePicture?: string;
 }
 
@@ -178,10 +181,10 @@ export interface ChatMessage {
     messageId: number;
     conversationId: number;
     senderId: number;
-    senderName: string;
-    senderAvatar?: string;
+    senderUsername: string;
+    senderProfilePicture?: string;
     content: string;
-    sentAt: string;
+    sentDate: string;
     isRead: boolean;
 }
 

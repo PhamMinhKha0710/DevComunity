@@ -30,7 +30,6 @@ const socialNav: NavItem[] = [
 const personalNav: NavItem[] = [
     { name: 'Chat', href: '/chat', icon: 'bi-chat-dots-fill', requireAuth: true },
     { name: 'Saved', href: '/saved', icon: 'bi-bookmark-fill', requireAuth: true },
-    { name: 'Settings', href: '/settings', icon: 'bi-gear-fill', requireAuth: true },
 ];
 
 export default function ModernSidebar() {
@@ -123,18 +122,7 @@ export default function ModernSidebar() {
                 )}
             </div>
 
-            {/* Quick Action */}
-            {isAuthenticated && !collapsed && (
-                <div className="p-4 border-t border-[var(--border-color)]">
-                    <Link
-                        href="/questions/ask"
-                        className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-[var(--primary)] to-orange-400 text-white rounded-xl font-semibold shadow-lg shadow-[var(--primary)]/30 hover:shadow-xl hover:shadow-[var(--primary)]/40 transition-all"
-                    >
-                        <i className="bi bi-plus-lg"></i>
-                        Ask Question
-                    </Link>
-                </div>
-            )}
+
         </aside>
     );
 }
