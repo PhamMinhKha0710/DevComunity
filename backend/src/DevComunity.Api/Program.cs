@@ -62,7 +62,10 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://localhost:5173",    // Vite dev server
-                "http://localhost:3000"     // Fallback
+                "http://localhost:3000",    // Next.js default
+                "http://localhost:3001",    // Next.js alt
+                "http://localhost:3002",
+                "http://localhost:3003"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()

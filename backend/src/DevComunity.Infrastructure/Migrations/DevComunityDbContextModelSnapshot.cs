@@ -256,6 +256,107 @@ namespace DevComunity.Infrastructure.Migrations
                     b.ToTable("ConversationParticipants", (string)null);
                 });
 
+            modelBuilder.Entity("DevComunity.Domain.Entities.Friendship", b =>
+                {
+                    b.Property<int>("FriendshipId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FriendshipId"));
+
+                    b.Property<int>("AddresseeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RequesterId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("FriendshipId");
+
+                    b.HasIndex("AddresseeId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("RequesterId", "AddresseeId")
+                        .IsUnique();
+
+                    b.ToTable("Friendships");
+                });
+
+            modelBuilder.Entity("DevComunity.Domain.Entities.Group", b =>
+                {
+                    b.Property<int>("GroupId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GroupId"));
+
+                    b.Property<string>("CoverImage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CreatorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsPrivate")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("GroupId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("CreatorId");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Groups");
+                });
+
+            modelBuilder.Entity("DevComunity.Domain.Entities.GroupMember", b =>
+                {
+                    b.Property<int>("GroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("GroupId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("GroupMembers");
+                });
+
             modelBuilder.Entity("DevComunity.Domain.Entities.Message", b =>
                 {
                     b.Property<int>("MessageId")
@@ -351,6 +452,42 @@ namespace DevComunity.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Notifications", (string)null);
+                });
+
+            modelBuilder.Entity("DevComunity.Domain.Entities.Post", b =>
+                {
+                    b.Property<int>("PostId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PostId"));
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("PostId");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("GroupId");
+
+                    b.ToTable("Posts");
                 });
 
             modelBuilder.Entity("DevComunity.Domain.Entities.Question", b =>
@@ -659,6 +796,24 @@ namespace DevComunity.Infrastructure.Migrations
                     b.ToTable("UserBadges", (string)null);
                 });
 
+            modelBuilder.Entity("DevComunity.Domain.Entities.UserFollow", b =>
+                {
+                    b.Property<int>("FollowerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FollowingId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("FollowerId", "FollowingId");
+
+                    b.HasIndex("FollowingId");
+
+                    b.ToTable("UserFollows");
+                });
+
             modelBuilder.Entity("DevComunity.Domain.Entities.Vote", b =>
                 {
                     b.Property<int>("VoteId")
@@ -780,6 +935,55 @@ namespace DevComunity.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DevComunity.Domain.Entities.Friendship", b =>
+                {
+                    b.HasOne("DevComunity.Domain.Entities.User", "Addressee")
+                        .WithMany()
+                        .HasForeignKey("AddresseeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevComunity.Domain.Entities.User", "Requester")
+                        .WithMany()
+                        .HasForeignKey("RequesterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Addressee");
+
+                    b.Navigation("Requester");
+                });
+
+            modelBuilder.Entity("DevComunity.Domain.Entities.Group", b =>
+                {
+                    b.HasOne("DevComunity.Domain.Entities.User", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Creator");
+                });
+
+            modelBuilder.Entity("DevComunity.Domain.Entities.GroupMember", b =>
+                {
+                    b.HasOne("DevComunity.Domain.Entities.Group", "Group")
+                        .WithMany("Members")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DevComunity.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DevComunity.Domain.Entities.Message", b =>
                 {
                     b.HasOne("DevComunity.Domain.Entities.Conversation", "Conversation")
@@ -815,6 +1019,24 @@ namespace DevComunity.Infrastructure.Migrations
                     b.Navigation("FromUser");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DevComunity.Domain.Entities.Post", b =>
+                {
+                    b.HasOne("DevComunity.Domain.Entities.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DevComunity.Domain.Entities.Group", "Group")
+                        .WithMany("Posts")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Group");
                 });
 
             modelBuilder.Entity("DevComunity.Domain.Entities.Question", b =>
@@ -902,6 +1124,25 @@ namespace DevComunity.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DevComunity.Domain.Entities.UserFollow", b =>
+                {
+                    b.HasOne("DevComunity.Domain.Entities.User", "Follower")
+                        .WithMany()
+                        .HasForeignKey("FollowerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevComunity.Domain.Entities.User", "Following")
+                        .WithMany()
+                        .HasForeignKey("FollowingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Follower");
+
+                    b.Navigation("Following");
+                });
+
             modelBuilder.Entity("DevComunity.Domain.Entities.Vote", b =>
                 {
                     b.HasOne("DevComunity.Domain.Entities.Answer", "Answer")
@@ -939,6 +1180,13 @@ namespace DevComunity.Infrastructure.Migrations
                     b.Navigation("Messages");
 
                     b.Navigation("Participants");
+                });
+
+            modelBuilder.Entity("DevComunity.Domain.Entities.Group", b =>
+                {
+                    b.Navigation("Members");
+
+                    b.Navigation("Posts");
                 });
 
             modelBuilder.Entity("DevComunity.Domain.Entities.Question", b =>

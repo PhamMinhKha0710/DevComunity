@@ -190,7 +190,7 @@ export default function ChatWidget() {
         // Tin nhắn đã được đọc
         connection.on('MessagesRead', (data: { userId: string; lastMessageId: number }) => {
             setMessages(prev => prev.map(m =>
-                m.messageId <= data.lastMessageId ? { ...m, status: 'read', isRead: true } : m
+                typeof m.messageId === 'number' && m.messageId <= data.lastMessageId ? { ...m, status: 'read', isRead: true } : m
             ));
         });
 
