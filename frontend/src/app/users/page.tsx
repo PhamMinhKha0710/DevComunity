@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import apiClient from '@/lib/api/client';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import AppLayout from '@/components/AppLayout';
 
 interface User {
     userId: number;
@@ -16,24 +18,73 @@ interface User {
 }
 
 export default function UsersPage() {
+    const { user: currentUser } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('reputation');
+    const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
+    const [followLoading, setFollowLoading] = useState<number | null>(null);
 
     useEffect(() => {
         fetchUsers();
     }, [sortBy]);
 
+    useEffect(() => {
+        if (currentUser) {
+            fetchFollowing();
+        }
+    }, [currentUser]);
+
+    const fetchFollowing = async () => {
+        if (!currentUser) return;
+        try {
+            const response = await apiClient.get<any[]>(`/Follow/following/${currentUser.userId}`);
+            const ids = new Set(response.data.map((f: any) => f.userId));
+            setFollowingIds(ids);
+        } catch (error) {
+            console.error('Failed to fetch following list:', error);
+        }
+    };
+
+    const handleFollow = async (targetId: number) => {
+        if (!currentUser) return;
+        setFollowLoading(targetId);
+        try {
+            await apiClient.post(`/Follow/${targetId}`);
+            setFollowingIds(prev => new Set(prev).add(targetId));
+        } catch (error) {
+            console.error('Failed to follow user:', error);
+        } finally {
+            setFollowLoading(null);
+        }
+    };
+
+    const handleUnfollow = async (targetId: number) => {
+        if (!currentUser) return;
+        setFollowLoading(targetId);
+        try {
+            await apiClient.delete(`/Follow/${targetId}`);
+            setFollowingIds(prev => {
+                const next = new Set(prev);
+                next.delete(targetId);
+                return next;
+            });
+        } catch (error) {
+            console.error('Failed to unfollow user:', error);
+        } finally {
+            setFollowLoading(null);
+        }
+    };
+
     const fetchUsers = async () => {
         try {
-            const response = await apiClient.get<{ items: User[] } | User[]>(`/users?sortBy=${sortBy}`);
-            // Handle both array and paginated response formats
+            const response = await apiClient.get<any>(`/users?sortBy=${sortBy}`);
             const data = response.data;
             if (Array.isArray(data)) {
                 setUsers(data);
-            } else if (data && 'items' in data) {
-                setUsers(data.items || []);
+            } else if (data && Array.isArray(data.items)) {
+                setUsers(data.items);
             } else {
                 setUsers([]);
             }
@@ -50,106 +101,119 @@ export default function UsersPage() {
         (user.displayName || '').toLowerCase().includes(search.toLowerCase())
     );
 
+    const sortOptions = [
+        { key: 'reputation', label: 'Reputation', icon: 'bi-award' },
+        { key: 'newest', label: 'New Users', icon: 'bi-person-plus' },
+    ];
+
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Users</h1>
-                    <p className="text-gray-500">Connect with developers in our community</p>
-                </div>
+        <AppLayout>
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <i className="bi bi-people-fill text-[var(--primary)]"></i>
+                    Community Members
+                </h1>
+                <p className="text-[var(--text-muted)]">Connect with developers in our community</p>
+            </div>
 
-                {/* Search and Filters */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 mb-6">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        {/* Search */}
-                        <div className="flex-1 relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i className="bi bi-search text-gray-400"></i>
-                            </div>
-                            <input
-                                type="text"
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
-                                placeholder="Search users..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
-                        {/* Sort Buttons */}
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setSortBy('reputation')}
-                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition ${sortBy === 'reputation'
-                                    ? 'bg-orange-500 text-white'
-                                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
-                                    }`}
-                            >
-                                <i className="bi bi-award mr-2"></i>Reputation
-                            </button>
-                            <button
-                                onClick={() => setSortBy('newest')}
-                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition ${sortBy === 'newest'
-                                    ? 'bg-orange-500 text-white'
-                                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
-                                    }`}
-                            >
-                                <i className="bi bi-person-plus mr-2"></i>New Users
-                            </button>
-                        </div>
-                    </div>
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="relative flex-1">
+                    <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"></i>
+                    <input
+                        type="text"
+                        placeholder="Search users..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                    />
                 </div>
+                <div className="flex gap-2">
+                    {sortOptions.map((opt) => (
+                        <button
+                            key={opt.key}
+                            onClick={() => setSortBy(opt.key)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition ${sortBy === opt.key
+                                    ? 'bg-[var(--primary)] text-white'
+                                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
+                                }`}
+                        >
+                            <i className={`bi ${opt.icon}`}></i>
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
-                {/* Users Grid */}
-                {isLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                ) : filteredUsers.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {filteredUsers.map((user) => (
-                            <div key={user.userId} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 text-center hover:shadow-md transition">
-                                <Link href={`/users/${user.userId}`}>
-                                    <img
-                                        src={user.profilePicture || '/images/default-avatar.png'}
-                                        className="w-20 h-20 rounded-full mx-auto mb-3 border-4 border-gray-100 dark:border-slate-700"
-                                        alt={user.displayName || user.username}
-                                    />
-                                </Link>
-                                <h3 className="font-bold text-gray-900 dark:text-white mb-1">
-                                    <Link href={`/users/${user.userId}`} className="hover:text-orange-500 transition">
-                                        {user.displayName || user.username}
-                                    </Link>
-                                </h3>
-                                <p className="text-gray-500 text-sm mb-4">@{user.username}</p>
-                                <div className="flex justify-center gap-4 text-center text-sm">
-                                    <div>
-                                        <div className="font-bold text-orange-500">{user.reputationPoints}</div>
-                                        <div className="text-gray-400 text-xs">reputation</div>
-                                    </div>
-                                    <div className="border-l border-gray-200 dark:border-slate-600"></div>
-                                    <div>
-                                        <div className="font-bold text-gray-900 dark:text-white">{user.questionCount || 0}</div>
-                                        <div className="text-gray-400 text-xs">questions</div>
-                                    </div>
-                                    <div className="border-l border-gray-200 dark:border-slate-600"></div>
-                                    <div>
-                                        <div className="font-bold text-gray-900 dark:text-white">{user.answerCount || 0}</div>
-                                        <div className="text-gray-400 text-xs">answers</div>
+            {/* Users Grid */}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            ) : filteredUsers.length === 0 ? (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <i className="bi bi-people text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No users found</h3>
+                    <p className="text-[var(--text-muted)]">Try a different search term</p>
+                </div>
+            ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredUsers.map((user) => (
+                        <div
+                            key={user.userId}
+                            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 text-center hover:border-[var(--primary)]/50 transition"
+                        >
+                            {/* Avatar */}
+                            <Link href={`/users/${user.userId}`}>
+                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 p-0.5 mx-auto mb-3">
+                                    <div className="w-full h-full rounded-full bg-[var(--bg-secondary)] flex items-center justify-center text-2xl font-bold text-[var(--text-primary)]">
+                                        {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
                                     </div>
                                 </div>
+                            </Link>
+
+                            <Link href={`/users/${user.userId}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--primary)] transition">
+                                {user.displayName || user.username}
+                            </Link>
+                            <p className="text-sm text-[var(--text-muted)] mb-3">@{user.username}</p>
+
+                            {/* Stats */}
+                            <div className="flex justify-center gap-4 text-center mb-4">
+                                <div>
+                                    <span className="block text-lg font-bold text-[var(--primary)]">{user.reputationPoints}</span>
+                                    <span className="text-xs text-[var(--text-muted)]">reputation</span>
+                                </div>
+                                <div className="w-px bg-[var(--border-color)]"></div>
+                                <div>
+                                    <span className="block text-lg font-bold text-[var(--text-primary)]">{user.questionCount || 0}</span>
+                                    <span className="text-xs text-[var(--text-muted)]">questions</span>
+                                </div>
                             </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-gray-100 dark:bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
-                            <i className="bi bi-people text-3xl text-gray-400"></i>
+
+                            {/* Follow Button */}
+                            {currentUser && currentUser.userId !== user.userId && (
+                                <button
+                                    onClick={() => followingIds.has(user.userId) ? handleUnfollow(user.userId) : handleFollow(user.userId)}
+                                    disabled={followLoading === user.userId}
+                                    className={`w-full py-2 rounded-xl font-medium text-sm transition ${followingIds.has(user.userId)
+                                            ? 'border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)]/10'
+                                            : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
+                                        }`}
+                                >
+                                    {followLoading === user.userId ? (
+                                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                    ) : followingIds.has(user.userId) ? (
+                                        <><i className="bi bi-person-check mr-1"></i> Following</>
+                                    ) : (
+                                        <><i className="bi bi-person-plus mr-1"></i> Follow</>
+                                    )}
+                                </button>
+                            )}
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No users found</h3>
-                        <p className="text-gray-500">Try a different search term</p>
-                    </div>
-                )}
-            </div>
-        </div>
+                    ))}
+                </div>
+            )}
+        </AppLayout>
     );
 }

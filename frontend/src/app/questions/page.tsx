@@ -5,11 +5,25 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { Question, PaginatedResponse, Tag } from '@/types';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 
-// Helper to strip HTML tags
 const stripHtml = (html: string): string => {
     if (!html) return '';
     return html.replace(/<[^>]*>/g, '').substring(0, 150);
+};
+
+const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
 };
 
 function QuestionsContent() {
@@ -44,209 +58,171 @@ function QuestionsContent() {
         }
     };
 
+    const sortOptions = [
+        { key: 'newest', label: 'Newest', icon: 'bi-clock' },
+        { key: 'active', label: 'Active', icon: 'bi-activity' },
+        { key: 'unanswered', label: 'Unanswered', icon: 'bi-question-circle' },
+        { key: 'votes', label: 'Most Votes', icon: 'bi-graph-up' },
+    ];
+
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid lg:grid-cols-4 gap-8">
-                    {/* Main Content */}
-                    <div className="lg:col-span-3">
-                        {/* Header */}
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    {tag ? `Questions tagged [${tag}]` : search ? `Search results for "${search}"` : 'All Questions'}
-                                </h1>
-                                <p className="text-gray-500 text-sm mt-1">
-                                    {questions.length} questions found
-                                </p>
-                            </div>
-                            <Link
-                                href="/questions/ask"
-                                className="inline-flex items-center px-4 py-2 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 transition"
-                            >
-                                <i className="bi bi-plus-circle mr-2"></i>Ask Question
-                            </Link>
-                        </div>
+        <AppLayout>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                        <i className="bi bi-question-circle-fill text-[var(--primary)]"></i>
+                        {tag ? `Questions tagged [${tag}]` : search ? `Search: "${search}"` : 'All Questions'}
+                    </h1>
+                    <p className="text-[var(--text-muted)]">{questions.length} questions found</p>
+                </div>
+                <Link
+                    href="/questions/ask"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition"
+                >
+                    <i className="bi bi-plus-circle"></i>
+                    Ask Question
+                </Link>
+            </div>
 
-                        {/* Filters */}
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 mb-6">
-                            <div className="flex flex-wrap gap-2">
-                                {[
-                                    { key: 'newest', icon: 'bi-clock', label: 'Newest' },
-                                    { key: 'active', icon: 'bi-activity', label: 'Active' },
-                                    { key: 'unanswered', icon: 'bi-question-circle', label: 'Unanswered' },
-                                    { key: 'votes', icon: 'bi-graph-up', label: 'Most Votes' },
-                                ].map(({ key, icon, label }) => (
-                                    <button
-                                        key={key}
-                                        onClick={() => setSortBy(key)}
-                                        className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition ${sortBy === key
-                                                ? 'bg-orange-500 text-white'
-                                                : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
-                                            }`}
-                                    >
-                                        <i className={`bi ${icon} mr-2`}></i>{label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+            {/* Sort Filters */}
+            <div className="flex flex-wrap gap-2 mb-6">
+                {sortOptions.map((opt) => (
+                    <button
+                        key={opt.key}
+                        onClick={() => setSortBy(opt.key)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition ${sortBy === opt.key
+                                ? 'bg-[var(--primary)] text-white'
+                                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
+                            }`}
+                    >
+                        <i className={`bi ${opt.icon}`}></i>
+                        {opt.label}
+                    </button>
+                ))}
+            </div>
 
-                        {/* Questions List */}
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden">
-                            {isLoading ? (
-                                <div className="p-12 text-center">
-                                    <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                                </div>
-                            ) : questions.length > 0 ? (
-                                <div className="divide-y divide-gray-100 dark:divide-slate-700">
-                                    {questions.map((question) => (
-                                        <div key={question.questionId} className="p-4 md:p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
-                                            <div className="flex gap-4">
-                                                {/* Stats */}
-                                                <div className="hidden sm:flex flex-col items-center gap-2 text-center min-w-[70px]">
-                                                    <div className={`px-3 py-2 rounded-lg text-sm ${question.score > 0
-                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                                            : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400'
-                                                        }`}>
-                                                        <span className="font-bold block">{question.score}</span>
-                                                        <span className="text-xs">votes</span>
-                                                    </div>
-                                                    <div className={`px-3 py-2 rounded-lg text-sm ${question.hasAcceptedAnswer
-                                                            ? 'bg-green-500 text-white'
-                                                            : question.answerCount > 0
-                                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                                                : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400'
-                                                        }`}>
-                                                        <span className="font-bold block">{question.answerCount}</span>
-                                                        <span className="text-xs">answers</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Content */}
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-orange-500 transition">
-                                                        <Link href={`/questions/${question.questionId}`}>
-                                                            {question.title}
-                                                        </Link>
-                                                    </h3>
-                                                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
-                                                        {stripHtml(question.bodyExcerpt || question.body || '')}...
-                                                    </p>
-                                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {question.tags?.slice(0, 5).map((t: Tag) => (
-                                                                <Link
-                                                                    key={t.tagId}
-                                                                    href={`/questions?tag=${t.tagName}`}
-                                                                    className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs rounded-md hover:bg-orange-200 transition"
-                                                                >
-                                                                    {t.tagName}
-                                                                </Link>
-                                                            ))}
-                                                        </div>
-                                                        <div className="flex items-center text-xs text-gray-500">
-                                                            <img
-                                                                src={question.authorProfilePicture || '/images/default-avatar.png'}
-                                                                className="w-5 h-5 rounded-full mr-1"
-                                                                alt=""
-                                                            />
-                                                            <span>
-                                                                asked {new Date(question.createdDate).toLocaleDateString()} by{' '}
-                                                                <span className="text-orange-500 font-medium">{question.authorUsername}</span>
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="p-12 text-center">
-                                    <i className="bi bi-search text-4xl text-gray-300 dark:text-slate-600 mb-3"></i>
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No questions found</h3>
-                                    <p className="text-gray-500">Try adjusting your search or filters</p>
-                                </div>
-                            )}
-
-                            {/* Pagination */}
-                            {totalPages > 1 && (
-                                <div className="p-4 border-t border-gray-100 dark:border-slate-700">
-                                    <div className="flex justify-center items-center gap-2">
-                                        <button
-                                            onClick={() => setPage(p => p - 1)}
-                                            disabled={page === 1}
-                                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                        >
-                                            Previous
-                                        </button>
-                                        {[...Array(Math.min(5, totalPages))].map((_, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => setPage(i + 1)}
-                                                className={`w-10 h-10 rounded-lg font-medium transition ${page === i + 1
-                                                        ? 'bg-orange-500 text-white'
-                                                        : 'border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-                                                    }`}
-                                            >
-                                                {i + 1}
-                                            </button>
-                                        ))}
-                                        <button
-                                            onClick={() => setPage(p => p + 1)}
-                                            disabled={page === totalPages}
-                                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                        >
-                                            Next
-                                        </button>
+            {/* Questions List */}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            ) : questions.length === 0 ? (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <i className="bi bi-search text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No questions found</h3>
+                    <p className="text-[var(--text-muted)] mb-4">Try adjusting your search or filters</p>
+                    <Link href="/questions/ask" className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-xl">
+                        <i className="bi bi-plus-circle"></i> Ask a Question
+                    </Link>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {questions.map((question) => (
+                        <div
+                            key={question.questionId}
+                            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--primary)]/50 transition"
+                        >
+                            <div className="flex gap-4">
+                                {/* Stats */}
+                                <div className="hidden sm:flex flex-col items-center gap-2 min-w-[70px]">
+                                    <div className={`px-3 py-2 rounded-xl text-center w-full ${question.score > 0 ? 'bg-green-500/20 text-green-500' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>
+                                        <span className="block text-lg font-bold">{question.score}</span>
+                                        <span className="text-xs">votes</span>
+                                    </div>
+                                    <div className={`px-3 py-2 rounded-xl text-center w-full ${question.hasAcceptedAnswer ? 'bg-green-500 text-white' :
+                                            question.answerCount > 0 ? 'bg-blue-500/20 text-blue-500' :
+                                                'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'
+                                        }`}>
+                                        <span className="block text-lg font-bold">{question.answerCount}</span>
+                                        <span className="text-xs">answers</span>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Sidebar */}
-                    <div className="space-y-6">
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
-                            <h3 className="font-bold text-gray-900 dark:text-white mb-4">Related Tags</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {['javascript', 'react', 'csharp', 'python', 'sql', 'docker', 'nextjs'].map((t) => (
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
                                     <Link
-                                        key={t}
-                                        href={`/questions?tag=${t}`}
-                                        className="px-3 py-1 border border-orange-500 text-orange-500 text-sm rounded-full hover:bg-orange-500 hover:text-white transition"
+                                        href={`/questions/${question.questionId}`}
+                                        className="text-lg font-semibold text-[var(--text-primary)] hover:text-[var(--primary)] transition line-clamp-2"
                                     >
-                                        {t}
+                                        {question.title}
                                     </Link>
-                                ))}
+                                    <p className="mt-2 text-sm text-[var(--text-muted)] line-clamp-2">
+                                        {stripHtml(question.bodyExcerpt || question.body || '')}
+                                    </p>
+
+                                    {/* Tags & Meta */}
+                                    <div className="flex flex-wrap items-center gap-3 mt-4">
+                                        <div className="flex flex-wrap gap-2">
+                                            {question.tags?.slice(0, 4).map((t: Tag) => (
+                                                <Link
+                                                    key={t.tagId}
+                                                    href={`/questions?tag=${t.tagName}`}
+                                                    className="px-2.5 py-1 text-xs font-medium bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 transition"
+                                                >
+                                                    {t.tagName}
+                                                </Link>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-2 ml-auto text-xs text-[var(--text-muted)]">
+                                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold">
+                                                {question.authorUsername?.charAt(0).toUpperCase() || '?'}
+                                            </div>
+                                            <span>{question.authorUsername || 'Anonymous'}</span>
+                                            <span>•</span>
+                                            <span>{formatDate(question.createdDate)}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
-                            <h3 className="font-bold text-gray-900 dark:text-white mb-4">Looking for more?</h3>
-                            <p className="text-gray-500 text-sm mb-4">
-                                Browse our complete list of questions or ask your own
-                            </p>
-                            <Link
-                                href="/questions/ask"
-                                className="block w-full py-2 text-center bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
-                            >
-                                Ask a Question
-                            </Link>
-                        </div>
-                    </div>
+                    ))}
                 </div>
-            </div>
-        </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex justify-center gap-2 mt-6">
+                    <button
+                        onClick={() => setPage(p => p - 1)}
+                        disabled={page === 1}
+                        className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed hover:border-[var(--primary)] transition"
+                    >
+                        Previous
+                    </button>
+                    {[...Array(Math.min(5, totalPages))].map((_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setPage(i + 1)}
+                            className={`w-10 h-10 rounded-xl font-medium transition ${page === i + 1
+                                    ? 'bg-[var(--primary)] text-white'
+                                    : 'bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                                }`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => setPage(p => p + 1)}
+                        disabled={page === totalPages}
+                        className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed hover:border-[var(--primary)] transition"
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
+        </AppLayout>
     );
 }
 
 export default function QuestionsPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
-                <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
+            <AppLayout>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            </AppLayout>
         }>
             <QuestionsContent />
         </Suspense>

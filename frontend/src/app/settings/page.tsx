@@ -4,13 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import apiClient from '@/lib/api/client';
-
-type Tab = 'profile' | 'account' | 'notifications' | 'preferences';
+import AppLayout from '@/components/AppLayout';
 
 export default function SettingsPage() {
     const { user, isLoading: authLoading, logout } = useAuth();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<Tab>('profile');
+    const [activeTab, setActiveTab] = useState('profile');
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
@@ -50,9 +49,8 @@ export default function SettingsPage() {
         try {
             await apiClient.put('/users/profile', profile);
             setMessage({ type: 'success', text: 'Profile updated successfully' });
-        } catch (err: unknown) {
-            const error = err as { response?: { data?: { message?: string } } };
-            setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update profile' });
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update profile' });
         } finally {
             setIsSaving(false);
         }
@@ -76,9 +74,8 @@ export default function SettingsPage() {
             });
             setMessage({ type: 'success', text: 'Password changed successfully' });
             setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        } catch (err: unknown) {
-            const error = err as { response?: { data?: { message?: string } } };
-            setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to change password' });
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to change password' });
         } finally {
             setIsSaving(false);
         }
@@ -86,236 +83,271 @@ export default function SettingsPage() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
-                <div className="inline-block w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
+            <AppLayout showRightSidebar={false}>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            </AppLayout>
         );
     }
 
     if (!user) return null;
 
     const tabs = [
-        { key: 'profile' as Tab, icon: 'bi-person', label: 'Profile' },
-        { key: 'account' as Tab, icon: 'bi-shield-lock', label: 'Account & Security' },
-        { key: 'notifications' as Tab, icon: 'bi-bell', label: 'Notifications' },
-        { key: 'preferences' as Tab, icon: 'bi-sliders', label: 'Preferences' },
+        { key: 'profile', label: 'Profile', icon: 'bi-person' },
+        { key: 'account', label: 'Security', icon: 'bi-shield-lock' },
+        { key: 'notifications', label: 'Notifications', icon: 'bi-bell' },
+        { key: 'preferences', label: 'Preferences', icon: 'bi-sliders' },
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid lg:grid-cols-4 gap-8">
-                    {/* Sidebar */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden">
-                            <div className="p-6 text-center border-b border-gray-100 dark:border-slate-700">
-                                <img
-                                    src={user.profilePicture || '/images/default-avatar.png'}
-                                    className="w-20 h-20 rounded-full mx-auto mb-3 border-4 border-gray-100 dark:border-slate-700"
-                                    alt=""
-                                />
-                                <h3 className="font-bold text-gray-900 dark:text-white">{user.displayName || user.username}</h3>
-                                <p className="text-sm text-gray-500">@{user.username}</p>
+        <AppLayout showRightSidebar={false}>
+            {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <i className="bi bi-gear-fill text-[var(--primary)]"></i>
+                    Settings
+                </h1>
+                <p className="text-[var(--text-muted)]">Manage your account and preferences</p>
+            </div>
+
+            <div className="grid lg:grid-cols-4 gap-6">
+                {/* Sidebar */}
+                <div className="lg:col-span-1">
+                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden">
+                        {/* User Preview */}
+                        <div className="p-5 text-center border-b border-[var(--border-color)]">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 p-0.5 mx-auto mb-3">
+                                <div className="w-full h-full rounded-full bg-[var(--bg-secondary)] flex items-center justify-center text-xl font-bold text-[var(--text-primary)]">
+                                    {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
+                                </div>
                             </div>
-                            <nav className="p-2">
-                                {tabs.map(({ key, icon, label }) => (
-                                    <button
-                                        key={key}
-                                        onClick={() => setActiveTab(key)}
-                                        className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition ${activeTab === key
-                                                ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600'
-                                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
-                                            }`}
-                                    >
-                                        <i className={`bi ${icon} mr-3`}></i>{label}
-                                    </button>
-                                ))}
-                            </nav>
+                            <h4 className="font-semibold text-[var(--text-primary)]">{user.displayName || user.username}</h4>
+                            <p className="text-sm text-[var(--text-muted)]">@{user.username}</p>
+                        </div>
+
+                        {/* Tab List */}
+                        <div className="p-2">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition ${activeTab === tab.key
+                                            ? 'bg-[var(--primary)] text-white'
+                                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                                        }`}
+                                >
+                                    <i className={`bi ${tab.icon}`}></i>
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
+                </div>
 
-                    {/* Main Content */}
-                    <div className="lg:col-span-3">
-                        {message.text && (
-                            <div className={`mb-6 px-4 py-3 rounded-lg flex items-center ${message.type === 'success'
-                                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
-                                    : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-                                }`}>
-                                <i className={`bi ${message.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} mr-2`}></i>
-                                {message.text}
-                                <button onClick={() => setMessage({ type: '', text: '' })} className="ml-auto">
-                                    <i className="bi bi-x"></i>
-                                </button>
+                {/* Content */}
+                <div className="lg:col-span-3">
+                    {/* Message */}
+                    {message.text && (
+                        <div className={`mb-4 p-4 rounded-xl flex items-center gap-2 ${message.type === 'success'
+                                ? 'bg-green-500/10 border border-green-500/30 text-green-500'
+                                : 'bg-red-500/10 border border-red-500/30 text-red-500'
+                            }`}>
+                            <i className={`bi ${message.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'}`}></i>
+                            {message.text}
+                            <button onClick={() => setMessage({ type: '', text: '' })} className="ml-auto">
+                                <i className="bi bi-x"></i>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Profile Tab */}
+                    {activeTab === 'profile' && (
+                        <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
+                            <div className="p-5 border-b border-[var(--border-color)]">
+                                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Profile Settings</h3>
                             </div>
-                        )}
-
-                        {activeTab === 'profile' && (
-                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Profile Settings</h2>
-                                <form onSubmit={handleProfileSave} className="space-y-6">
+                            <form onSubmit={handleProfileSave} className="p-5 space-y-5">
+                                <div>
+                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Display Name</label>
+                                    <input
+                                        type="text"
+                                        value={profile.displayName}
+                                        onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
+                                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Email</label>
+                                    <input
+                                        type="email"
+                                        value={profile.email}
+                                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Bio</label>
+                                    <textarea
+                                        rows={3}
+                                        value={profile.bio}
+                                        onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                                        placeholder="Tell us about yourself..."
+                                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition resize-none"
+                                    />
+                                </div>
+                                <div className="grid sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Display Name</label>
+                                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Location</label>
                                         <input
                                             type="text"
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                            value={profile.displayName}
-                                            onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
+                                            value={profile.location}
+                                            onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                                            placeholder="City, Country"
+                                            className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+                                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Website</label>
                                         <input
-                                            type="email"
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                            value={profile.email}
-                                            onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                                            type="url"
+                                            value={profile.website}
+                                            onChange={(e) => setProfile({ ...profile, website: e.target.value })}
+                                            placeholder="https://..."
+                                            className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
-                                        <textarea
-                                            rows={3}
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
-                                            value={profile.bio}
-                                            onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                                            placeholder="Tell us about yourself..."
-                                        />
-                                    </div>
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
-                                            <input
-                                                type="text"
-                                                className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                                value={profile.location}
-                                                onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-                                                placeholder="City, Country"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Website</label>
-                                            <input
-                                                type="url"
-                                                className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                                value={profile.website}
-                                                onChange={(e) => setProfile({ ...profile, website: e.target.value })}
-                                                placeholder="https://..."
-                                            />
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        disabled={isSaving}
-                                        className="px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition"
-                                    >
-                                        {isSaving ? 'Saving...' : 'Save Changes'}
-                                    </button>
-                                </form>
-                            </div>
-                        )}
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition disabled:opacity-50"
+                                >
+                                    {isSaving ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </form>
+                        </div>
+                    )}
 
-                        {activeTab === 'account' && (
-                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Account & Security</h2>
-
-                                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Change Password</h3>
-                                <form onSubmit={handlePasswordChange} className="space-y-4 mb-8">
+                    {/* Security Tab */}
+                    {activeTab === 'account' && (
+                        <div className="space-y-6">
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
+                                <div className="p-5 border-b border-[var(--border-color)]">
+                                    <h3 className="text-lg font-semibold text-[var(--text-primary)]">Change Password</h3>
+                                </div>
+                                <form onSubmit={handlePasswordChange} className="p-5 space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Password</label>
+                                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Current Password</label>
                                         <input
                                             type="password"
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                             value={passwordForm.currentPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                                             required
+                                            className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">New Password</label>
+                                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">New Password</label>
                                         <input
                                             type="password"
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                             value={passwordForm.newPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                                             minLength={6}
                                             required
+                                            className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirm New Password</label>
+                                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Confirm Password</label>
                                         <input
                                             type="password"
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                             value={passwordForm.confirmPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                                             required
+                                            className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                                         />
                                     </div>
                                     <button
                                         type="submit"
                                         disabled={isSaving}
-                                        className="px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition"
+                                        className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition disabled:opacity-50"
                                     >
                                         {isSaving ? 'Updating...' : 'Update Password'}
                                     </button>
                                 </form>
+                            </div>
 
-                                <div className="border-t border-gray-200 dark:border-slate-700 pt-6">
-                                    <h3 className="font-semibold text-red-600 mb-4">Danger Zone</h3>
+                            <div className="bg-[var(--bg-secondary)] border border-red-500/30 rounded-2xl">
+                                <div className="p-5 border-b border-red-500/30">
+                                    <h3 className="text-lg font-semibold text-red-500">Danger Zone</h3>
+                                </div>
+                                <div className="p-5">
                                     <button
                                         onClick={logout}
-                                        className="px-6 py-3 border border-red-500 text-red-500 font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                                        className="flex items-center gap-2 px-5 py-2.5 border border-red-500 text-red-500 rounded-xl hover:bg-red-500/10 transition"
                                     >
-                                        <i className="bi bi-box-arrow-right mr-2"></i>Sign Out
+                                        <i className="bi bi-box-arrow-right"></i>
+                                        Sign Out
                                     </button>
                                 </div>
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        {activeTab === 'notifications' && (
-                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Notification Settings</h2>
-                                <div className="space-y-4">
-                                    {[
-                                        { id: 'emailNotif', label: 'Email notifications', defaultChecked: true },
-                                        { id: 'pushNotif', label: 'Push notifications', defaultChecked: true },
-                                        { id: 'answerNotif', label: 'Notify when someone answers my question', defaultChecked: true },
-                                        { id: 'mentionNotif', label: 'Notify when someone mentions me', defaultChecked: true },
-                                    ].map(({ id, label, defaultChecked }) => (
-                                        <label key={id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-700 rounded-lg cursor-pointer">
-                                            <span className="text-gray-700 dark:text-gray-300">{label}</span>
-                                            <input type="checkbox" defaultChecked={defaultChecked} className="w-5 h-5 text-orange-500 rounded focus:ring-orange-500" />
-                                        </label>
-                                    ))}
+                    {/* Notifications Tab */}
+                    {activeTab === 'notifications' && (
+                        <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
+                            <div className="p-5 border-b border-[var(--border-color)]">
+                                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Notification Settings</h3>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                {[
+                                    { id: 'email', label: 'Email notifications' },
+                                    { id: 'push', label: 'Push notifications' },
+                                    { id: 'answer', label: 'Notify when someone answers my question' },
+                                    { id: 'mention', label: 'Notify when someone mentions me' },
+                                ].map((item) => (
+                                    <label key={item.id} className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-xl cursor-pointer">
+                                        <span className="text-[var(--text-primary)]">{item.label}</span>
+                                        <div className="relative">
+                                            <input type="checkbox" defaultChecked className="sr-only peer" />
+                                            <div className="w-11 h-6 bg-[var(--border-color)] rounded-full peer peer-checked:bg-[var(--primary)] transition"></div>
+                                            <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full peer-checked:translate-x-5 transition"></div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Preferences Tab */}
+                    {activeTab === 'preferences' && (
+                        <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
+                            <div className="p-5 border-b border-[var(--border-color)]">
+                                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Preferences</h3>
+                            </div>
+                            <div className="p-5 space-y-5">
+                                <div>
+                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Theme</label>
+                                    <select className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition">
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                        <option value="system">System</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Language</label>
+                                    <select className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition">
+                                        <option value="en">English</option>
+                                        <option value="vi">Tiếng Việt</option>
+                                    </select>
                                 </div>
                             </div>
-                        )}
-
-                        {activeTab === 'preferences' && (
-                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Preferences</h2>
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Theme</label>
-                                        <select className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-                                            <option value="light">Light</option>
-                                            <option value="dark">Dark</option>
-                                            <option value="system">System</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Language</label>
-                                        <select className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-                                            <option value="en">English</option>
-                                            <option value="vi">Tiếng Việt</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
-        </div>
+        </AppLayout>
     );
 }

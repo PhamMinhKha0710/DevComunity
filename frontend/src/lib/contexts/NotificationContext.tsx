@@ -11,7 +11,7 @@ interface Notification {
     message: string;
     type: string;
     isRead: boolean;
-    createdAt: string;
+    createdDate: string;
     link?: string;
     fromUserId?: number;
     fromUserName?: string;
@@ -35,12 +35,41 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
+    // Fetch initial notifications
     useEffect(() => {
         if (!user) {
             setNotifications([]);
             setUnreadCount(0);
             return;
         }
+
+        const fetchNotifications = async () => {
+            try {
+                const token = localStorage.getItem('accessToken');
+                if (!token) return;
+
+                const response = await fetch(`${API_BASE_URL}/api/Notifications`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const notifs = Array.isArray(data) ? data : (data.items || []);
+                    setNotifications(notifs);
+                    setUnreadCount(notifs.filter((n: Notification) => !n.isRead).length);
+                }
+            } catch (error) {
+                console.error('Failed to fetch notifications:', error);
+            }
+        };
+
+        fetchNotifications();
+    }, [user]);
+
+    useEffect(() => {
+        if (!user) return;
 
         const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 
@@ -114,6 +143,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                 await connection.invoke('MarkAsRead', notificationId);
             } catch (err) {
                 console.error('Failed to mark notification as read:', err);
+            }
+        } else {
+            // Fallback to API if SignalR is not connected
+            try {
+                const token = localStorage.getItem('accessToken');
+                await fetch(`${API_BASE_URL}/api/Notifications/${notificationId}/read`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                // Update local state
+                setNotifications(prev =>
+                    prev.map(n => n.notificationId === notificationId ? { ...n, isRead: true } : n)
+                );
+                setUnreadCount(prev => Math.max(0, prev - 1));
+            } catch (err) {
+                console.error('Failed to mark read via API:', err);
             }
         }
     }, [connection]);

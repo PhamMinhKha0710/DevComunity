@@ -22,15 +22,18 @@ public class VoteQuestionCommandHandler
     private readonly IVoteRepository _voteRepository;
     private readonly IQuestionRepository _questionRepository;
     private readonly IUserRepository _userRepository;
+    private readonly INotificationRepository _notificationRepository;
 
     public VoteQuestionCommandHandler(
         IVoteRepository voteRepository,
         IQuestionRepository questionRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        INotificationRepository notificationRepository)
     {
         _voteRepository = voteRepository;
         _questionRepository = questionRepository;
         _userRepository = userRepository;
+        _notificationRepository = notificationRepository;
     }
 
     public async Task<VoteResult> HandleAsync(VoteQuestionCommand command, CancellationToken cancellationToken)
@@ -91,11 +94,39 @@ public class VoteQuestionCommandHandler
 
         var score = await _voteRepository.GetQuestionScoreAsync(command.QuestionId, cancellationToken);
 
+        // Check if we need to send notification (Only on Upvote and not self-vote)
+        Notification? notification = null;
+        if (isUpvote && command.UserId != question.UserId)
+        {
+             // Check if already notified recently? For now, just simplest logic: Notify on every new upvote.
+             // But usually we should avoid duplicate notifications.
+             // Ideally check if notification exists. But let's keep it simple for MVP.
+             // If vote was changed from Down to Up, or New Upvote.
+             bool shouldNotify = (existingVote == null) || (existingVote != null && !existingVote.IsUpvote);
+             
+             if (shouldNotify)
+             {
+                 var voter = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+                 notification = new Notification
+                 {
+                     UserId = question.UserId,
+                     FromUserId = command.UserId,
+                     Type = "Upvote",
+                     Message = $"{voter?.DisplayName ?? voter?.Username ?? "Someone"} upvoted your question: {question.Title}",
+                     Link = $"/questions/{question.QuestionId}",
+                     CreatedDate = DateTime.UtcNow,
+                     IsRead = false
+                 };
+                 await _notificationRepository.AddAsync(notification, cancellationToken);
+             }
+        }
+
         return new VoteResult
         {
             Success = true,
             Score = score,
-            UserVote = command.VoteType
+            UserVote = command.VoteType,
+            CreatedNotification = notification
         };
     }
 }
@@ -108,15 +139,18 @@ public class VoteAnswerCommandHandler
     private readonly IVoteRepository _voteRepository;
     private readonly IAnswerRepository _answerRepository;
     private readonly IUserRepository _userRepository;
+    private readonly INotificationRepository _notificationRepository;
 
     public VoteAnswerCommandHandler(
         IVoteRepository voteRepository,
         IAnswerRepository answerRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        INotificationRepository notificationRepository)
     {
         _voteRepository = voteRepository;
         _answerRepository = answerRepository;
         _userRepository = userRepository;
+        _notificationRepository = notificationRepository;
     }
 
     public async Task<VoteResult> HandleAsync(VoteAnswerCommand command, CancellationToken cancellationToken)
@@ -173,11 +207,35 @@ public class VoteAnswerCommandHandler
 
         var score = await _voteRepository.GetAnswerScoreAsync(command.AnswerId, cancellationToken);
 
+         // Notification Logic for Answer Upvote
+        Notification? notification = null;
+        if (isUpvote && command.UserId != answer.UserId)
+        {
+             bool shouldNotify = (existingVote == null) || (existingVote != null && !existingVote.IsUpvote);
+             
+             if (shouldNotify)
+             {
+                 var voter = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+                 notification = new Notification
+                 {
+                     UserId = answer.UserId,
+                     FromUserId = command.UserId,
+                     Type = "Upvote",
+                     Message = $"{voter?.DisplayName ?? voter?.Username ?? "Someone"} upvoted your answer",
+                     Link = $"/questions/{answer.QuestionId}", // Link to question, maybe anchor to answer?
+                     CreatedDate = DateTime.UtcNow,
+                     IsRead = false
+                 };
+                 await _notificationRepository.AddAsync(notification, cancellationToken);
+             }
+        }
+
         return new VoteResult
         {
             Success = true,
             Score = score,
-            UserVote = command.VoteType
+            UserVote = command.VoteType,
+            CreatedNotification = notification
         };
     }
 }
@@ -232,5 +290,6 @@ public class VoteResult
     public int Score { get; set; }
     public string? UserVote { get; set; }
     public string? Message { get; set; }
+    public Notification? CreatedNotification { get; set; }
 }
 
