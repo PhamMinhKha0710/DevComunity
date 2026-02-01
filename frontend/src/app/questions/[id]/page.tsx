@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import apiClient from '@/lib/api/client';
 import AppLayout from '@/components/AppLayout';
+import MarkdownContent from '@/components/MarkdownContent';
 import type { Question, Answer } from '@/types';
 
 export default function QuestionDetailPage() {
@@ -168,9 +169,9 @@ export default function QuestionDetailPage() {
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
-                            <div
-                                className="prose dark:prose-invert max-w-none mb-6 text-[var(--text-secondary)]"
-                                dangerouslySetInnerHTML={{ __html: question.body }}
+                            <MarkdownContent
+                                content={question.body}
+                                className="mb-6 text-[var(--text-secondary)]"
                             />
 
                             <div className="flex flex-wrap gap-2 mb-6">
