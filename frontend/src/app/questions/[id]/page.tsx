@@ -23,12 +23,18 @@ export default function QuestionDetailPage() {
 
     const fetchQuestion = async () => {
         try {
-            const [questionRes, answersRes] = await Promise.all([
-                apiClient.get<Question>(`/questions/${id}`),
-                apiClient.get<Answer[]>(`/questions/${id}/answers`),
-            ]);
+            // Fetch question first - this is required
+            const questionRes = await apiClient.get<Question>(`/questions/${id}`);
             setQuestion(questionRes.data);
-            setAnswers(answersRes.data || []);
+
+            // Try to fetch answers separately - don't fail if answers endpoint doesn't exist
+            try {
+                const answersRes = await apiClient.get<Answer[]>(`/questions/${id}/answers`);
+                setAnswers(answersRes.data || []);
+            } catch (answersError) {
+                console.warn('Failed to fetch answers (endpoint may not exist):', answersError);
+                setAnswers([]);
+            }
         } catch (error) {
             console.error('Failed to fetch question:', error);
         } finally {
@@ -137,8 +143,8 @@ export default function QuestionDetailPage() {
                             <button
                                 onClick={() => handleVote('up', 'question', question.questionId)}
                                 className={`w-10 h-10 rounded-full flex items-center justify-center transition ${question.userVoteType === 'up'
-                                        ? 'bg-[var(--primary)] text-white'
-                                        : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
+                                    ? 'bg-[var(--primary)] text-white'
+                                    : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
                                     }`}
                                 title="Upvote"
                             >
@@ -148,8 +154,8 @@ export default function QuestionDetailPage() {
                             <button
                                 onClick={() => handleVote('down', 'question', question.questionId)}
                                 className={`w-10 h-10 rounded-full flex items-center justify-center transition ${question.userVoteType === 'down'
-                                        ? 'bg-red-500 text-white'
-                                        : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
                                     }`}
                                 title="Downvote"
                             >
@@ -214,8 +220,8 @@ export default function QuestionDetailPage() {
                                 key={answer.answerId}
                                 id={`answer-${answer.answerId}`}
                                 className={`bg-[var(--bg-secondary)] border rounded-2xl p-6 transition ${answer.isAccepted
-                                        ? 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
-                                        : 'border-[var(--border-color)]'
+                                    ? 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
+                                    : 'border-[var(--border-color)]'
                                     }`}
                             >
                                 <div className="flex gap-6">
@@ -223,8 +229,8 @@ export default function QuestionDetailPage() {
                                         <button
                                             onClick={() => handleVote('up', 'answer', answer.answerId)}
                                             className={`w-10 h-10 rounded-full flex items-center justify-center transition ${answer.userVoteType === 'up'
-                                                    ? 'bg-[var(--primary)] text-white'
-                                                    : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
+                                                ? 'bg-[var(--primary)] text-white'
+                                                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
                                                 }`}
                                         >
                                             <i className="bi bi-caret-up-fill text-xl"></i>
@@ -233,8 +239,8 @@ export default function QuestionDetailPage() {
                                         <button
                                             onClick={() => handleVote('down', 'answer', answer.answerId)}
                                             className={`w-10 h-10 rounded-full flex items-center justify-center transition ${answer.userVoteType === 'down'
-                                                    ? 'bg-red-500 text-white'
-                                                    : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
+                                                ? 'bg-red-500 text-white'
+                                                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
                                                 }`}
                                         >
                                             <i className="bi bi-caret-down-fill text-xl"></i>

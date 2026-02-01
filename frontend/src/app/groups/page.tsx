@@ -37,7 +37,7 @@ export default function GroupsPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newGroup, setNewGroup] = useState({ name: '', description: '', isPrivate: false });
 
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5164';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5122';
     const getToken = () => localStorage.getItem('accessToken');
 
     useEffect(() => {
