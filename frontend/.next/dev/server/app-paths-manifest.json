@@ -4,6 +4,7 @@
   "/login/page": "app/login/page.js",
   "/page": "app/page.js",
   "/questions/[id]/page": "app/questions/[id]/page.js",
+  "/questions/page": "app/questions/page.js",
   "/register/page": "app/register/page.js",
   "/saved/page": "app/saved/page.js",
   "/search/page": "app/search/page.js"
