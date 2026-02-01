@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 import type { Question, Answer } from '@/types';
 
 export default function QuestionDetailPage() {
@@ -68,146 +69,255 @@ export default function QuestionDetailPage() {
         }
     };
 
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-            </div>
+            <AppLayout>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            </AppLayout>
         );
     }
 
     if (!question) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900">Question not found</h2>
-                    <Link href="/" className="mt-4 inline-block text-orange-500 hover:text-orange-600">
+            <AppLayout>
+                <div className="text-center py-20">
+                    <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Question not found</h2>
+                    <Link href="/" className="text-[var(--primary)] hover:underline">
                         ← Back to home
                     </Link>
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow-sm border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <Link href="/" className="text-2xl font-bold text-orange-500">
-                        DevComunity
-                    </Link>
-                </div>
-            </header>
-
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <AppLayout>
+            <div className="max-w-4xl mx-auto">
                 {/* Question */}
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">{question.title}</h1>
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 mb-6 shadow-sm">
+                    {/* Header */}
+                    <div className="mb-6 border-b border-[var(--border-color)] pb-4">
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] leading-tight">
+                                {question.title}
+                            </h1>
+                            {question.status === 'Solved' && (
+                                <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-sm font-medium whitespace-nowrap">
+                                    <i className="bi bi-check-circle-fill mr-1"></i> Solved
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--text-muted)]">
+                            <span className="flex items-center gap-1">
+                                <i className="bi bi-clock"></i>
+                                {formatDate(question.createdDate)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <i className="bi bi-eye"></i>
+                                {question.viewCount} views
+                            </span>
+                        </div>
+                    </div>
 
                     <div className="flex gap-6">
                         {/* Voting */}
                         <div className="flex flex-col items-center gap-2">
                             <button
                                 onClick={() => handleVote('up', 'question', question.questionId)}
-                                className={`p-2 rounded hover:bg-gray-100 ${question.userVoteType === 'up' ? 'text-orange-500' : 'text-gray-400'}`}
+                                className={`w-10 h-10 rounded-full flex items-center justify-center transition ${question.userVoteType === 'up'
+                                        ? 'bg-[var(--primary)] text-white'
+                                        : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
+                                    }`}
+                                title="Upvote"
                             >
-                                ▲
+                                <i className="bi bi-caret-up-fill text-xl"></i>
                             </button>
-                            <span className="text-xl font-semibold">{question.score}</span>
+                            <span className="text-xl font-bold text-[var(--text-primary)]">{question.score}</span>
                             <button
                                 onClick={() => handleVote('down', 'question', question.questionId)}
-                                className={`p-2 rounded hover:bg-gray-100 ${question.userVoteType === 'down' ? 'text-orange-500' : 'text-gray-400'}`}
+                                className={`w-10 h-10 rounded-full flex items-center justify-center transition ${question.userVoteType === 'down'
+                                        ? 'bg-red-500 text-white'
+                                        : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
+                                    }`}
+                                title="Downvote"
                             >
-                                ▼
+                                <i className="bi bi-caret-down-fill text-xl"></i>
+                            </button>
+                            <button className="mt-2 w-8 h-8 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--primary)] flex items-center justify-center transition" title="Save">
+                                <i className={`bi ${question.isSaved ? 'bi-bookmark-fill text-[var(--primary)]' : 'bi-bookmark'}`}></i>
                             </button>
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1">
-                            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: question.body }} />
+                        <div className="flex-1 min-w-0">
+                            <div
+                                className="prose dark:prose-invert max-w-none mb-6 text-[var(--text-secondary)]"
+                                dangerouslySetInnerHTML={{ __html: question.body }}
+                            />
 
-                            <div className="mt-6 flex gap-2 flex-wrap">
+                            <div className="flex flex-wrap gap-2 mb-6">
                                 {question.tags?.map((tag) => (
-                                    <span key={tag.tagId} className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-sm">
-                                        {tag.tagName}
-                                    </span>
+                                    <Link
+                                        key={tag.tagId}
+                                        href={`/tags?search=${tag.tagName}`}
+                                        className="px-3 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-sm font-medium hover:bg-[var(--primary)] hover:text-white transition"
+                                    >
+                                        #{tag.tagName}
+                                    </Link>
                                 ))}
                             </div>
 
-                            <div className="mt-4 text-sm text-gray-500">
-                                asked by <span className="text-blue-600">{question.authorUsername}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Answers */}
-                <div className="mb-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">{answers.length} Answers</h2>
-
-                    {answers.map((answer) => (
-                        <div key={answer.answerId} className={`bg-white rounded-lg shadow p-6 mb-4 ${answer.isAccepted ? 'border-l-4 border-green-500' : ''}`}>
-                            <div className="flex gap-6">
-                                <div className="flex flex-col items-center gap-2">
-                                    <button
-                                        onClick={() => handleVote('up', 'answer', answer.answerId)}
-                                        className={`p-2 rounded hover:bg-gray-100 ${answer.userVoteType === 'up' ? 'text-orange-500' : 'text-gray-400'}`}
-                                    >
-                                        ▲
+                            <div className="flex items-center justify-between pt-4 border-t border-[var(--border-color)]">
+                                <div className="flex gap-4">
+                                    <button className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm font-medium transition">
+                                        All questions
                                     </button>
-                                    <span className="text-xl font-semibold">{answer.score}</span>
-                                    <button
-                                        onClick={() => handleVote('down', 'answer', answer.answerId)}
-                                        className={`p-2 rounded hover:bg-gray-100 ${answer.userVoteType === 'down' ? 'text-orange-500' : 'text-gray-400'}`}
-                                    >
-                                        ▼
-                                    </button>
-                                    {answer.isAccepted && (
-                                        <span className="text-green-500 text-2xl">✓</span>
-                                    )}
                                 </div>
-
-                                <div className="flex-1">
-                                    <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: answer.body }} />
-                                    <div className="mt-4 text-sm text-gray-500">
-                                        answered by <span className="text-blue-600">{answer.authorUsername}</span>
+                                <div className="flex items-center gap-3 bg-[var(--bg-tertiary)] p-3 rounded-xl border border-[var(--border-color)]">
+                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
+                                        {question.authorUsername?.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="text-sm">
+                                        <div className="text-[var(--text-muted)]">Asked by</div>
+                                        <Link href={`/users/${question.authorId}`} className="font-semibold text-[var(--primary)] hover:underline">
+                                            {question.authorUsername}
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    ))}
+                    </div>
+                </div>
+
+                {/* Answers Section */}
+                <div className="mb-8">
+                    <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                        <i className="bi bi-chat-left-text-fill text-[var(--primary)]"></i>
+                        {answers.length} Answers
+                    </h2>
+
+                    <div className="space-y-4">
+                        {answers.map((answer) => (
+                            <div
+                                key={answer.answerId}
+                                id={`answer-${answer.answerId}`}
+                                className={`bg-[var(--bg-secondary)] border rounded-2xl p-6 transition ${answer.isAccepted
+                                        ? 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
+                                        : 'border-[var(--border-color)]'
+                                    }`}
+                            >
+                                <div className="flex gap-6">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <button
+                                            onClick={() => handleVote('up', 'answer', answer.answerId)}
+                                            className={`w-10 h-10 rounded-full flex items-center justify-center transition ${answer.userVoteType === 'up'
+                                                    ? 'bg-[var(--primary)] text-white'
+                                                    : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
+                                                }`}
+                                        >
+                                            <i className="bi bi-caret-up-fill text-xl"></i>
+                                        </button>
+                                        <span className="text-xl font-bold text-[var(--text-primary)]">{answer.score}</span>
+                                        <button
+                                            onClick={() => handleVote('down', 'answer', answer.answerId)}
+                                            className={`w-10 h-10 rounded-full flex items-center justify-center transition ${answer.userVoteType === 'down'
+                                                    ? 'bg-red-500 text-white'
+                                                    : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
+                                                }`}
+                                        >
+                                            <i className="bi bi-caret-down-fill text-xl"></i>
+                                        </button>
+                                        {answer.isAccepted && (
+                                            <div className="mt-2 w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center" title="Accepted Answer">
+                                                <i className="bi bi-check-lg text-2xl"></i>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div
+                                            className="prose dark:prose-invert max-w-none mb-4 text-[var(--text-secondary)]"
+                                            dangerouslySetInnerHTML={{ __html: answer.body }}
+                                        />
+
+                                        <div className="flex items-center justify-between pt-4 border-t border-[var(--border-color)]">
+                                            <div className="text-xs text-[var(--text-muted)]">
+                                                Answered {formatDate(answer.createdDate)}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
+                                                    {answer.authorUsername?.charAt(0).toUpperCase()}
+                                                </div>
+                                                <Link href={`/users/${answer.authorId}`} className="text-sm font-medium text-[var(--primary)] hover:underline">
+                                                    {answer.authorUsername}
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Add Answer Form */}
                 {user ? (
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Answer</h3>
+                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Your Answer</h3>
                         <form onSubmit={handleSubmitAnswer}>
-                            <textarea
-                                value={newAnswer}
-                                onChange={(e) => setNewAnswer(e.target.value)}
-                                rows={8}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                                placeholder="Write your answer here..."
-                                required
-                            />
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
-                            >
-                                {isSubmitting ? 'Posting...' : 'Post Your Answer'}
-                            </button>
+                            <div className="mb-4">
+                                <textarea
+                                    value={newAnswer}
+                                    onChange={(e) => setNewAnswer(e.target.value)}
+                                    rows={6}
+                                    className="w-full p-4 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition resize-y min-h-[150px]"
+                                    placeholder="Write your answer here. Markdown is supported."
+                                    required
+                                />
+                            </div>
+                            <div className="flex justify-end">
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {isSubmitting ? (
+                                        <><i className="bi bi-arrow-clockwise animate-spin"></i> Posting...</>
+                                    ) : (
+                                        <><i className="bi bi-send-fill"></i> Post Answer</>
+                                    )}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-lg shadow p-6 text-center">
-                        <p className="text-gray-600">
-                            <Link href="/login" className="text-orange-500 hover:text-orange-600">Log in</Link> to post an answer
-                        </p>
+                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-8 text-center">
+                        <i className="bi bi-lock-fill text-4xl text-[var(--text-muted)] mb-3"></i>
+                        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Join the discussion</h3>
+                        <p className="text-[var(--text-muted)] mb-6">Log in or sign up to leave an answer</p>
+                        <div className="flex justify-center gap-4">
+                            <Link href="/login" className="px-6 py-2 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition">
+                                Log In
+                            </Link>
+                            <Link href="/register" className="px-6 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium border border-[var(--border-color)] hover:border-[var(--primary)] transition">
+                                Sign Up
+                            </Link>
+                        </div>
                     </div>
                 )}
-            </main>
-        </div>
+            </div>
+        </AppLayout>
     );
 }
