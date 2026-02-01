@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout';
+import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface Group {
@@ -18,12 +18,22 @@ interface Group {
     };
 }
 
+const categoryFilters = ['All', 'Frontend', 'Backend', 'DevOps', 'AI/ML', 'Mobile'];
+const gradients = [
+    'from-purple-600 to-pink-500',
+    'from-blue-600 to-cyan-500',
+    'from-green-600 to-emerald-500',
+    'from-orange-500 to-red-500',
+    'from-indigo-600 to-purple-500',
+];
+
 export default function GroupsPage() {
     const { isAuthenticated } = useAuth();
     const [groups, setGroups] = useState<Group[]>([]);
     const [myGroups, setMyGroups] = useState<Group[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'all' | 'my'>('all');
+    const [activeCategory, setActiveCategory] = useState('All');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newGroup, setNewGroup] = useState({ name: '', description: '', isPrivate: false });
 
@@ -108,180 +118,195 @@ export default function GroupsPage() {
     };
 
     const displayGroups = activeTab === 'my' ? myGroups : groups;
+    const isMember = (groupId: number) => myGroups.some(g => g.groupId === groupId);
 
     return (
-        <MainLayout>
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                            <i className="bi bi-people-fill text-orange-500 mr-2"></i>
-                            Groups
-                        </h1>
-                        <p className="text-gray-600 dark:text-gray-400">
-                            Join groups to connect with like-minded developers
-                        </p>
-                    </div>
-                    {isAuthenticated && (
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center gap-2"
-                        >
-                            <i className="bi bi-plus-circle"></i>
-                            Create Group
-                        </button>
-                    )}
-                </div>
+        <AppLayout showRightSidebar={false}>
+            {/* Hero */}
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+                    Discover Developer Groups
+                </h1>
+                <p className="text-[var(--text-muted)]">Find your community, collaborate, and grow.</p>
+            </div>
 
-                {/* Tabs */}
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex-1 relative">
+                    <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"></i>
+                    <input
+                        type="text"
+                        placeholder="Search for groups, topics, or technologies..."
+                        className="w-full pl-11 pr-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] transition"
+                    />
+                </div>
                 {isAuthenticated && (
-                    <div className="flex gap-2 mb-6">
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="px-5 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition flex items-center gap-2 shrink-0"
+                    >
+                        <i className="bi bi-plus-circle"></i>
+                        Create Group
+                    </button>
+                )}
+            </div>
+
+            {/* Tabs & Category Filters */}
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+                {isAuthenticated && (
+                    <div className="flex bg-[var(--bg-secondary)] rounded-xl p-1 border border-[var(--border-color)]">
                         <button
                             onClick={() => setActiveTab('all')}
-                            className={`px-4 py-2 rounded-lg font-medium transition ${activeTab === 'all'
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-                                }`}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === 'all' ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                         >
                             All Groups
                         </button>
                         <button
                             onClick={() => setActiveTab('my')}
-                            className={`px-4 py-2 rounded-lg font-medium transition ${activeTab === 'my'
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-                                }`}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === 'my' ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                         >
                             My Groups
                         </button>
                     </div>
                 )}
+                <div className="flex gap-2 flex-wrap">
+                    {categoryFilters.map((cat) => (
+                        <button
+                            key={cat}
+                            onClick={() => setActiveCategory(cat)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${activeCategory === cat ? 'bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/50' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] border border-transparent hover:border-[var(--border-color)]'}`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
-                {/* Groups Grid */}
-                {loading ? (
-                    <div className="text-center py-10">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                    </div>
-                ) : displayGroups.length === 0 ? (
-                    <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
-                        <i className="bi bi-people text-6xl text-gray-400 mb-4"></i>
-                        <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                            {activeTab === 'my' ? 'No groups yet' : 'No groups available'}
-                        </h3>
-                        <p className="text-gray-500">
-                            {activeTab === 'my' ? 'Join or create your first group!' : 'Be the first to create a group!'}
-                        </p>
-                    </div>
-                ) : (
-                    <div className="grid md:grid-cols-2 gap-4">
-                        {displayGroups.map((group) => (
-                            <div key={group.groupId} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-5 border border-gray-200 dark:border-slate-700 hover:shadow-md transition">
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white text-xl font-bold">
-                                            {group.name.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <Link href={`/groups/${group.groupId}`} className="font-bold text-lg text-gray-900 dark:text-white hover:text-orange-500">
-                                                {group.name}
-                                            </Link>
-                                            <div className="flex items-center gap-2 text-sm text-gray-500">
-                                                <i className="bi bi-people"></i>
-                                                <span>{group.memberCount} members</span>
-                                                {group.isPrivate && (
-                                                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-xs">
-                                                        <i className="bi bi-lock"></i> Private
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
+            {/* Groups Grid */}
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            ) : displayGroups.length === 0 ? (
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <i className="bi bi-collection text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+                        {activeTab === 'my' ? 'No groups joined yet' : 'No groups available'}
+                    </h3>
+                    <p className="text-[var(--text-muted)]">
+                        {activeTab === 'my' ? 'Join or create your first group!' : 'Be the first to create a group!'}
+                    </p>
+                </div>
+            ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {displayGroups.map((group, index) => (
+                        <div key={group.groupId} className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden hover:border-[var(--primary)]/50 transition group">
+                            {/* Gradient Header */}
+                            <div className={`h-24 bg-gradient-to-br ${gradients[index % gradients.length]} p-4`}>
+                                <div className="flex items-start justify-between">
+                                    <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center text-white text-xl font-bold">
+                                        {group.name.charAt(0).toUpperCase()}
                                     </div>
+                                    {group.isPrivate && (
+                                        <span className="px-2 py-1 bg-black/20 backdrop-blur rounded-lg text-white text-xs flex items-center gap-1">
+                                            <i className="bi bi-lock"></i> Private
+                                        </span>
+                                    )}
                                 </div>
-                                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
-                                    {group.description || 'No description'}
+                            </div>
+                            {/* Content */}
+                            <div className="p-4">
+                                <Link href={`/groups/${group.groupId}`} className="font-bold text-[var(--text-primary)] hover:text-[var(--primary)] text-lg">
+                                    {group.name}
+                                </Link>
+                                <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] mt-1 mb-3">
+                                    <i className="bi bi-people"></i>
+                                    <span>{group.memberCount} members</span>
+                                </div>
+                                <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-4">
+                                    {group.description || 'No description available'}
                                 </p>
-                                {isAuthenticated && !myGroups.some(g => g.groupId === group.groupId) && (
+                                {isAuthenticated && !isMember(group.groupId) ? (
                                     <button
                                         onClick={() => handleJoinGroup(group.groupId)}
-                                        className="w-full py-2 border border-orange-500 text-orange-500 rounded-lg hover:bg-orange-50 dark:hover:bg-slate-700 transition"
+                                        className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition"
                                     >
                                         Join Group
                                     </button>
-                                )}
-                                {myGroups.some(g => g.groupId === group.groupId) && (
+                                ) : isMember(group.groupId) ? (
                                     <Link
                                         href={`/groups/${group.groupId}`}
-                                        className="block w-full py-2 text-center bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition"
+                                        className="block w-full py-2.5 text-center bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium border border-[var(--border-color)] hover:border-[var(--primary)] transition"
                                     >
                                         View Group
                                     </Link>
-                                )}
+                                ) : null}
                             </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Create Group Modal */}
-                {showCreateModal && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Group</h2>
-                            <form onSubmit={handleCreateGroup}>
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Group Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={newGroup.name}
-                                        onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                        required
-                                    />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Description
-                                    </label>
-                                    <textarea
-                                        value={newGroup.description}
-                                        onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                        rows={3}
-                                    />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={newGroup.isPrivate}
-                                            onChange={(e) => setNewGroup({ ...newGroup, isPrivate: e.target.checked })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">Private Group</span>
-                                    </label>
-                                </div>
-                                <div className="flex gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowCreateModal(false)}
-                                        className="flex-1 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="flex-1 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
-                                    >
-                                        Create
-                                    </button>
-                                </div>
-                            </form>
                         </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Create Group Modal */}
+            {showCreateModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-[var(--text-primary)]">Create New Group</h2>
+                            <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-[var(--bg-hover)] rounded-lg transition">
+                                <i className="bi bi-x-lg text-[var(--text-muted)]"></i>
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateGroup}>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Group Name</label>
+                                <input
+                                    type="text"
+                                    value={newGroup.name}
+                                    onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+                                    className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] transition"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Description</label>
+                                <textarea
+                                    value={newGroup.description}
+                                    onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
+                                    className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] transition resize-none"
+                                    rows={3}
+                                />
+                            </div>
+                            <div className="mb-6">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={newGroup.isPrivate}
+                                        onChange={(e) => setNewGroup({ ...newGroup, isPrivate: e.target.checked })}
+                                        className="w-5 h-5 rounded border-[var(--border-color)] text-[var(--primary)]"
+                                    />
+                                    <span className="text-[var(--text-secondary)]">Private Group (Invite only)</span>
+                                </label>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="flex-1 py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium hover:bg-[var(--bg-hover)] transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition"
+                                >
+                                    Create Group
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                )}
-            </div>
-        </MainLayout>
+                </div>
+            )}
+        </AppLayout>
     );
 }
