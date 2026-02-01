@@ -11,17 +11,30 @@ export default function ModernNavbar() {
     const { user, isAuthenticated, logout } = useAuth();
     const { unreadCount } = useNotifications();
     const [searchQuery, setSearchQuery] = useState('');
-    const [isDark, setIsDark] = useState(true);
+    const [isDark, setIsDark] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
 
     useEffect(() => {
-        // Default to dark mode
-        document.documentElement.classList.add('dark');
+        // Check localStorage for theme preference, default to light
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = savedTheme === 'dark';
+        setIsDark(prefersDark);
+        if (prefersDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
     }, []);
 
     const toggleTheme = () => {
-        setIsDark(!isDark);
-        document.documentElement.classList.toggle('dark');
+        const newIsDark = !isDark;
+        setIsDark(newIsDark);
+        localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
+        if (newIsDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
     };
 
     return (
