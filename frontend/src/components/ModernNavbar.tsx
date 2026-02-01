@@ -40,11 +40,16 @@ export default function ModernNavbar() {
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-[var(--glass-bg)] border-b border-[var(--border-color)] backdrop-blur-lg shadow-sm">
             <div className="flex items-center justify-between h-full px-4 max-w-[1920px] mx-auto">
-                {/* Logo */}
-                <Link href="/" className="flex items-center gap-2 text-xl font-bold">
-                    <span className="text-2xl">🚀</span>
-                    <span className="text-[var(--primary)] hidden sm:inline">Dev</span>
-                    <span className="text-[var(--text-primary)] hidden sm:inline">Community</span>
+                {/* Logo with Slogan */}
+                <Link href="/" className="flex items-center gap-3 group">
+                    <span className="text-2xl group-hover:rotate-12 transition-transform duration-300">🚀</span>
+                    <div className="hidden sm:block">
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-[var(--primary)] font-bold text-lg">Dev</span>
+                            <span className="text-[var(--text-primary)] font-bold text-lg">Community</span>
+                        </div>
+                        <span className="text-[10px] text-[var(--text-muted)] -mt-1 block">Where developers connect</span>
+                    </div>
                 </Link>
 
                 {/* Search Bar */}
