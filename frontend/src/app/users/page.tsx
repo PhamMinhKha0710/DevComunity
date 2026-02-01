@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import apiClient from '@/lib/api/client';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface User {
     userId: number;
@@ -16,21 +17,80 @@ interface User {
 }
 
 export default function UsersPage() {
+    const { user: currentUser } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('reputation');
+    const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
+    const [followLoading, setFollowLoading] = useState<number | null>(null);
 
     useEffect(() => {
         fetchUsers();
     }, [sortBy]);
 
+    useEffect(() => {
+        if (currentUser) {
+            fetchFollowing();
+        }
+    }, [currentUser]);
+
+    const fetchFollowing = async () => {
+        if (!currentUser) return;
+        try {
+            const response = await apiClient.get<any[]>(`/Follow/following/${currentUser.userId}`);
+            const ids = new Set(response.data.map((f: any) => f.userId));
+            setFollowingIds(ids);
+        } catch (error) {
+            console.error('Failed to fetch following list:', error);
+        }
+    };
+
+    const handleFollow = async (targetId: number) => {
+        if (!currentUser) return;
+        setFollowLoading(targetId);
+        try {
+            await apiClient.post(`/Follow/${targetId}`);
+            setFollowingIds(prev => new Set(prev).add(targetId));
+        } catch (error) {
+            console.error('Failed to follow user:', error);
+        } finally {
+            setFollowLoading(null);
+        }
+    };
+
+    const handleUnfollow = async (targetId: number) => {
+        if (!currentUser) return;
+        setFollowLoading(targetId);
+        try {
+            await apiClient.delete(`/Follow/${targetId}`);
+            setFollowingIds(prev => {
+                const next = new Set(prev);
+                next.delete(targetId);
+                return next;
+            });
+        } catch (error) {
+            console.error('Failed to unfollow user:', error);
+        } finally {
+            setFollowLoading(null);
+        }
+    };
+
     const fetchUsers = async () => {
         try {
-            const response = await apiClient.get<User[]>(`/users?sortBy=${sortBy}`);
-            setUsers(response.data || []);
+            const response = await apiClient.get<any>(`/users?sortBy=${sortBy}`);
+            // Handle both array and paginated response { items: [], totalCount: ... }
+            const data = response.data;
+            if (Array.isArray(data)) {
+                setUsers(data);
+            } else if (data && Array.isArray(data.items)) {
+                setUsers(data.items);
+            } else {
+                setUsers([]);
+            }
         } catch (error) {
             console.error('Failed to fetch users:', error);
+            setUsers([]);
         } finally {
             setIsLoading(false);
         }
@@ -116,7 +176,7 @@ export default function UsersPage() {
                                         </Link>
                                     </h6>
                                     <p className="text-muted small mb-3">@{user.username}</p>
-                                    <div className="d-flex justify-content-center gap-3 text-center">
+                                    <div className="d-flex justify-content-center gap-3 text-center mb-3">
                                         <div>
                                             <div className="fw-bold text-primary">{user.reputationPoints}</div>
                                             <small className="text-muted">reputation</small>
@@ -132,6 +192,24 @@ export default function UsersPage() {
                                             <small className="text-muted">answers</small>
                                         </div>
                                     </div>
+
+                                    {currentUser && currentUser.userId !== user.userId && (
+                                        <button
+                                            className={`btn btn-sm ${followingIds.has(user.userId) ? 'btn-outline-primary' : 'btn-primary'} rounded-pill px-4 w-75`}
+                                            onClick={() => followingIds.has(user.userId) ? handleUnfollow(user.userId) : handleFollow(user.userId)}
+                                            disabled={followLoading === user.userId}
+                                        >
+                                            {followLoading === user.userId ? (
+                                                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                            ) : (
+                                                followingIds.has(user.userId) ? (
+                                                    <><i className="bi bi-person-check me-1"></i>Following</>
+                                                ) : (
+                                                    <><i className="bi bi-person-plus me-1"></i>Follow</>
+                                                )
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>

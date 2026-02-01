@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useState, useEffect } from 'react';
 
 export default function Navbar() {
     const { user, isAuthenticated, logout } = useAuth();
+    const { unreadCount } = useNotifications();
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -84,10 +86,14 @@ export default function Navbar() {
                         {isAuthenticated && user ? (
                             <>
                                 {/* Notifications */}
-                                <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition relative">
+                                <Link href="/notifications" className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition relative">
                                     <i className="bi bi-bell text-gray-600 dark:text-gray-300"></i>
-                                    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-                                </button>
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-5 h-5 flex items-center justify-center px-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                                            {unreadCount > 99 ? '99+' : unreadCount}
+                                        </span>
+                                    )}
+                                </Link>
 
                                 {/* Ask Question */}
                                 <Link

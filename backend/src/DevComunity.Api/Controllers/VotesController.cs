@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using DevComunity.Application.Commands.Votes;
 using DevComunity.Application.CommandHandlers.Votes;
 using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using DevComunity.Api.Hubs;
 
 namespace DevComunity.Api.Controllers;
 
@@ -17,17 +19,20 @@ public class VotesController : ControllerBase
     private readonly VoteQuestionCommandHandler _voteQuestionHandler;
     private readonly VoteAnswerCommandHandler _voteAnswerHandler;
     private readonly RemoveVoteCommandHandler _removeVoteHandler;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public VotesController(
         ILogger<VotesController> logger,
         VoteQuestionCommandHandler voteQuestionHandler,
         VoteAnswerCommandHandler voteAnswerHandler,
-        RemoveVoteCommandHandler removeVoteHandler)
+        RemoveVoteCommandHandler removeVoteHandler,
+        IHubContext<NotificationHub> hubContext)
     {
         _logger = logger;
         _voteQuestionHandler = voteQuestionHandler;
         _voteAnswerHandler = voteAnswerHandler;
         _removeVoteHandler = removeVoteHandler;
+        _hubContext = hubContext;
     }
 
     private int GetCurrentUserId()
@@ -67,6 +72,19 @@ public class VotesController : ControllerBase
         if (!result.Success)
             return BadRequest(new { message = result.Message });
 
+        if (result.CreatedNotification != null)
+        {
+            try
+            {
+                await _hubContext.Clients.Group($"user_{result.CreatedNotification.UserId}")
+                    .SendAsync("ReceiveNotification", result.CreatedNotification, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending upvote notification");
+            }
+        }
+
         return Ok(new { score = result.Score, userVote = result.UserVote });
     }
 
@@ -100,6 +118,19 @@ public class VotesController : ControllerBase
 
         if (!result.Success)
             return BadRequest(new { message = result.Message });
+
+        if (result.CreatedNotification != null)
+        {
+            try
+            {
+                await _hubContext.Clients.Group($"user_{result.CreatedNotification.UserId}")
+                    .SendAsync("ReceiveNotification", result.CreatedNotification, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending answer upvote notification");
+            }
+        }
 
         return Ok(new { score = result.Score, userVote = result.UserVote });
     }
