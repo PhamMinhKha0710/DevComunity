@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using DevComunity.Application.Common.DTOs;
 using DevComunity.Application.Interfaces.Repositories;
 using DevComunity.Domain.Entities;
+using DevComunity.Api.Hubs;
 using System.Security.Claims;
 
 namespace DevComunity.Api.Controllers;
@@ -18,15 +20,18 @@ public class FriendshipController : ControllerBase
     private readonly ILogger<FriendshipController> _logger;
     private readonly IFriendshipRepository _friendshipRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public FriendshipController(
         ILogger<FriendshipController> logger,
         IFriendshipRepository friendshipRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IHubContext<NotificationHub> hubContext)
     {
         _logger = logger;
         _friendshipRepository = friendshipRepository;
         _userRepository = userRepository;
+        _hubContext = hubContext;
     }
 
     private int GetCurrentUserId()
@@ -131,6 +136,27 @@ public class FriendshipController : ControllerBase
         var result = await _friendshipRepository.GetByIdAsync(created.FriendshipId, cancellationToken);
         
         _logger.LogInformation("User {UserId} sent friend request to {TargetId}", userId, targetUserId);
+
+        // Real-time notification to target user
+        try
+        {
+            await _hubContext.Clients.Group($"user_{targetUserId}")
+                .SendAsync("FriendRequestReceived", new
+                {
+                    friendshipId = result!.FriendshipId,
+                    fromUser = new { 
+                        userId = result.Requester.UserId,
+                        username = result.Requester.Username,
+                        displayName = result.Requester.DisplayName,
+                        profilePicture = result.Requester.ProfilePicture
+                    },
+                    createdAt = result.CreatedAt
+                }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending real-time friend request notification");
+        }
         
         return Created($"/api/friendship/{result!.FriendshipId}", MapToDto(result));
     }
@@ -157,6 +183,27 @@ public class FriendshipController : ControllerBase
         await _friendshipRepository.UpdateAsync(friendship, cancellationToken);
 
         _logger.LogInformation("User {UserId} accepted friend request from {RequesterId}", userId, friendship.RequesterId);
+
+        // Real-time notification to requester
+        try
+        {
+            await _hubContext.Clients.Group($"user_{friendship.RequesterId}")
+                .SendAsync("FriendRequestAccepted", new
+                {
+                    friendshipId = friendship.FriendshipId,
+                    acceptedBy = new {
+                        userId = friendship.Addressee.UserId,
+                        username = friendship.Addressee.Username,
+                        displayName = friendship.Addressee.DisplayName,
+                        profilePicture = friendship.Addressee.ProfilePicture
+                    },
+                    acceptedAt = friendship.RespondedAt
+                }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending real-time friend accepted notification");
+        }
         
         return Ok(MapToDto(friendship));
     }
@@ -180,6 +227,21 @@ public class FriendshipController : ControllerBase
         await _friendshipRepository.UpdateAsync(friendship, cancellationToken);
 
         _logger.LogInformation("User {UserId} rejected friend request from {RequesterId}", userId, friendship.RequesterId);
+
+        // Real-time notification to requester (optional, can be silent)
+        try
+        {
+            await _hubContext.Clients.Group($"user_{friendship.RequesterId}")
+                .SendAsync("FriendRequestRejected", new
+                {
+                    friendshipId = friendship.FriendshipId,
+                    rejectedBy = userId
+                }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending real-time friend rejected notification");
+        }
         
         return Ok(new { message = "Friend request rejected" });
     }

@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using DevComunity.Application.Common.DTOs;
 using DevComunity.Application.Interfaces.Repositories;
 using DevComunity.Domain.Entities;
+using DevComunity.Api.Hubs;
 using System.Security.Claims;
 
 namespace DevComunity.Api.Controllers;
@@ -18,15 +20,18 @@ public class NewsfeedController : ControllerBase
     private readonly ILogger<NewsfeedController> _logger;
     private readonly IPostRepository _postRepository;
     private readonly IGroupRepository _groupRepository;
+    private readonly IHubContext<ActivityHub> _activityHub;
 
     public NewsfeedController(
         ILogger<NewsfeedController> logger,
         IPostRepository postRepository,
-        IGroupRepository groupRepository)
+        IGroupRepository groupRepository,
+        IHubContext<ActivityHub> activityHub)
     {
         _logger = logger;
         _postRepository = postRepository;
         _groupRepository = groupRepository;
+        _activityHub = activityHub;
     }
 
     private int GetCurrentUserId()
@@ -155,6 +160,28 @@ public class NewsfeedController : ControllerBase
         var result = await _postRepository.GetByIdAsync(created.PostId, cancellationToken);
 
         _logger.LogInformation("User {UserId} created post {PostId}", userId, created.PostId);
+
+        // Real-time broadcast to activity feed (or group members)
+        try
+        {
+            var postDto = MapToDto(result!);
+            if (request.GroupId.HasValue)
+            {
+                // Broadcast to group members
+                await _activityHub.Clients.Group($"group_{request.GroupId}")
+                    .SendAsync("NewGroupPost", postDto, cancellationToken);
+            }
+            else
+            {
+                // Broadcast to global activity feed (friends will filter)
+                await _activityHub.Clients.Group("activity_feed")
+                    .SendAsync("NewPost", postDto, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error broadcasting new post");
+        }
 
         return Created($"/api/newsfeed/posts/{result!.PostId}", MapToDto(result));
     }
