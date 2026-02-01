@@ -7,20 +7,22 @@
    DevCommunity Design System - Tailwind + Custom Styles
    ================================================================ */
 
-/* Theme Variables - Light Mode (Default) */
+/* Theme Variables - Light Mode (Modern Clean Style) */
 :root {
   --font-inter: 'Inter', sans-serif;
   --font-code: 'Fira Code', monospace;
 
-  /* Core colors */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --bg-tertiary: #e9ecef;
-  --text-primary: #212529;
-  --text-secondary: #495057;
-  --text-muted: #6c757d;
-  --border-color: #dee2e6;
-  --shadow-color: rgba(0, 0, 0, 0.08);
+  /* Core colors - Modern Light Theme */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-hover: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --shadow-color: rgba(15, 23, 42, 0.08);
 
   /* Brand colors */
   --primary: #f97316;
@@ -35,6 +37,16 @@
   /* Code highlighting */
   --code-bg: #1e293b;
   --code-color: #e2e8f0;
+
+  /* Glassmorphism for light mode */
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(0, 0, 0, 0.1);
+
+  /* Gradient backgrounds for cards */
+  --gradient-purple: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  --gradient-blue: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  --gradient-green: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  --gradient-orange: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
 }
 
 /* Theme Variables - Dark Mode (Modern Discord/GitHub style) */
@@ -52,7 +64,7 @@ html.dark {
 
   --primary-light: rgba(249, 115, 22, 0.15);
   --code-bg: #161b22;
-  
+
   /* Glassmorphism */
   --glass-bg: rgba(30, 34, 40, 0.8);
   --glass-border: rgba(255, 255, 255, 0.1);
