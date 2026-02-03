@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useState } from 'react';
@@ -18,8 +19,15 @@ export default function Header() {
                     <div className="container-fluid">
                         {/* Brand */}
                         <Link href="/" className="navbar-brand d-flex align-items-center text-white" data-aos="fade-right" data-aos-duration="600">
-                            <div className="brand-logo-container me-2">
-                                <i className="bi bi-code-square fs-4 brand-icon"></i>
+                            <div className="brand-logo-container me-2 position-relative" style={{ width: '40px', height: '40px' }}>
+                                <Image
+                                    src="/logo.png"
+                                    alt="DevCommunity Logo"
+                                    fill
+                                    className="object-contain"
+                                    sizes="40px"
+                                    priority
+                                />
                             </div>
                             <span className="fw-semibold">DevCommunity</span>
                         </Link>
@@ -153,16 +161,16 @@ export default function Header() {
                                 )}
                             </ul>
                         </div>
-                    </div>
-                </nav>
+                    </div >
+                </nav >
 
                 {/* Page Title Area */}
-                <div className="page-title-container">
+                < div className="page-title-container" >
                     <div className="container">
                         {/* Title injected via page */}
                     </div>
-                </div>
-            </div>
-        </header>
+                </div >
+            </div >
+        </header >
     );
 }
