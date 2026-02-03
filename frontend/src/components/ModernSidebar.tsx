@@ -30,6 +30,7 @@ const socialNav: NavItem[] = [
 const personalNav: NavItem[] = [
     { name: 'Chat', href: '/chat', icon: 'bi-chat-dots-fill', requireAuth: true },
     { name: 'Saved', href: '/saved', icon: 'bi-bookmark-fill', requireAuth: true },
+    { name: 'My Tags', href: '/tags/preferences', icon: 'bi-heart-fill', requireAuth: true },
 ];
 
 export default function ModernSidebar() {
