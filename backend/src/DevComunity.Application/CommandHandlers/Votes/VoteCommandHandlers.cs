@@ -12,7 +12,11 @@ public static class ReputationPoints
     public const int AnswerUpvote = 10;
     public const int AnswerDownvote = -2;
     public const int DownvoteCost = -1; // Voter penalty for downvoting
+    public const int AcceptedAnswerAuthor = 15; // Bonus for answer author when accepted
+    public const int AcceptedAnswerOwner = 2;   // Bonus for question owner for accepting
+    public const int AskQuestion = 2; // Bonus for asking a question
 }
+
 
 /// <summary>
 /// Handler for voting on a question

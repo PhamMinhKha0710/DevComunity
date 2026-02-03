@@ -112,22 +112,88 @@ public class AcceptAnswerCommandHandler
 {
     private readonly IAnswerRepository _answerRepository;
     private readonly IQuestionRepository _questionRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly INotificationRepository _notificationRepository;
 
     public AcceptAnswerCommandHandler(
         IAnswerRepository answerRepository,
-        IQuestionRepository questionRepository)
+        IQuestionRepository questionRepository,
+        IUserRepository userRepository,
+        INotificationRepository notificationRepository)
     {
         _answerRepository = answerRepository;
         _questionRepository = questionRepository;
+        _userRepository = userRepository;
+        _notificationRepository = notificationRepository;
     }
 
-    public async Task<bool> HandleAsync(AcceptAnswerCommand command, CancellationToken cancellationToken = default)
+    public async Task<AcceptAnswerResult> HandleAsync(AcceptAnswerCommand command, CancellationToken cancellationToken = default)
     {
         // Verify question belongs to user
         var question = await _questionRepository.GetByIdAsync(command.QuestionId, cancellationToken);
         if (question == null || question.UserId != command.UserId)
-            return false;
+            return new AcceptAnswerResult { Success = false, Message = "Not authorized to accept answers for this question" };
 
-        return await _answerRepository.AcceptAnswerAsync(command.AnswerId, command.QuestionId, cancellationToken);
+        // Get the answer to check ownership
+        var answer = await _answerRepository.GetByIdAsync(command.AnswerId, cancellationToken);
+        if (answer == null)
+            return new AcceptAnswerResult { Success = false, Message = "Answer not found" };
+
+        // Check if already accepted
+        if (answer.IsAccepted)
+            return new AcceptAnswerResult { Success = true, Message = "Answer already accepted" };
+
+        var success = await _answerRepository.AcceptAnswerAsync(command.AnswerId, command.QuestionId, cancellationToken);
+        
+        if (success)
+        {
+            // Award reputation to answer author (+15)
+            await _userRepository.UpdateReputationAsync(
+                answer.UserId, 
+                CommandHandlers.Votes.ReputationPoints.AcceptedAnswerAuthor, 
+                cancellationToken);
+            
+            // Award reputation to question owner (+2)
+            await _userRepository.UpdateReputationAsync(
+                question.UserId, 
+                CommandHandlers.Votes.ReputationPoints.AcceptedAnswerOwner, 
+                cancellationToken);
+
+            // Create notification for answer author
+            if (answer.UserId != question.UserId)
+            {
+                var questionOwner = await _userRepository.GetByIdAsync(question.UserId, cancellationToken);
+                var notification = new Notification
+                {
+                    UserId = answer.UserId,
+                    FromUserId = question.UserId,
+                    Type = "AcceptedAnswer",
+                    Message = $"{questionOwner?.DisplayName ?? questionOwner?.Username ?? "Someone"} accepted your answer to: {question.Title}",
+                    Link = $"/questions/{question.QuestionId}",
+                    CreatedDate = DateTime.UtcNow,
+                    IsRead = false
+                };
+                await _notificationRepository.AddAsync(notification, cancellationToken);
+                
+                return new AcceptAnswerResult 
+                { 
+                    Success = true, 
+                    Message = "Answer accepted successfully",
+                    CreatedNotification = notification
+                };
+            }
+        }
+        
+        return new AcceptAnswerResult { Success = success };
     }
+}
+
+/// <summary>
+/// Result of accepting an answer
+/// </summary>
+public class AcceptAnswerResult
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public Notification? CreatedNotification { get; set; }
 }
