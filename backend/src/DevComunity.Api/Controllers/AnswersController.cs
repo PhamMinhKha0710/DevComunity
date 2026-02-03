@@ -181,12 +181,12 @@ public class AnswersController : ControllerBase
             UserId = GetCurrentUserId()
         };
 
-        var success = await _acceptHandler.HandleAsync(command, cancellationToken);
+        var result = await _acceptHandler.HandleAsync(command, cancellationToken);
 
-        if (!success)
-            return NotFound();
+        if (!result.Success)
+            return BadRequest(new { message = result.Message });
 
-        return Ok(new { message = "Answer accepted successfully" });
+        return Ok(new { message = result.Message ?? "Answer accepted successfully" });
     }
 
     private int GetCurrentUserId()

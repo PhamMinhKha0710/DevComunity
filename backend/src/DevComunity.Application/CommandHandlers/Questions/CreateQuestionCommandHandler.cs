@@ -11,10 +11,14 @@ namespace DevComunity.Application.CommandHandlers.Questions;
 public class CreateQuestionCommandHandler
 {
     private readonly IQuestionRepository _questionRepository;
+    private readonly IUserRepository _userRepository;
 
-    public CreateQuestionCommandHandler(IQuestionRepository questionRepository)
+    public CreateQuestionCommandHandler(
+        IQuestionRepository questionRepository,
+        IUserRepository userRepository)
     {
         _questionRepository = questionRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<QuestionDto> HandleAsync(CreateQuestionCommand command, CancellationToken cancellationToken = default)
@@ -31,6 +35,12 @@ public class CreateQuestionCommandHandler
         };
 
         var createdQuestion = await _questionRepository.AddAsync(question, cancellationToken);
+
+        // Award reputation for asking a question (+2)
+        await _userRepository.UpdateReputationAsync(
+            command.UserId, 
+            CommandHandlers.Votes.ReputationPoints.AskQuestion, 
+            cancellationToken);
 
         return new QuestionDto
         {
