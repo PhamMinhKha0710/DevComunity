@@ -96,6 +96,7 @@ public class GroupsController : ControllerBase
     /// Get current user's groups
     /// </summary>
     [HttpGet("my-groups")]
+    [HttpGet("my")] // Alias for frontend compatibility
     [ProducesResponseType(typeof(IEnumerable<GroupDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<GroupDto>>> GetMyGroups(CancellationToken cancellationToken)
     {

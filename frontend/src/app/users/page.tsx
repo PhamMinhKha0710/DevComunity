@@ -25,6 +25,8 @@ export default function UsersPage() {
     const [sortBy, setSortBy] = useState('reputation');
     const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
     const [followLoading, setFollowLoading] = useState<number | null>(null);
+    const [friendStatus, setFriendStatus] = useState<Record<number, { areFriends: boolean; requestPending: boolean; isSentByMe: boolean }>>({});
+    const [friendLoading, setFriendLoading] = useState<number | null>(null);
 
     useEffect(() => {
         fetchUsers();
@@ -76,6 +78,39 @@ export default function UsersPage() {
             setFollowLoading(null);
         }
     };
+
+    const checkFriendStatus = async (targetId: number) => {
+        if (!currentUser) return;
+        try {
+            const response = await apiClient.get<{ areFriends: boolean; requestPending: boolean; isSentByMe: boolean }>(`/Friendship/check/${targetId}`);
+            setFriendStatus(prev => ({ ...prev, [targetId]: response.data }));
+        } catch {
+            // Ignore errors
+        }
+    };
+
+    const handleAddFriend = async (targetId: number) => {
+        if (!currentUser) return;
+        setFriendLoading(targetId);
+        try {
+            await apiClient.post(`/Friendship/request/${targetId}`);
+            setFriendStatus(prev => ({ ...prev, [targetId]: { areFriends: false, requestPending: true, isSentByMe: true } }));
+        } catch (error) {
+            console.error('Failed to send friend request:', error);
+        } finally {
+            setFriendLoading(null);
+        }
+    };
+
+    useEffect(() => {
+        if (currentUser && users.length > 0) {
+            users.forEach(user => {
+                if (user.userId !== currentUser.userId) {
+                    checkFriendStatus(user.userId);
+                }
+            });
+        }
+    }, [currentUser, users]);
 
     const fetchUsers = async () => {
         try {
@@ -135,8 +170,8 @@ export default function UsersPage() {
                             key={opt.key}
                             onClick={() => setSortBy(opt.key)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition ${sortBy === opt.key
-                                    ? 'bg-[var(--primary)] text-white'
-                                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
+                                ? 'bg-[var(--primary)] text-white'
+                                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
                                 }`}
                         >
                             <i className={`bi ${opt.icon}`}></i>
@@ -193,22 +228,57 @@ export default function UsersPage() {
 
                             {/* Follow Button */}
                             {currentUser && currentUser.userId !== user.userId && (
-                                <button
-                                    onClick={() => followingIds.has(user.userId) ? handleUnfollow(user.userId) : handleFollow(user.userId)}
-                                    disabled={followLoading === user.userId}
-                                    className={`w-full py-2 rounded-xl font-medium text-sm transition ${followingIds.has(user.userId)
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => followingIds.has(user.userId) ? handleUnfollow(user.userId) : handleFollow(user.userId)}
+                                        disabled={followLoading === user.userId}
+                                        className={`w-full py-2 rounded-xl font-medium text-sm transition ${followingIds.has(user.userId)
                                             ? 'border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)]/10'
                                             : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
-                                        }`}
-                                >
-                                    {followLoading === user.userId ? (
-                                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto"></div>
-                                    ) : followingIds.has(user.userId) ? (
-                                        <><i className="bi bi-person-check mr-1"></i> Following</>
-                                    ) : (
-                                        <><i className="bi bi-person-plus mr-1"></i> Follow</>
-                                    )}
-                                </button>
+                                            }`}
+                                    >
+                                        {followLoading === user.userId ? (
+                                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                        ) : followingIds.has(user.userId) ? (
+                                            <><i className="bi bi-person-check mr-1"></i> Following</>
+                                        ) : (
+                                            <><i className="bi bi-person-plus mr-1"></i> Follow</>
+                                        )}
+                                    </button>
+
+                                    {/* Add Friend Button */}
+                                    {(() => {
+                                        const status = friendStatus[user.userId];
+                                        if (status?.areFriends) {
+                                            return (
+                                                <button disabled className="w-full py-2 rounded-xl font-medium text-sm bg-green-500/20 text-green-500 border border-green-500/30">
+                                                    <i className="bi bi-people-fill mr-1"></i> Friends
+                                                </button>
+                                            );
+                                        }
+                                        if (status?.requestPending) {
+                                            return (
+                                                <button disabled className="w-full py-2 rounded-xl font-medium text-sm bg-yellow-500/20 text-yellow-600 border border-yellow-500/30">
+                                                    <i className="bi bi-hourglass-split mr-1"></i>
+                                                    {status.isSentByMe ? 'Request Sent' : 'Respond to Request'}
+                                                </button>
+                                            );
+                                        }
+                                        return (
+                                            <button
+                                                onClick={() => handleAddFriend(user.userId)}
+                                                disabled={friendLoading === user.userId}
+                                                className="w-full py-2 rounded-xl font-medium text-sm border border-[var(--border-color)] text-[var(--text-muted)] hover:border-blue-500 hover:text-blue-500 transition"
+                                            >
+                                                {friendLoading === user.userId ? (
+                                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                                ) : (
+                                                    <><i className="bi bi-person-plus-fill mr-1"></i> Add Friend</>
+                                                )}
+                                            </button>
+                                        );
+                                    })()}
+                                </div>
                             )}
                         </div>
                     ))}

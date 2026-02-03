@@ -58,7 +58,7 @@ export default function GroupDetailPage() {
         try {
             const [groupRes, postsRes] = await Promise.all([
                 apiClient.get<Group>(`/Groups/${id}`),
-                apiClient.get<{ items: Post[] }>(`/Newsfeed?groupId=${id}`) // Assuming Newsfeed API supports filter by groupId
+                apiClient.get<{ items: Post[] }>(`/Newsfeed/groups/${id}`) // Correct endpoint for group posts
             ]);
             setGroup(groupRes.data);
             setPosts(postsRes.data.items || []);
@@ -155,10 +155,10 @@ export default function GroupDetailPage() {
         <AppLayout>
             {/* Header / Hero */}
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden mb-6">
-                <div className="h-32 bg-gradient-to-r from-blue-600 to-cyan-500 relative">
+                <div className="h-32 bg-[var(--bg-tertiary)] relative border-b border-[var(--border-color)]">
                     <div className="absolute -bottom-12 left-8">
-                        <div className="w-24 h-24 bg-[var(--bg-secondary)] rounded-2xl p-2">
-                            <div className="w-full h-full interval bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white text-3xl font-bold">
+                        <div className="w-24 h-24 bg-[var(--bg-secondary)] rounded-2xl p-2 shadow-sm border border-[var(--border-color)]">
+                            <div className="w-full h-full interval bg-[var(--primary)] rounded-xl flex items-center justify-center text-white text-3xl font-bold">
                                 {group.name.charAt(0).toUpperCase()}
                             </div>
                         </div>
@@ -189,8 +189,8 @@ export default function GroupDetailPage() {
                             <button
                                 onClick={handleJoinLeave}
                                 className={`px-6 py-2.5 rounded-xl font-medium transition flex items-center gap-2 ${isMember
-                                        ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500 border border-[var(--border-color)]'
-                                        : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
+                                    ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500 border border-[var(--border-color)]'
+                                    : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
                                     }`}
                             >
                                 {isMember ? (

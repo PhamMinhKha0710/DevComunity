@@ -50,7 +50,9 @@ export default function FriendsPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setFriends(data.items || []);
+                // Handle both array response and paginated response
+                const friendList = Array.isArray(data) ? data : (data.items || []);
+                setFriends(friendList);
             }
         } catch (error) {
             console.error('Error fetching friends:', error);
@@ -66,7 +68,13 @@ export default function FriendsPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setPendingRequests(data.items || []);
+                // Handle both array and paginated response, map to expected format
+                const requests = Array.isArray(data) ? data : (data.items || []);
+                setPendingRequests(requests.map((r: any) => ({
+                    requestId: r.friendshipId,
+                    sender: r.requester,
+                    createdAt: r.createdAt
+                })));
             }
         } catch (error) {
             console.error('Error fetching pending requests:', error);
@@ -76,7 +84,7 @@ export default function FriendsPage() {
     const handleAccept = async (requestId: number) => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/Friendship/accept/${requestId}`, {
-                method: 'POST',
+                method: 'PUT',
                 headers: { Authorization: `Bearer ${getToken()}` }
             });
             if (response.ok) {
@@ -90,8 +98,8 @@ export default function FriendsPage() {
 
     const handleDecline = async (requestId: number) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/Friendship/decline/${requestId}`, {
-                method: 'POST',
+            const response = await fetch(`${API_BASE_URL}/api/Friendship/reject/${requestId}`, {
+                method: 'PUT',
                 headers: { Authorization: `Bearer ${getToken()}` }
             });
             if (response.ok) {
