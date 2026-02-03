@@ -48,6 +48,9 @@ public class DevComunityDbContext : DbContext
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<GroupMember> GroupMembers => Set<GroupMember>();
     public DbSet<Post> Posts => Set<Post>();
+    
+    // Tag Preferences
+    public DbSet<TagPreference> TagPreferences => Set<TagPreference>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
