@@ -155,10 +155,10 @@ export default function GroupDetailPage() {
         <AppLayout>
             {/* Header / Hero */}
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden mb-6">
-                <div className="h-32 bg-gradient-to-r from-blue-600 to-cyan-500 relative">
+                <div className="h-32 bg-[var(--bg-tertiary)] relative border-b border-[var(--border-color)]">
                     <div className="absolute -bottom-12 left-8">
-                        <div className="w-24 h-24 bg-[var(--bg-secondary)] rounded-2xl p-2">
-                            <div className="w-full h-full interval bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white text-3xl font-bold">
+                        <div className="w-24 h-24 bg-[var(--bg-secondary)] rounded-2xl p-2 shadow-sm border border-[var(--border-color)]">
+                            <div className="w-full h-full interval bg-[var(--primary)] rounded-xl flex items-center justify-center text-white text-3xl font-bold">
                                 {group.name.charAt(0).toUpperCase()}
                             </div>
                         </div>
