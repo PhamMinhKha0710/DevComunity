@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IFollowRepository, FollowRepository>();
         services.AddScoped<IGroupRepository, GroupRepository>();
         services.AddScoped<IPostRepository, PostRepository>();
+        services.AddScoped<ITagPreferenceRepository, TagPreferenceRepository>();
 
 
         // Register services
