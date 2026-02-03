@@ -103,13 +103,12 @@ export default function AuthPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
-            {/* Animated Background */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-orange-300/40 to-pink-400/40 rounded-full blur-3xl animate-pulse"></div>
-                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-blue-300/40 to-purple-400/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-cyan-200/30 to-indigo-300/30 rounded-full blur-3xl"></div>
-            </div>
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-slate-50">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40" style={{
+                backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)',
+                backgroundSize: '30px 30px'
+            }}></div>
 
             {/* Main Container */}
             <div className="relative z-10 w-full max-w-5xl mx-4">
@@ -121,7 +120,7 @@ export default function AuthPage() {
                         <div className="lg:w-1/2 relative overflow-hidden">
                             {/* Gradient Overlay for Login Mode */}
                             <div
-                                className={`absolute inset-0 bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 flex items-center justify-center transition-all duration-700 ease-in-out ${isLoginMode ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
+                                className={`absolute inset-0 bg-blue-600 flex items-center justify-center transition-all duration-700 ease-in-out ${isLoginMode ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
                                     }`}
                             >
                                 <div className="text-center p-8 lg:p-12 text-white max-w-md">
@@ -137,7 +136,7 @@ export default function AuthPage() {
                                     <p className="text-white/80 text-sm mb-4">Don&apos;t have an account?</p>
                                     <button
                                         onClick={toggleMode}
-                                        className="px-8 py-3 bg-white text-purple-600 rounded-xl font-bold text-lg hover:bg-white/90 active:scale-95 transition-all shadow-lg"
+                                        className="px-8 py-3 bg-white/10 border border-white/20 text-white rounded-xl font-bold text-lg hover:bg-white/20 active:scale-95 transition-all shadow-lg"
                                     >
                                         Sign Up
                                     </button>
@@ -151,7 +150,7 @@ export default function AuthPage() {
                             >
                                 <div className="max-w-sm mx-auto w-full">
                                     <h2 className="text-3xl lg:text-4xl font-black text-gray-800 mb-2 tracking-tight">
-                                        Create <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-500">Account</span>
+                                        Create <span className="text-orange-500">Account</span>
                                     </h2>
                                     <p className="text-gray-500 mb-6">Join our community of developers</p>
 
@@ -245,7 +244,7 @@ export default function AuthPage() {
                                         <button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-bold text-lg hover:from-orange-600 hover:to-pink-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 disabled:opacity-70"
+                                            className="w-full py-3.5 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 disabled:opacity-70"
                                         >
                                             {isLoading ? 'Creating Account...' : 'Create Account'}
                                         </button>
@@ -270,7 +269,7 @@ export default function AuthPage() {
                             >
                                 <div className="max-w-sm mx-auto w-full">
                                     <h2 className="text-3xl lg:text-4xl font-black text-gray-800 mb-2 tracking-tight">
-                                        Sign <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-500">In</span>
+                                        Sign <span className="text-orange-500">In</span>
                                     </h2>
                                     <p className="text-gray-500 mb-6">Enter your credentials to continue</p>
 
@@ -327,7 +326,7 @@ export default function AuthPage() {
                                         <button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="w-full py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-bold text-lg hover:from-orange-600 hover:to-pink-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 disabled:opacity-70"
+                                            className="w-full py-4 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 disabled:opacity-70"
                                         >
                                             {isLoading ? 'Signing In...' : 'Sign In'}
                                         </button>
@@ -362,7 +361,7 @@ export default function AuthPage() {
 
                             {/* Gradient Overlay for Register Mode */}
                             <div
-                                className={`absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 flex items-center justify-center transition-all duration-700 ease-in-out ${!isLoginMode ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+                                className={`absolute inset-0 bg-orange-500 flex items-center justify-center transition-all duration-700 ease-in-out ${!isLoginMode ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
                                     }`}
                             >
                                 <div className="text-center p-8 lg:p-12 text-white max-w-md">
