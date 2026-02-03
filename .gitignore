@@ -385,11 +385,10 @@ FodyWeavers.xsd
 # IDE & EDITORS
 # ========================
 # Visual Studio Code
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode/
+
+# Agent
+.agent/
 
 # JetBrains IDEs (Rider, WebStorm)
 .idea/
