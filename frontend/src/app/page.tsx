@@ -51,10 +51,10 @@ export default function HomePage() {
       {/* Hero Stats */}
       {isAuthenticated && user && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-5">
+          <div className="bg-[var(--bg-secondary)] border border-purple-200 dark:border-purple-900 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <i className="bi bi-trophy-fill text-2xl text-purple-400"></i>
+              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                <i className="bi bi-trophy-fill text-2xl text-purple-600 dark:text-purple-400"></i>
               </div>
               <div>
                 <p className="text-2xl font-bold text-[var(--text-primary)]">{user.reputationPoints || 0}</p>
@@ -62,10 +62,10 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-2xl p-5">
+          <div className="bg-[var(--bg-secondary)] border border-blue-200 dark:border-blue-900 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <i className="bi bi-question-circle-fill text-2xl text-blue-400"></i>
+              <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <i className="bi bi-question-circle-fill text-2xl text-blue-600 dark:text-blue-400"></i>
               </div>
               <div>
                 <p className="text-2xl font-bold text-[var(--text-primary)]">0</p>
@@ -73,10 +73,10 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-2xl p-5">
+          <div className="bg-[var(--bg-secondary)] border border-green-200 dark:border-green-900 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                <i className="bi bi-chat-quote-fill text-2xl text-green-400"></i>
+              <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <i className="bi bi-chat-quote-fill text-2xl text-green-600 dark:text-green-400"></i>
               </div>
               <div>
                 <p className="text-2xl font-bold text-[var(--text-primary)]">0</p>
@@ -89,7 +89,7 @@ export default function HomePage() {
 
       {/* Welcome Banner for guests */}
       {!isAuthenticated && (
-        <div className="bg-gradient-to-r from-[var(--primary)]/20 via-purple-500/10 to-pink-500/20 border border-[var(--primary)]/30 rounded-2xl p-8 mb-8">
+        <div className="bg-[var(--bg-secondary)] border border-[var(--primary)] border-opacity-30 rounded-2xl p-8 mb-8 shadow-sm">
           <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-3">
             Welcome to DevCommunity 👋
           </h1>
