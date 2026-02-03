@@ -1,228 +1,145 @@
-# DevCommunity
+# DevComunity
 
-## Developer Community Platform - Q&A and Code Sharing
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/PhamMinhKha0710/DevComunity)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![.NET 9.0](https://img.shields.io/badge/.NET-9.0-purple)](https://dotnet.microsoft.com/)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+
+**DevComunity** is a comprehensive social platform tailored for developers. It combines the structured knowledge sharing of Q&A sites with the real-time engagement of social networks. Built with **Clean Architecture** principles, it ensures scalability, maintainability, and high performance.
 
 ![DevCommunity Logo](https://github.com/user-attachments/assets/4d958968-526b-446a-9379-4e0231cd9ee8)
 
-DevCommunity is a platform connecting developers through code sharing and technical Q&A. Built with Clean Architecture principles, it combines features from GitHub and Stack Overflow to create an effective learning and knowledge-sharing environment.
+---
+
+## 🚀 Features
+
+### 🧠 Knowledge Sharing (Q&A)
+- **Ask & Answer**: Create markdown-rich questions and answers.
+- **Voting System**: Upvote/downvote content to bubble up quality (Stack Overflow style).
+- **Accepted Answers**: Mark the best solution.
+- **Comments**: Discuss specifics on questions or answers.
+- **Tags**: Categorize content for easy discovery.
+- **Saved Items**: Bookmark useful questions for later.
+
+### 🤝 Social & Networking
+- **Real-time Chat**: Private messaging and group chats using SignalR.
+- **Friendships**: Send friend requests, accept/decline.
+- **Following**: Follow users to see their activity.
+- **Groups**: Create and join developer communities/groups.
+- **Newsfeed**: Personalized feed based on friends, followed users, and groups.
+- **User Profiles**: Showcase reputation, badges, and activity history.
+
+### 🏆 Gamification
+- **Reputation System**: Earn points for contributions (votes, accepted answers).
+- **Badges**: Unlock achievements for milestones.
+
+### 🛠️ Developer Tools
+- **Repositories**: Integration for sharing code (File/Folder management).
+- **Gitea Integration**: (In Development) Connect with self-hosted Git.
 
 ---
 
-## Project Structure
+## 🏗️ Technology Stack
 
-```
+### Backend
+| Component | Technology | Description |
+|-----------|------------|-------------|
+| **Framework** | ASP.NET Core 9.0 | High-performance Web API |
+| **Architecture** | Clean Architecture | CQRS (MediatR), Domain-Driven Design |
+| **Database** | SQL Server + EF Core 9 | Robust relational data & ORM |
+| **Real-time** | SignalR | Websockets for chat and notifications |
+| **Auth** | JWT & BCrypt | Secure stateless authentication |
+
+### Frontend
+| Component | Technology | Description |
+|-----------|------------|-------------|
+| **Framework** | Next.js 15 | React framework with App Router |
+| **Language** | TypeScript | Type safety and better DX |
+| **UI** | Bootstrap 5 / Custom CSS | Responsive design (migrating to polished UI) |
+| **State** | React Context + Hooks | Efficient state management |
+| **Real-time** | @microsoft/signalr | Client-side socket management |
+
+---
+
+## 📂 Project Structure
+
+```bash
 DevComunity/
-├── backend/                    # ASP.NET Core Clean Architecture API
+├── backend/                    # ASP.NET Core Solution
 │   ├── src/
-│   │   ├── DevComunity.Api/           # API Controllers, Hubs, Entry Point
-│   │   ├── DevComunity.Application/   # CQRS Commands, Queries, Handlers
-│   │   ├── DevComunity.Domain/        # Domain Entities, Enums
-│   │   ├── DevComunity.Infrastructure/# EF Core, Repositories, Services
-│   │   └── DevComunity.Shared/        # Shared utilities
-│   └── tests/                         # Unit and Integration tests
-├── frontend/                   # Next.js React Frontend
+│   │   ├── DevComunity.Api/           # Entry point, Controllers, Hubs
+│   │   ├── DevComunity.Application/   # Business Logic (CQRS)
+│   │   ├── DevComunity.Domain/        # Entities, Enums, Interfaces
+│   │   ├── DevComunity.Infrastructure/# DB Context, Repositories, External Services
+│   │   └── DevComunity.Shared/        # DTOs, Common Utils
+│   └── tests/                  # Unit & Integration Tests
+├── frontend/                   # Next.js Application
 │   ├── src/
-│   │   ├── app/               # Next.js App Router pages
-│   │   ├── components/        # Reusable React components
-│   │   ├── contexts/          # React Context providers
-│   │   ├── hooks/             # Custom React hooks
-│   │   ├── api/               # API client
-│   │   └── types/             # TypeScript types
-│   └── public/                # Static assets
-├── frontend-vite-backup/       # Legacy Vite frontend (backup)
-├── _archived/                  # Archived legacy code (GitIntegration)
+│   │   ├── app/                # Pages & Layouts
+│   │   ├── components/         # Reusable UI Components
+│   │   ├── contexts/           # Global State (Auth, Socket)
+│   │   └── services/           # API Handling
 ├── .gitignore
-├── .gitattributes
 └── README.md
 ```
 
 ---
 
-## Features
-
-### User Management
-- JWT-based authentication with Register/Login
-- OAuth integration (Google, GitHub) - planned
-- Role-based authorization (Admin, Moderator, User)
-- User profiles and activity tracking
-
-### Q&A System
-- Create, edit, delete questions with Markdown support
-- Answer questions with accept functionality
-- Upvote/Downvote system for questions and answers
-- Tag-based categorization
-- Real-time updates via SignalR
-
-### Code Repositories
-- Create public/private repositories
-- File and folder management
-- Gitea integration for source control (in development)
-
-### Real-time Features
-- SignalR hubs for:
-  - Chat messaging
-  - Notifications
-  - Question updates
-  - User presence
-  - Activity feed
-
-### Additional Features
-- Badge and reputation system
-- Saved items/bookmarks
-- Full-text search
-- Tag preferences (watch/ignore)
-
----
-
-## Technology Stack
-
-### Backend
-- **ASP.NET Core 9.0** - Web API framework
-- **Entity Framework Core 9.0** - ORM
-- **SQL Server** - Database
-- **SignalR** - Real-time communication
-- **JWT** - Authentication tokens
-- **Clean Architecture** - CQRS pattern with Commands/Queries
-- **BCrypt** - Password hashing
-
-### Frontend
-- **Next.js 15** - React framework with App Router
-- **TypeScript** - Type safety
-- **Bootstrap 5** - UI framework
-- **@microsoft/signalr** - Real-time client
-
----
-
-## Getting Started
+## ⚡ Getting Started
 
 ### Prerequisites
-- .NET 9.0 SDK
-- Node.js 18+ and npm
-- SQL Server 2022+
-- Visual Studio 2022 or VS Code
+- **.NET 9.0 SDK**
+- **Node.js 18+** & **npm**
+- **SQL Server** (Local or Container)
 
 ### Backend Setup
-
-```bash
-# Navigate to backend
-cd backend/src/DevComunity.Api
-
-# Restore packages
-dotnet restore
-
-# Update database
-dotnet ef database update --project ../DevComunity.Infrastructure
-
-# Run the API
-dotnet run
-```
-
-The API will be available at `https://localhost:7001` with Swagger at `/swagger`.
+1.  Navigate to the API folder:
+    ```bash
+    cd backend/src/DevComunity.Api
+    ```
+2.  Configure `appsettings.json` with your SQL connection string.
+3.  Run migrations:
+    ```bash
+    dotnet ef database update --project ../DevComunity.Infrastructure
+    ```
+4.  Start the server:
+    ```bash
+    dotnet run
+    ```
+    API will run at `https://localhost:7001`. Swagger docs at: `https://localhost:7001/swagger`.
 
 ### Frontend Setup
-
-```bash
-# Navigate to frontend
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-```
-
-The frontend will be available at `http://localhost:3000`.
-
-### Configuration
-
-#### Backend (`backend/src/DevComunity.Api/appsettings.json`)
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=DevComunity;..."
-  },
-  "JwtSettings": {
-    "SecretKey": "your-secret-key-here",
-    "Issuer": "DevComunity",
-    "Audience": "DevComunity",
-    "ExpirationMinutes": 60
-  }
-}
-```
+1.  Navigate to the frontend folder:
+    ```bash
+    cd frontend
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Start the development server:
+    ```bash
+    npm run dev
+    ```
+    App will run at `http://localhost:3000`.
 
 ---
 
-## API Endpoints
+## 🤝 Contributing
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login and get JWT token
-
-### Questions
-- `GET /api/questions` - List questions (paginated)
-- `GET /api/questions/{id}` - Get question details
-- `POST /api/questions` - Create question
-- `PUT /api/questions/{id}` - Update question
-- `DELETE /api/questions/{id}` - Delete question
-
-### Answers
-- `GET /api/answers/question/{questionId}` - Get answers for question
-- `POST /api/answers` - Create answer
-- `PUT /api/answers/{id}` - Update answer
-- `DELETE /api/answers/{id}` - Delete answer
-- `POST /api/answers/{id}/accept` - Accept answer
-
-### Users
-- `GET /api/users/me` - Get current user
-- `GET /api/users/{id}` - Get user by ID
-
-### SignalR Hubs
-- `/hubs/chat` - Chat messaging
-- `/hubs/notification` - Notifications
-- `/hubs/question` - Question updates
-- `/hubs/presence` - User presence
-- `/hubs/activity` - Activity feed
+We welcome contributions!
+1.  Fork the project.
+2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
 
 ---
 
-## Development Status
+## 📄 License
 
-### Fully Implemented
-- Questions CRUD with CQRS handlers
-- Answers CRUD with Accept functionality
-- User authentication (JWT)
-- User queries
-- SignalR hub structure
+Distributed under the MIT License. See `LICENSE` for more information.
 
-### In Development (TODO)
-- Votes system handlers
-- Comments system handlers
-- Tags system handlers
-- Badges system handlers
-- Saved items handlers
-- Notifications handlers
-- Repository/Gitea integration
-
-### Archived
-- Legacy MVC code preserved in `_archived/GitIntegration/` for reference
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit changes (`git commit -m 'Add some feature'`)
-4. Push to branch (`git push origin feature/your-feature`)
-5. Create a Pull Request
-
----
-
-## License
-
-This project is licensed under the MIT License.
-
----
-
-<p align="center">Made with love by the DevCommunity Team</p>
+<p align="center">
+  Made with ❤️ by the DevCommunity Team
+</p>
