@@ -58,7 +58,7 @@ export default function GroupDetailPage() {
         try {
             const [groupRes, postsRes] = await Promise.all([
                 apiClient.get<Group>(`/Groups/${id}`),
-                apiClient.get<{ items: Post[] }>(`/Newsfeed?groupId=${id}`) // Assuming Newsfeed API supports filter by groupId
+                apiClient.get<{ items: Post[] }>(`/Newsfeed/groups/${id}`) // Correct endpoint for group posts
             ]);
             setGroup(groupRes.data);
             setPosts(postsRes.data.items || []);
@@ -189,8 +189,8 @@ export default function GroupDetailPage() {
                             <button
                                 onClick={handleJoinLeave}
                                 className={`px-6 py-2.5 rounded-xl font-medium transition flex items-center gap-2 ${isMember
-                                        ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500 border border-[var(--border-color)]'
-                                        : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
+                                    ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500 border border-[var(--border-color)]'
+                                    : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
                                     }`}
                             >
                                 {isMember ? (
