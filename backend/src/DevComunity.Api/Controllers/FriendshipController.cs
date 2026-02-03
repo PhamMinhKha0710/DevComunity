@@ -72,6 +72,7 @@ public class FriendshipController : ControllerBase
     /// Get pending friend requests (received by current user)
     /// </summary>
     [HttpGet("requests")]
+    [HttpGet("pending")] // Alias for frontend compatibility
     [ProducesResponseType(typeof(IEnumerable<FriendshipDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<FriendshipDto>>> GetPendingRequests(CancellationToken cancellationToken)
     {

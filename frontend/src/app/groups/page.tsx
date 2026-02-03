@@ -72,7 +72,9 @@ export default function GroupsPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setMyGroups(data.items || []);
+                // Handle both array and paginated response
+                const groupList = Array.isArray(data) ? data : (data.items || []);
+                setMyGroups(groupList);
             }
         } catch (error) {
             console.error('Error fetching my groups:', error);
