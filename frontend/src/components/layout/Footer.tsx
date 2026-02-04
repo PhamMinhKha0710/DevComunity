@@ -11,7 +11,7 @@ export default function Footer() {
                             <div className="brand-logo-container me-2">
                                 <i className="bi bi-code-square fs-4"></i>
                             </div>
-                            <span className="fs-4 fw-bold">DevCommunity</span>
+                            <span className="fs-4 fw-bold">SocialTechsy</span>
                         </div>
                         <p className="text-white-50 mb-4">
                             Nền tảng kết nối lập trình viên, nơi chia sẻ mã nguồn và giải đáp thắc mắc kỹ thuật từ cộng đồng.
@@ -65,7 +65,7 @@ export default function Footer() {
                                 <div className="icon-box me-3">
                                     <i className="bi bi-envelope"></i>
                                 </div>
-                                <span className="text-white-50 small">support@devcommunity.com</span>
+                                <span className="text-white-50 small">support@socialtechsy.com</span>
                             </div>
                         </div>
                     </div>
@@ -77,7 +77,7 @@ export default function Footer() {
                 <div className="container py-3">
                     <div className="d-flex flex-column flex-md-row justify-content-between align-items-center">
                         <p className="text-white-50 small mb-0">
-                            © 2025 DevCommunity. All rights reserved.
+                            © 2026 SocialTechsy. All rights reserved.
                         </p>
                         <div className="d-flex gap-3 mt-2 mt-md-0">
                             <a href="#" className="text-white-50 small text-decoration-none">Privacy</a>

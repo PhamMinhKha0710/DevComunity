@@ -22,14 +22,14 @@ export default function Header() {
                             <div className="brand-logo-container me-2 position-relative" style={{ width: '40px', height: '40px' }}>
                                 <Image
                                     src="/logo.png"
-                                    alt="DevCommunity Logo"
+                                    alt="SocialTechsy Logo"
                                     fill
                                     className="object-contain"
                                     sizes="40px"
                                     priority
                                 />
                             </div>
-                            <span className="fw-semibold">DevCommunity</span>
+                            <span className="fw-semibold">SocialTechsy</span>
                         </Link>
 
                         {/* Mobile Toggle */}
