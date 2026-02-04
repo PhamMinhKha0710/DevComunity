@@ -57,25 +57,38 @@ export function useSignalR(hubName: string): SignalRConnection {
             if (error) setError(error);
         });
 
+        let isMounted = true;
+
         // Start connection
         const startConnection = async () => {
             try {
                 await connection.start();
+
+                if (!isMounted) {
+                    await connection.stop();
+                    console.log(`SignalR connection for ${hubName} stopped immediately due to unmount`);
+                    return;
+                }
+
                 console.log(`SignalR connected to ${hubName}`);
                 setConnectionState(signalR.HubConnectionState.Connected);
                 setError(null);
             } catch (err) {
                 console.error(`SignalR connection error for ${hubName}:`, err);
-                setError(err as Error);
-                setConnectionState(signalR.HubConnectionState.Disconnected);
+                if (isMounted) {
+                    setError(err as Error);
+                    setConnectionState(signalR.HubConnectionState.Disconnected);
+                }
             }
         };
 
         startConnection();
 
         return () => {
+            isMounted = false;
+            // Only stop if we are actually connected to avoid "Failed to start... before stop" error
             if (connection.state === signalR.HubConnectionState.Connected) {
-                connection.stop();
+                connection.stop().catch(err => console.error(`Error stopping SignalR connection for ${hubName}:`, err));
             }
         };
     }, [hubName, user]);

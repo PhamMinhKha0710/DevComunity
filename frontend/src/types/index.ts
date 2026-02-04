@@ -186,6 +186,29 @@ export interface ChatMessage {
     content: string;
     sentDate: string;
     isRead: boolean;
+    messageType?: 'text' | 'image' | 'video' | 'audio' | 'file';
+    attachmentUrl?: string;
+    attachmentFileName?: string;
+    attachmentSize?: number;
+    reactions?: MessageReaction[];
+    replyToMessageId?: number;
+    replyToMessage?: ReplyToMessage;
+}
+
+export interface ReplyToMessage {
+    messageId: number;
+    senderId: number;
+    senderUsername: string;
+    content: string;
+}
+
+export interface MessageReaction {
+    messageReactionId: number;
+    userId: number;
+    username: string;
+    profilePicture?: string;
+    reactionType: string;
+    createdAt: string;
 }
 
 // SavedItem types

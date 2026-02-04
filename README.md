@@ -64,14 +64,14 @@
 ## 📂 Project Structure
 
 ```bash
-DevComunity/
+socialtechsy-social-network/
 ├── backend/                    # ASP.NET Core Solution
 │   ├── src/
-│   │   ├── DevComunity.Api/           # Entry point, Controllers, Hubs
-│   │   ├── DevComunity.Application/   # Business Logic (CQRS)
-│   │   ├── DevComunity.Domain/        # Entities, Enums, Interfaces
-│   │   ├── DevComunity.Infrastructure/# DB Context, Repositories, External Services
-│   │   └── DevComunity.Shared/        # DTOs, Common Utils
+│   │   ├── SocialTechsy.SocialNetwork.Api/           # Entry point, Controllers, Hubs
+│   │   ├── SocialTechsy.SocialNetwork.Application/   # Business Logic (CQRS)
+│   │   ├── SocialTechsy.SocialNetwork.Domain/        # Entities, Enums, Interfaces
+│   │   ├── SocialTechsy.SocialNetwork.Infrastructure/# DB Context, Repositories, External Services
+│   │   └── SocialTechsy.SocialNetwork.Shared/        # DTOs, Common Utils
 │   └── tests/                  # Unit & Integration Tests
 ├── frontend/                   # Next.js Application
 │   ├── src/

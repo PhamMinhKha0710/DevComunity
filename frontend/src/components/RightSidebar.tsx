@@ -51,7 +51,7 @@ export default function RightSidebar() {
                                 #{topic.name}
                             </span>
                             <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-full">
-                                {topic.count.toLocaleString()} posts
+                                {topic.count.toLocaleString('en-US')} posts
                             </span>
                         </Link>
                     ))}
@@ -72,8 +72,8 @@ export default function RightSidebar() {
                             className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--bg-hover)] transition"
                         >
                             <span className={`w-6 h-6 flex items-center justify-center text-sm font-bold rounded-full ${index === 0 ? 'bg-yellow-500 text-black' :
-                                    index === 1 ? 'bg-gray-400 text-black' :
-                                        'bg-orange-600 text-white'
+                                index === 1 ? 'bg-gray-400 text-black' :
+                                    'bg-orange-600 text-white'
                                 }`}>
                                 {index + 1}
                             </span>
@@ -82,7 +82,7 @@ export default function RightSidebar() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-[var(--text-primary)] truncate">{user.displayName}</p>
-                                <p className="text-xs text-[var(--text-muted)]">{user.reputation.toLocaleString()} rep</p>
+                                <p className="text-xs text-[var(--text-muted)]">{user.reputation.toLocaleString('en-US')} rep</p>
                             </div>
                         </Link>
                     ))}
