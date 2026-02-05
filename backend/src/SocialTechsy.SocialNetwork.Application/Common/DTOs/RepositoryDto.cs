@@ -55,5 +55,8 @@ public class CommitDto
     public string Message { get; set; } = null!;
     public string AuthorName { get; set; } = null!;
     public string? AuthorEmail { get; set; }
-    public DateTime CommittedDate { get; set; }
+    public string? AuthorAvatar { get; set; }
+    public DateTime CommittedAt { get; set; }
+    public string? Url { get; set; }
 }
+
