@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import apiClient from '@/lib/api/client';
@@ -234,19 +234,31 @@ export default function ChatWidget() {
             setConnectionState('disconnected');
         });
 
+        let isMounted = true;
+
         // Start connection
         connection.start()
             .then(() => {
+                if (!isMounted) {
+                    connection.stop();
+                    console.log('SignalR connection stopped immediately due to unmount');
+                    return;
+                }
                 console.log('✅ SignalR connected to ChatHub');
                 setConnectionState('connected');
             })
             .catch(err => {
                 console.error('❌ SignalR connection error:', err);
-                setConnectionState('disconnected');
+                if (isMounted) {
+                    setConnectionState('disconnected');
+                }
             });
 
         return () => {
-            connection.stop();
+            isMounted = false;
+            if (connection.state === signalR.HubConnectionState.Connected) {
+                connection.stop().catch(console.error);
+            }
         };
     }, [user]); // Removed isOpen dependency - stay connected when logged in
 
@@ -290,14 +302,22 @@ export default function ChatWidget() {
             });
         });
 
+        let isMounted = true;
+
         presenceConnection.start()
             .then(async () => {
+                if (!isMounted) {
+                    presenceConnection.stop();
+                    return;
+                }
                 console.log('✅ PresenceHub connected');
                 // Lấy danh sách users đang online
                 try {
                     const onlineList = await presenceConnection.invoke<string[]>('GetOnlineUsers');
                     console.log('👥 Online users:', onlineList);
-                    setOnlineUsers(new Set(onlineList));
+                    if (isMounted) {
+                        setOnlineUsers(new Set(onlineList));
+                    }
                 } catch (err) {
                     console.error('Failed to get online users:', err);
                 }
@@ -305,7 +325,10 @@ export default function ChatWidget() {
             .catch(err => console.error('❌ PresenceHub connection error:', err));
 
         return () => {
-            presenceConnection.stop();
+            isMounted = false;
+            if (presenceConnection.state === signalR.HubConnectionState.Connected) {
+                presenceConnection.stop().catch(console.error);
+            }
         };
     }, [user]);
 
@@ -599,6 +622,39 @@ export default function ChatWidget() {
         }
     };
 
+    // Message grouping for Instagram-style bubbles
+    const getMessageGroupPosition = (messages: ChatMessage[], index: number): 'single' | 'group-first' | 'group-middle' | 'group-last' => {
+        const msg = messages[index];
+        const prevMsg = messages[index - 1];
+        const nextMsg = messages[index + 1];
+        
+        const sameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId;
+        const sameSenderAsNext = nextMsg && nextMsg.senderId === msg.senderId;
+        
+        // Check time gap (5 minutes)
+        const TIME_GAP = 5 * 60 * 1000;
+        const prevTimeDiff = prevMsg ? new Date(msg.sentAt).getTime() - new Date(prevMsg.sentAt).getTime() : Infinity;
+        const nextTimeDiff = nextMsg ? new Date(nextMsg.sentAt).getTime() - new Date(msg.sentAt).getTime() : Infinity;
+        
+        const groupWithPrev = sameSenderAsPrev && prevTimeDiff < TIME_GAP;
+        const groupWithNext = sameSenderAsNext && nextTimeDiff < TIME_GAP;
+        
+        if (!groupWithPrev && !groupWithNext) return 'single';
+        if (!groupWithPrev && groupWithNext) return 'group-first';
+        if (groupWithPrev && groupWithNext) return 'group-middle';
+        return 'group-last';
+    };
+
+    const shouldShowAvatar = (messages: ChatMessage[], index: number): boolean => {
+        const pos = getMessageGroupPosition(messages, index);
+        return pos === 'single' || pos === 'group-last';
+    };
+
+    const shouldShowTime = (messages: ChatMessage[], index: number): boolean => {
+        const pos = getMessageGroupPosition(messages, index);
+        return pos === 'single' || pos === 'group-last';
+    };
+
     // ========== RENDER ==========
 
     if (authLoading || !user) {
@@ -706,24 +762,43 @@ export default function ChatWidget() {
                                                 <p className="small">No messages yet. Say hi!</p>
                                             </div>
                                         ) : (
-                                            messages.map(msg => (
-                                                <div key={msg.messageId} className={`chat-widget-message ${msg.senderId === user.userId ? 'sent' : 'received'}`}>
-                                                    {msg.senderId !== user.userId && (
-                                                        <img src={msg.senderAvatar || '/images/default-avatar.png'} alt="" className="chat-widget-msg-avatar" />
-                                                    )}
-                                                    <div className={`chat-widget-bubble ${msg.status === 'sending' ? 'sending' : ''}`}>
-                                                        <p className="mb-0">{msg.content}</p>
-                                                        <span className="chat-widget-time">
-                                                            {formatTime(msg.sentAt)}
-                                                            {msg.senderId === user.userId && (
-                                                                <span className={`ms-1 status-icon ${msg.status === 'read' ? 'read' : ''}`}>
-                                                                    {getMessageStatusIcon(msg.status)}
+                                            messages.map((msg, idx) => {
+                                                const groupPos = getMessageGroupPosition(messages, idx);
+                                                const showAvatar = shouldShowAvatar(messages, idx);
+                                                const showTime = shouldShowTime(messages, idx);
+                                                const isSent = msg.senderId === user.userId;
+                                                
+                                                return (
+                                                    <div 
+                                                        key={msg.messageId} 
+                                                        className={`chat-widget-message ${isSent ? 'sent' : 'received'} ${groupPos}`}
+                                                        style={{ marginBottom: groupPos === 'group-first' || groupPos === 'group-middle' ? '2px' : '12px' }}
+                                                    >
+                                                        {!isSent && (
+                                                            <div style={{ width: '28px', height: '28px', visibility: showAvatar ? 'visible' : 'hidden' }}>
+                                                                <img 
+                                                                    src={msg.senderAvatar || '/images/default-avatar.png'} 
+                                                                    alt="" 
+                                                                    className="chat-widget-msg-avatar" 
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        <div className={`chat-widget-bubble ${msg.status === 'sending' ? 'sending' : ''}`}>
+                                                            <p className="mb-0">{msg.content}</p>
+                                                            {showTime && (
+                                                                <span className="chat-widget-time">
+                                                                    {formatTime(msg.sentAt)}
+                                                                    {isSent && (
+                                                                        <span className={`ms-1 status-icon ${msg.status === 'read' ? 'read' : ''}`}>
+                                                                            {getMessageStatusIcon(msg.status)}
+                                                                        </span>
+                                                                    )}
                                                                 </span>
                                                             )}
-                                                        </span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))
+                                                );
+                                            })
                                         )}
                                         {/* Typing indicator */}
                                         {typingUsers.length > 0 && (
@@ -873,11 +948,24 @@ export default function ChatWidget() {
                 }
                 .chat-widget-bubble.sending { opacity: 0.7; }
                 .chat-widget-message.sent .chat-widget-bubble {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-bottom-right-radius: 4px;
+                    background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%); 
+                    color: white; 
+                    border-bottom-right-radius: 4px;
+                    box-shadow: 0 2px 12px rgba(131, 58, 180, 0.3);
                 }
                 .chat-widget-message.received .chat-widget-bubble {
                     background: white; color: #333; border: 1px solid #e0e0e0; border-bottom-left-radius: 4px;
+                    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
                 }
+                /* Message grouping styles - Instagram style */
+                .chat-widget-message.sent.group-first .chat-widget-bubble { border-radius: 18px 18px 4px 18px; }
+                .chat-widget-message.sent.group-middle .chat-widget-bubble { border-radius: 18px 4px 4px 18px; }
+                .chat-widget-message.sent.group-last .chat-widget-bubble { border-radius: 18px 4px 18px 18px; }
+                .chat-widget-message.received.group-first .chat-widget-bubble { border-radius: 18px 18px 18px 4px; }
+                .chat-widget-message.received.group-middle .chat-widget-bubble { border-radius: 4px 18px 18px 4px; }
+                .chat-widget-message.received.group-last .chat-widget-bubble { border-radius: 4px 18px 18px 18px; }
+                .chat-widget-message.sent.single .chat-widget-bubble { border-radius: 18px 18px 4px 18px; }
+                .chat-widget-message.received.single .chat-widget-bubble { border-radius: 18px 18px 18px 4px; }
                 .chat-widget-time { display: block; font-size: 10px; margin-top: 4px; opacity: 0.7; }
                 .status-icon { font-size: 10px; }
                 .status-icon.read { color: #3b82f6; }
