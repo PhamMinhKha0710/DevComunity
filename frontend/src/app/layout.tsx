@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "DevCommunity - Developer Community Platform",
-  description: "DevCommunity - Nền tảng kết nối lập trình viên, nơi chia sẻ mã nguồn và giải đáp thắc mắc kỹ thuật từ cộng đồng",
+  title: "SocialTechsy - Developer Community Platform",
+  description: "SocialTechsy - Nền tảng kết nối lập trình viên, nơi chia sẻ mã nguồn và giải đáp thắc mắc kỹ thuật từ cộng đồng",
   keywords: "community, developers, programming, coding, questions, answers, repository, git",
 };
 

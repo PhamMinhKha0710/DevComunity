@@ -64,14 +64,14 @@
 ## 📂 Project Structure
 
 ```bash
-DevComunity/
+socialtechsy-social-network/
 ├── backend/                    # ASP.NET Core Solution
 │   ├── src/
-│   │   ├── DevComunity.Api/           # Entry point, Controllers, Hubs
-│   │   ├── DevComunity.Application/   # Business Logic (CQRS)
-│   │   ├── DevComunity.Domain/        # Entities, Enums, Interfaces
-│   │   ├── DevComunity.Infrastructure/# DB Context, Repositories, External Services
-│   │   └── DevComunity.Shared/        # DTOs, Common Utils
+│   │   ├── SocialTechsy.SocialNetwork.Api/           # Entry point, Controllers, Hubs
+│   │   ├── SocialTechsy.SocialNetwork.Application/   # Business Logic (CQRS)
+│   │   ├── SocialTechsy.SocialNetwork.Domain/        # Entities, Enums, Interfaces
+│   │   ├── SocialTechsy.SocialNetwork.Infrastructure/# DB Context, Repositories, External Services
+│   │   └── SocialTechsy.SocialNetwork.Shared/        # DTOs, Common Utils
 │   └── tests/                  # Unit & Integration Tests
 ├── frontend/                   # Next.js Application
 │   ├── src/
@@ -95,12 +95,12 @@ DevComunity/
 ### Backend Setup
 1.  Navigate to the API folder:
     ```bash
-    cd backend/src/DevComunity.Api
+    cd backend/src/SocialTechsy.SocialNetwork.Api
     ```
 2.  Configure `appsettings.json` with your SQL connection string.
 3.  Run migrations:
     ```bash
-    dotnet ef database update --project ../DevComunity.Infrastructure
+    dotnet ef database update --project ../SocialTechsy.SocialNetwork.Infrastructure
     ```
 4.  Start the server:
     ```bash

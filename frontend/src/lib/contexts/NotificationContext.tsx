@@ -119,9 +119,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             setIsConnected(false);
         });
 
+        let isMounted = true;
+
         // Start connection
         newConnection.start()
             .then(() => {
+                if (!isMounted) {
+                    newConnection.stop();
+                    console.log('Notification hub connection stopped immediately due to unmount');
+                    return;
+                }
                 console.log('Notification hub connected');
                 setIsConnected(true);
                 setConnection(newConnection);
@@ -131,8 +138,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             });
 
         return () => {
+            isMounted = false;
             if (newConnection.state === signalR.HubConnectionState.Connected) {
-                newConnection.stop();
+                newConnection.stop().catch(console.error);
             }
         };
     }, [user]);
