@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
+using SocialTechsy.SocialNetwork.Infrastructure.External.Gitea;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Repositories;
 using SocialTechsy.SocialNetwork.Infrastructure.Services;
@@ -44,12 +45,17 @@ public static class DependencyInjection
         services.AddScoped<IPostRepository, PostRepository>();
         services.AddScoped<ITagPreferenceRepository, TagPreferenceRepository>();
 
-
         // Register services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<DataSeeder>();
 
+        // Gitea integration
+        services.Configure<GiteaConfiguration>(
+            configuration.GetSection(GiteaConfiguration.SectionName));
+        services.AddHttpClient<IGiteaService, GiteaService>();
+
         return services;
     }
 }
+
