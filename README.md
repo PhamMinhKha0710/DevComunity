@@ -95,12 +95,12 @@ socialtechsy-social-network/
 ### Backend Setup
 1.  Navigate to the API folder:
     ```bash
-    cd backend/src/DevComunity.Api
+    cd backend/src/SocialTechsy.SocialNetwork.Api
     ```
 2.  Configure `appsettings.json` with your SQL connection string.
 3.  Run migrations:
     ```bash
-    dotnet ef database update --project ../DevComunity.Infrastructure
+    dotnet ef database update --project ../SocialTechsy.SocialNetwork.Infrastructure
     ```
 4.  Start the server:
     ```bash
