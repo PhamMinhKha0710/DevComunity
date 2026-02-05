@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
-export default function AuthPage() {
+function AuthContent() {
     const searchParams = useSearchParams();
     const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
     const [isLoginMode, setIsLoginMode] = useState(initialMode === 'login');
@@ -412,3 +412,16 @@ export default function AuthPage() {
         </div>
     );
 }
+
+export default function AuthPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
+            </div>
+        }>
+            <AuthContent />
+        </Suspense>
+    );
+}
+
