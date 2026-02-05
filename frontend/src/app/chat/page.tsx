@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as signalR from '@microsoft/signalr';
 import { useAuth } from '@/lib/contexts/AuthContext';
@@ -37,7 +37,7 @@ interface MessageGroup {
     timeLabel: string;
 }
 
-export default function ChatPage() {
+function ChatContent() {
     const { user, isLoading: authLoading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -73,7 +73,7 @@ export default function ChatPage() {
     const [fileMessageType, setFileMessageType] = useState<string>('');
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    
+
     // Lightbox
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxMedia, setLightboxMedia] = useState<{ url: string; type: 'image' | 'video'; fileName?: string }>({ url: '', type: 'image' });
@@ -160,16 +160,16 @@ export default function ChatPage() {
             console.log('📩 RECEIVED REACTION:', reaction);
             setMessages(prev => prev.map(m => {
                 if (m.messageId !== reaction.messageId) return m;
-                
+
                 // Update or add reaction
                 const existingReactions = m.reactions || [];
                 const existingIdx = existingReactions.findIndex(r => r.userId === reaction.userId);
-                
+
                 let newReactions: MessageReaction[];
                 if (existingIdx >= 0) {
                     // Update existing
-                    newReactions = existingReactions.map((r, i) => 
-                        i === existingIdx 
+                    newReactions = existingReactions.map((r, i) =>
+                        i === existingIdx
                             ? { ...r, reactionType: reaction.reactionType, createdAt: reaction.createdAt }
                             : r
                     );
@@ -184,7 +184,7 @@ export default function ChatPage() {
                         createdAt: reaction.createdAt
                     }];
                 }
-                
+
                 return { ...m, reactions: newReactions };
             }));
         });
@@ -194,9 +194,9 @@ export default function ChatPage() {
             console.log('📩 REACTION REMOVED:', data);
             setMessages(prev => prev.map(m => {
                 if (m.messageId !== data.messageId) return m;
-                return { 
-                    ...m, 
-                    reactions: (m.reactions || []).filter(r => r.userId !== data.userId) 
+                return {
+                    ...m,
+                    reactions: (m.reactions || []).filter(r => r.userId !== data.userId)
                 };
             }));
         });
@@ -399,9 +399,9 @@ export default function ChatPage() {
                 ));
             } else {
                 // Fallback to REST
-                await apiClient.post(`/chat/conversations/${selectedConversation}/messages`, { 
+                await apiClient.post(`/chat/conversations/${selectedConversation}/messages`, {
                     content,
-                    replyToMessageId: replyToId 
+                    replyToMessageId: replyToId
                 });
                 setMessages(prev => prev.map(m =>
                     m.messageId === optimisticMessage.messageId ? { ...m, status: 'sent' } : m
@@ -445,7 +445,7 @@ export default function ChatPage() {
             const uploadResponse = await apiClient.post('/media/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 onUploadProgress: (progressEvent) => {
-                    const progress = progressEvent.total 
+                    const progress = progressEvent.total
                         ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
                         : 0;
                     setUploadProgress(progress);
@@ -489,12 +489,12 @@ export default function ChatPage() {
             // Send via WebSocket
             const connection = connectionRef.current;
             if (connection && connection.state === signalR.HubConnectionState.Connected) {
-                await connection.invoke('SendMediaMessage', 
-                    selectedConversation, 
-                    messageType, 
-                    url, 
-                    fileName, 
-                    fileSize, 
+                await connection.invoke('SendMediaMessage',
+                    selectedConversation,
+                    messageType,
+                    url,
+                    fileName,
+                    fileSize,
                     caption || null,
                     replyToId || null
                 );
@@ -552,7 +552,7 @@ export default function ChatPage() {
     const toggleReaction = (messageId: number, reactionType: string) => {
         const message = messages.find(m => m.messageId === messageId);
         const userReaction = message?.reactions?.find(r => r.userId === user?.userId);
-        
+
         if (userReaction?.reactionType === reactionType) {
             removeReaction(messageId);
         } else {
@@ -672,20 +672,20 @@ export default function ChatPage() {
         messages.forEach((msg, idx) => {
             const prevMsg = messages[idx - 1];
             const nextMsg = messages[idx + 1];
-            
+
             const prevTime = prevMsg ? new Date(prevMsg.sentDate).getTime() : 0;
             const currTime = new Date(msg.sentDate).getTime();
             const nextTime = nextMsg ? new Date(nextMsg.sentDate).getTime() : 0;
 
             // Check if we need a time separator (gap > 5 min from previous)
             const showTimeLabel = !prevMsg || (currTime - prevTime > TIME_GAP_THRESHOLD);
-            
+
             // Check if same sender as previous (for avatar grouping)
             const sameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId && !showTimeLabel;
-            
+
             // Check if same sender as next (for avatar grouping)
-            const sameSenderAsNext = nextMsg && nextMsg.senderId === msg.senderId && 
-                                     (nextTime - currTime <= TIME_GAP_THRESHOLD);
+            const sameSenderAsNext = nextMsg && nextMsg.senderId === msg.senderId &&
+                (nextTime - currTime <= TIME_GAP_THRESHOLD);
 
             // Show avatar only for the LAST message in a consecutive group from same sender
             const showAvatar = !sameSenderAsNext;
@@ -959,16 +959,16 @@ export default function ChatPage() {
                                                     </span>
                                                 </div>
                                             )}
-                                            
+
                                             {/* Messages from same sender */}
                                             <div className={`flex ${group.senderId === user.userId ? 'justify-end' : 'justify-start'} items-end gap-2`}>
                                                 {/* Avatar for received messages - only show for last in group */}
                                                 {group.senderId !== user.userId && (
                                                     <div className={`w-7 h-7 flex-shrink-0 ${group.showAvatar ? 'visible' : 'invisible'}`}>
                                                         {otherParticipant?.profilePicture ? (
-                                                            <img 
-                                                                src={otherParticipant.profilePicture} 
-                                                                alt="" 
+                                                            <img
+                                                                src={otherParticipant.profilePicture}
+                                                                alt=""
                                                                 className="w-7 h-7 rounded-full object-cover"
                                                             />
                                                         ) : (
@@ -978,14 +978,14 @@ export default function ChatPage() {
                                                         )}
                                                     </div>
                                                 )}
-                                                
+
                                                 {/* Message bubbles */}
                                                 <div className={`flex flex-col ${group.senderId === user.userId ? 'items-end' : 'items-start'} gap-0.5 max-w-[70%]`}>
                                                     {group.messages.map((msg, msgIdx) => {
                                                         const isFirst = msgIdx === 0;
                                                         const isLast = msgIdx === group.messages.length - 1;
                                                         const isSent = msg.senderId === user.userId;
-                                                        
+
                                                         // Dynamic border radius based on position in group
                                                         const getBorderRadius = () => {
                                                             if (isSent) {
@@ -1000,30 +1000,28 @@ export default function ChatPage() {
                                                                 return 'rounded-2xl rounded-l-md';
                                                             }
                                                         };
-                                                        
+
                                                         const userReaction = msg.reactions?.find(r => r.userId === user.userId);
                                                         const groupedReactions = msg.reactions?.reduce((acc, r) => {
                                                             acc[r.reactionType] = (acc[r.reactionType] || 0) + 1;
                                                             return acc;
                                                         }, {} as Record<string, number>);
-                                                        
+
                                                         return (
                                                             <div
                                                                 key={msg.messageId}
-                                                                className={`group relative px-4 py-2 ${getBorderRadius()} ${
-                                                                    isSent
+                                                                className={`group relative px-4 py-2 ${getBorderRadius()} ${isSent
                                                                         ? `bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 text-white shadow-lg shadow-purple-500/20 ${msg.status === 'sending' ? 'opacity-70' : ''}`
                                                                         : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm'
-                                                                } transition-all duration-200 hover:shadow-md`}
+                                                                    } transition-all duration-200 hover:shadow-md`}
                                                                 onDoubleClick={() => toggleReaction(msg.messageId, 'like')}
                                                             >
                                                                 {/* Quoted message (reply) */}
                                                                 {msg.replyToMessage && (
-                                                                    <div className={`mb-2 p-2 rounded-lg text-xs ${
-                                                                        isSent 
-                                                                            ? 'bg-white/20 border-l-2 border-white/50' 
+                                                                    <div className={`mb-2 p-2 rounded-lg text-xs ${isSent
+                                                                            ? 'bg-white/20 border-l-2 border-white/50'
                                                                             : 'bg-[var(--bg-tertiary)] border-l-2 border-[var(--primary)]'
-                                                                    }`}>
+                                                                        }`}>
                                                                         <div className={`font-semibold ${isSent ? 'text-white/90' : 'text-[var(--primary)]'}`}>
                                                                             {msg.replyToMessage.senderUsername}
                                                                         </div>
@@ -1032,27 +1030,27 @@ export default function ChatPage() {
                                                                         </div>
                                                                     </div>
                                                                 )}
-                                                                
+
                                                                 {/* Media content */}
                                                                 {msg.messageType === 'image' && msg.attachmentUrl && (
-                                                                    <div 
+                                                                    <div
                                                                         className="mb-2 cursor-pointer"
                                                                         onClick={() => openLightbox(msg.attachmentUrl!, 'image', msg.attachmentFileName)}
                                                                     >
-                                                                        <img 
-                                                                            src={msg.attachmentUrl} 
-                                                                            alt={msg.attachmentFileName || 'Image'} 
+                                                                        <img
+                                                                            src={msg.attachmentUrl}
+                                                                            alt={msg.attachmentFileName || 'Image'}
                                                                             className="max-w-[200px] rounded-lg"
                                                                         />
                                                                     </div>
                                                                 )}
-                                                                
+
                                                                 {msg.messageType === 'video' && msg.attachmentUrl && (
-                                                                    <div 
+                                                                    <div
                                                                         className="mb-2 cursor-pointer relative"
                                                                         onClick={() => openLightbox(msg.attachmentUrl!, 'video', msg.attachmentFileName)}
                                                                     >
-                                                                        <video 
+                                                                        <video
                                                                             src={msg.attachmentUrl}
                                                                             className="max-w-[200px] rounded-lg"
                                                                         />
@@ -1061,12 +1059,12 @@ export default function ChatPage() {
                                                                         </div>
                                                                     </div>
                                                                 )}
-                                                                
+
                                                                 {msg.messageType === 'audio' && msg.attachmentUrl && (
                                                                     <div className="mb-2">
-                                                                        <audio 
-                                                                            src={msg.attachmentUrl} 
-                                                                            controls 
+                                                                        <audio
+                                                                            src={msg.attachmentUrl}
+                                                                            controls
                                                                             className="max-w-[200px]"
                                                                         />
                                                                         {msg.attachmentFileName && (
@@ -1074,16 +1072,15 @@ export default function ChatPage() {
                                                                         )}
                                                                     </div>
                                                                 )}
-                                                                
+
                                                                 {msg.messageType === 'file' && msg.attachmentUrl && (
-                                                                    <a 
+                                                                    <a
                                                                         href={msg.attachmentUrl}
                                                                         download={msg.attachmentFileName}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className={`flex items-center gap-2 p-2 rounded-lg mb-2 ${
-                                                                            isSent ? 'bg-white/20 hover:bg-white/30' : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]'
-                                                                        } transition`}
+                                                                        className={`flex items-center gap-2 p-2 rounded-lg mb-2 ${isSent ? 'bg-white/20 hover:bg-white/30' : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)]'
+                                                                            } transition`}
                                                                         onClick={(e) => e.stopPropagation()}
                                                                     >
                                                                         <span className="text-2xl">📄</span>
@@ -1094,12 +1091,12 @@ export default function ChatPage() {
                                                                         <i className="bi bi-download"></i>
                                                                     </a>
                                                                 )}
-                                                                
+
                                                                 {/* Text content (caption for media or regular text) */}
                                                                 {msg.content && (
                                                                     <p className="break-words text-[15px] leading-relaxed">{msg.content}</p>
                                                                 )}
-                                                                
+
                                                                 {/* Action buttons (appear on hover) */}
                                                                 <div className={`absolute ${isSent ? '-left-16' : '-right-16'} top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
                                                                     {/* Reply button */}
@@ -1119,7 +1116,7 @@ export default function ChatPage() {
                                                                         {userReaction ? getReactionEmoji(userReaction.reactionType) : '😊'}
                                                                     </button>
                                                                 </div>
-                                                                
+
                                                                 {/* Reaction picker */}
                                                                 {showReactionPicker === msg.messageId && (
                                                                     <div className={`absolute ${isSent ? 'right-0' : 'left-0'} -bottom-2 translate-y-full z-50`}>
@@ -1130,7 +1127,7 @@ export default function ChatPage() {
                                                                         />
                                                                     </div>
                                                                 )}
-                                                                
+
                                                                 {/* Display reactions */}
                                                                 {groupedReactions && Object.keys(groupedReactions).length > 0 && (
                                                                     <div className={`absolute -bottom-3 ${isSent ? 'right-2' : 'left-2'} flex items-center gap-0.5 bg-[var(--bg-secondary)] rounded-full px-1.5 py-0.5 shadow-sm border border-[var(--border-color)]`}>
@@ -1145,7 +1142,7 @@ export default function ChatPage() {
                                                             </div>
                                                         );
                                                     })}
-                                                    
+
                                                     {/* Time and status for last message in group */}
                                                     {group.showAvatar && (
                                                         <div className={`flex items-center gap-1 mt-1 ${group.senderId === user.userId ? 'flex-row-reverse' : ''}`}>
@@ -1181,29 +1178,29 @@ export default function ChatPage() {
                                     )}
 
                                     {/* Seen indicator - show avatar of reader */}
-                                    {messages.length > 0 && 
-                                     messages[messages.length - 1].senderId === user.userId && 
-                                     messages[messages.length - 1].status === 'read' && (
-                                        <div className="flex justify-end mt-1">
-                                            <div className="flex items-center gap-1">
-                                                {otherParticipant?.profilePicture ? (
-                                                    <img 
-                                                        src={otherParticipant.profilePicture} 
-                                                        alt="Seen" 
-                                                        className="w-4 h-4 rounded-full object-cover"
-                                                        title={`Seen by ${otherParticipant.displayName || otherParticipant.username}`}
-                                                    />
-                                                ) : (
-                                                    <div 
-                                                        className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[8px] font-semibold"
-                                                        title={`Seen by ${otherParticipant?.displayName || otherParticipant?.username}`}
-                                                    >
-                                                        {otherParticipant?.displayName?.charAt(0) || otherParticipant?.username?.charAt(0) || '?'}
-                                                    </div>
-                                                )}
+                                    {messages.length > 0 &&
+                                        messages[messages.length - 1].senderId === user.userId &&
+                                        messages[messages.length - 1].status === 'read' && (
+                                            <div className="flex justify-end mt-1">
+                                                <div className="flex items-center gap-1">
+                                                    {otherParticipant?.profilePicture ? (
+                                                        <img
+                                                            src={otherParticipant.profilePicture}
+                                                            alt="Seen"
+                                                            className="w-4 h-4 rounded-full object-cover"
+                                                            title={`Seen by ${otherParticipant.displayName || otherParticipant.username}`}
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[8px] font-semibold"
+                                                            title={`Seen by ${otherParticipant?.displayName || otherParticipant?.username}`}
+                                                        >
+                                                            {otherParticipant?.displayName?.charAt(0) || otherParticipant?.username?.charAt(0) || '?'}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
 
                                     <div ref={messagesEndRef} />
                                 </div>
@@ -1231,7 +1228,7 @@ export default function ChatPage() {
                                         </button>
                                     </div>
                                 )}
-                                
+
                                 {/* Media preview */}
                                 {selectedFile && (
                                     <div className="px-4 pt-3">
@@ -1245,7 +1242,7 @@ export default function ChatPage() {
                                         />
                                     </div>
                                 )}
-                                
+
                                 <div className="p-4">
                                     <div className="flex items-center gap-3 relative">
                                         {/* Media picker button */}
@@ -1256,13 +1253,13 @@ export default function ChatPage() {
                                         >
                                             <i className="bi bi-plus-lg text-xl"></i>
                                         </button>
-                                        
+
                                         <MediaPicker
                                             isOpen={showMediaPicker}
                                             onClose={() => setShowMediaPicker(false)}
                                             onFileSelect={handleFileSelect}
                                         />
-                                        
+
                                         <input
                                             type="text"
                                             placeholder={selectedFile ? "Add a caption..." : (replyingTo ? `Reply to ${replyingTo.senderUsername}...` : "Type a message...")}
@@ -1295,7 +1292,7 @@ export default function ChatPage() {
                     )}
                 </div>
             </div>
-            
+
             {/* Media Lightbox */}
             <MediaLightbox
                 isOpen={lightboxOpen}
@@ -1305,5 +1302,20 @@ export default function ChatPage() {
                 fileName={lightboxMedia.fileName}
             />
         </>
+    );
+}
+
+export default function ChatPage() {
+    return (
+        <Suspense fallback={
+            <>
+                <ModernNavbar />
+                <div className="flex items-center justify-center min-h-screen bg-[var(--bg-primary)]">
+                    <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                </div>
+            </>
+        }>
+            <ChatContent />
+        </Suspense>
     );
 }
