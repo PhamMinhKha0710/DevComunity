@@ -31,7 +31,7 @@ export default function SavedItemsPage() {
 
     const fetchSavedItems = async () => {
         try {
-            const response = await apiClient.get<{ items: SavedItem[] }>('/saved');
+            const response = await apiClient.get<{ items: SavedItem[] }>('/SavedItems');
             setSavedItems(response.data.items || []);
         } catch (error) {
             console.error('Failed to fetch saved items:', error);
@@ -44,7 +44,7 @@ export default function SavedItemsPage() {
         e.preventDefault();
         e.stopPropagation();
         try {
-            await apiClient.delete(`/saved/${id}`);
+            await apiClient.delete(`/SavedItems/${id}`);
             setSavedItems(prev => prev.filter(item => item.savedItemId !== id));
         } catch (error) {
             console.error('Failed to remove saved item:', error);
