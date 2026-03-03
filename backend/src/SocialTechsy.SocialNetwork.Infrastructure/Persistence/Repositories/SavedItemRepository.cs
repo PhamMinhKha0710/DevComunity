@@ -30,8 +30,6 @@ public class SavedItemRepository : ISavedItemRepository
         var query = _context.SavedItems
             .Include(s => s.Question)
                 .ThenInclude(q => q!.User)
-            .Include(s => s.Question)
-                .ThenInclude(q => q!.Answers)
             .Include(s => s.Answer)
                 .ThenInclude(a => a!.User)
             .Include(s => s.Answer)
