@@ -8,9 +8,6 @@ using SocialTechsy.SocialNetwork.Application.QueryHandlers.Users;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
-/// <summary>
-/// API Controller for Authentication - Uses CQRS pattern
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
@@ -18,23 +15,26 @@ public class AuthController : ControllerBase
     private readonly ILogger<AuthController> _logger;
     private readonly RegisterCommandHandler _registerHandler;
     private readonly LoginCommandHandler _loginHandler;
+    private readonly RefreshTokenCommandHandler _refreshTokenHandler;
+    private readonly LogoutCommandHandler _logoutHandler;
     private readonly GetCurrentUserQueryHandler _getCurrentUserHandler;
 
     public AuthController(
         ILogger<AuthController> logger,
         RegisterCommandHandler registerHandler,
         LoginCommandHandler loginHandler,
+        RefreshTokenCommandHandler refreshTokenHandler,
+        LogoutCommandHandler logoutHandler,
         GetCurrentUserQueryHandler getCurrentUserHandler)
     {
         _logger = logger;
         _registerHandler = registerHandler;
         _loginHandler = loginHandler;
+        _refreshTokenHandler = refreshTokenHandler;
+        _logoutHandler = logoutHandler;
         _getCurrentUserHandler = getCurrentUserHandler;
     }
 
-    /// <summary>
-    /// Register a new user
-    /// </summary>
     [HttpPost("register")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -61,9 +61,6 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Login with email and password
-    /// </summary>
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -90,9 +87,6 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Refresh access token using refresh token
-    /// </summary>
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -102,41 +96,36 @@ public class AuthController : ControllerBase
     {
         _logger.LogInformation("Refreshing token");
 
-        // TODO: Implement RefreshTokenCommandHandler
-        // For now, return placeholder
-        return Ok(new AuthResponse
-        {
-            Success = true,
-            AccessToken = "new-jwt-token",
-            ExpiresAt = DateTime.UtcNow.AddHours(1)
-        });
+        var result = await _refreshTokenHandler.HandleAsync(command, cancellationToken);
+
+        if (!result.Success)
+            return Unauthorized(result);
+
+        return Ok(result);
     }
 
-    /// <summary>
-    /// Logout (invalidate refresh token)
-    /// </summary>
     [HttpPost("logout")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("User logout");
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+            return Unauthorized();
 
-        // TODO: Implement LogoutCommandHandler to invalidate refresh token
+        _logger.LogInformation("User {UserId} logging out", userId);
+
+        await _logoutHandler.HandleAsync(userId, cancellationToken);
 
         return Ok(new { message = "Logged out successfully" });
     }
 
-    /// <summary>
-    /// Get current user info
-    /// </summary>
     [HttpGet("me")]
     [Authorize]
     [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<UserDto>> GetCurrentUser(CancellationToken cancellationToken)
     {
-        // Get user ID from JWT claims
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
         if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
             return Unauthorized();
