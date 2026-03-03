@@ -27,17 +27,25 @@ public class AnswerRepository : IAnswerRepository
             .FirstOrDefaultAsync(a => a.AnswerId == id, cancellationToken);
     }
 
-    public async Task<IEnumerable<Answer>> GetByQuestionIdAsync(int questionId, CancellationToken cancellationToken = default)
+    public async Task<(IEnumerable<Answer> Items, int TotalCount)> GetByQuestionIdAsync(int questionId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        return await _context.Answers
+        var query = _context.Answers
             .Include(a => a.User)
             .Include(a => a.Comments)
                 .ThenInclude(c => c.User)
             .Include(a => a.ChildAnswers)
             .Where(a => a.QuestionId == questionId && a.ParentAnswerId == null)
             .OrderByDescending(a => a.IsAccepted)
-            .ThenByDescending(a => a.Score)
+            .ThenByDescending(a => a.Score);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     public async Task<Answer> AddAsync(Answer answer, CancellationToken cancellationToken = default)

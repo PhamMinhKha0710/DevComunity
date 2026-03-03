@@ -57,15 +57,18 @@ public class ChatController : ControllerBase
     /// Get user's conversations
     /// </summary>
     [HttpGet("conversations")]
-    [ProducesResponseType(typeof(IEnumerable<ConversationDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<ConversationDto>>> GetConversations(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(PaginatedResponse<ConversationDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<ConversationDto>>> GetConversations(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
 
         _logger.LogInformation("Getting conversations for user {UserId}", userId);
 
-        var result = await _getConversationsHandler.HandleAsync(userId, cancellationToken);
+        var result = await _getConversationsHandler.HandleAsync(userId, page, pageSize, cancellationToken);
         return Ok(result);
     }
 
