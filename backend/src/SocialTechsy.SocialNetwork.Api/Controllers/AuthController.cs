@@ -17,6 +17,8 @@ public class AuthController : ControllerBase
     private readonly LoginCommandHandler _loginHandler;
     private readonly RefreshTokenCommandHandler _refreshTokenHandler;
     private readonly LogoutCommandHandler _logoutHandler;
+    private readonly ForgotPasswordCommandHandler _forgotPasswordHandler;
+    private readonly ResetPasswordCommandHandler _resetPasswordHandler;
     private readonly GetCurrentUserQueryHandler _getCurrentUserHandler;
 
     public AuthController(
@@ -25,6 +27,8 @@ public class AuthController : ControllerBase
         LoginCommandHandler loginHandler,
         RefreshTokenCommandHandler refreshTokenHandler,
         LogoutCommandHandler logoutHandler,
+        ForgotPasswordCommandHandler forgotPasswordHandler,
+        ResetPasswordCommandHandler resetPasswordHandler,
         GetCurrentUserQueryHandler getCurrentUserHandler)
     {
         _logger = logger;
@@ -32,6 +36,8 @@ public class AuthController : ControllerBase
         _loginHandler = loginHandler;
         _refreshTokenHandler = refreshTokenHandler;
         _logoutHandler = logoutHandler;
+        _forgotPasswordHandler = forgotPasswordHandler;
+        _resetPasswordHandler = resetPasswordHandler;
         _getCurrentUserHandler = getCurrentUserHandler;
     }
 
@@ -43,16 +49,9 @@ public class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
-        {
-            return BadRequest(new AuthResponse
-            {
-                Success = false,
-                Message = "Validation failed"
-            });
-        }
+            return BadRequest(new AuthResponse { Success = false, Message = "Validation failed" });
 
         _logger.LogInformation("Registering new user: {Username}", command.Username);
-
         var result = await _registerHandler.HandleAsync(command, cancellationToken);
 
         if (!result.Success)
@@ -69,16 +68,9 @@ public class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
-        {
-            return BadRequest(new AuthResponse
-            {
-                Success = false,
-                Message = "Validation failed"
-            });
-        }
+            return BadRequest(new AuthResponse { Success = false, Message = "Validation failed" });
 
         _logger.LogInformation("Login attempt for: {Email}", command.Email);
-
         var result = await _loginHandler.HandleAsync(command, cancellationToken);
 
         if (!result.Success)
@@ -118,6 +110,40 @@ public class AuthController : ControllerBase
         await _logoutHandler.HandleAsync(userId, cancellationToken);
 
         return Ok(new { message = "Logged out successfully" });
+    }
+
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new { success = false, message = "Validation failed" });
+
+        _logger.LogInformation("Password reset requested for: {Email}", command.Email);
+        var result = await _forgotPasswordHandler.HandleAsync(command, cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpPost("reset-password")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthResponse>> ResetPassword(
+        [FromBody] ResetPasswordCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new AuthResponse { Success = false, Message = "Validation failed" });
+
+        _logger.LogInformation("Password reset attempt");
+        var result = await _resetPasswordHandler.HandleAsync(command, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
     }
 
     [HttpGet("me")]

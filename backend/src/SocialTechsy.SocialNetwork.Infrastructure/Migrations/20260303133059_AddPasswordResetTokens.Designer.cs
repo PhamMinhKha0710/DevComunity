@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 
@@ -11,9 +12,11 @@ using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
 {
     [DbContext(typeof(SocialTechsySocialNetworkDbContext))]
-    partial class SocialTechsySocialNetworkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260303133059_AddPasswordResetTokens")]
+    partial class AddPasswordResetTokens
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -657,49 +660,6 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                     b.ToTable("QuestionTags", (string)null);
                 });
 
-            modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.RefreshToken", b =>
-                {
-                    b.Property<int>("RefreshTokenId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RefreshTokenId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ReplacedByToken")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("RefreshTokenId");
-
-                    b.HasIndex("ExpiresAt");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("RefreshTokens", (string)null);
-                });
-
             modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Repository", b =>
                 {
                     b.Property<int>("RepositoryId")
@@ -1283,17 +1243,6 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                     b.Navigation("Question");
 
                     b.Navigation("Tag");
-                });
-
-            modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.RefreshToken", b =>
-                {
-                    b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Repository", b =>
