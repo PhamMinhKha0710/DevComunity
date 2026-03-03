@@ -102,6 +102,7 @@ public class SavedItemRepository : ISavedItemRepository
     public async Task DeleteByQuestionAsync(int userId, int questionId, CancellationToken cancellationToken = default)
     {
         var item = await _context.SavedItems
+            .AsTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.QuestionId == questionId, cancellationToken);
         if (item != null)
         {
@@ -113,6 +114,7 @@ public class SavedItemRepository : ISavedItemRepository
     public async Task DeleteByAnswerAsync(int userId, int answerId, CancellationToken cancellationToken = default)
     {
         var item = await _context.SavedItems
+            .AsTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.AnswerId == answerId, cancellationToken);
         if (item != null)
         {

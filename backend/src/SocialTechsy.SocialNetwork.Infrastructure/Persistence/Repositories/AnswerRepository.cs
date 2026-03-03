@@ -68,6 +68,7 @@ public class AnswerRepository : IAnswerRepository
         // Unaccept any previously accepted answer
         var previouslyAccepted = await _context.Answers
             .Where(a => a.QuestionId == questionId && a.IsAccepted)
+            .AsTracking()
             .ToListAsync(cancellationToken);
 
         foreach (var answer in previouslyAccepted)
