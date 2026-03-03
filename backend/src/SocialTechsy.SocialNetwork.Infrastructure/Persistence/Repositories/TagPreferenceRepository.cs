@@ -62,6 +62,7 @@ public class TagPreferenceRepository : ITagPreferenceRepository
         CancellationToken cancellationToken = default)
     {
         var existing = await _context.TagPreferences
+            .AsTracking()
             .FirstOrDefaultAsync(tp => tp.UserId == preference.UserId && tp.TagId == preference.TagId, cancellationToken);
 
         if (existing != null)
@@ -88,6 +89,7 @@ public class TagPreferenceRepository : ITagPreferenceRepository
         CancellationToken cancellationToken = default)
     {
         var preference = await _context.TagPreferences
+            .AsTracking()
             .FirstOrDefaultAsync(tp => tp.UserId == userId && tp.TagId == tagId, cancellationToken);
 
         if (preference == null)
