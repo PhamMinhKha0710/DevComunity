@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IO.Compression;
 using System.Text;
+using System.Threading.RateLimiting;
 using SocialTechsy.SocialNetwork.Application;
 using SocialTechsy.SocialNetwork.Infrastructure;
 using SocialTechsy.SocialNetwork.Api;
@@ -41,7 +43,6 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 
-    // Configure SignalR JWT authentication
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
@@ -64,9 +65,9 @@ builder.Services.AddCors(options =>
     options.AddPolicy("ReactApp", policy =>
     {
         policy.WithOrigins(
-                "http://localhost:5173",    // Vite dev server
-                "http://localhost:3000",    // Next.js default
-                "http://localhost:3001",    // Next.js alt
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:3001",
                 "http://localhost:3002",
                 "http://localhost:3003"
             )
@@ -87,6 +88,27 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
 builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.SmallestSize);
 
+// Configure rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddFixedWindowLimiter("fixed", opt =>
+    {
+        opt.PermitLimit = 100;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 10;
+    });
+
+    options.AddFixedWindowLimiter("auth", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+});
+
 // Configure SignalR
 builder.Services.AddSignalR(options =>
 {
@@ -104,7 +126,6 @@ builder.Services.AddSwaggerGen(options =>
         Description = "REST API for SocialTechsy.SocialNetwork - A Developer Community Platform"
     });
 
-    // Add JWT authentication to Swagger
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token.",
@@ -145,6 +166,7 @@ if (app.Environment.IsDevelopment())
 app.UseResponseCompression();
 app.UseHttpsRedirection();
 app.UseCors("ReactApp");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
