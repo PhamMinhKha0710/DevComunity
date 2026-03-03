@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.IO.Compression;
 using System.Text;
 using SocialTechsy.SocialNetwork.Application;
 using SocialTechsy.SocialNetwork.Infrastructure;
@@ -74,6 +76,17 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configure response compression
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "application/json" });
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.SmallestSize);
+
 // Configure SignalR
 builder.Services.AddSignalR(options =>
 {
@@ -129,6 +142,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseResponseCompression();
 app.UseHttpsRedirection();
 app.UseCors("ReactApp");
 app.UseAuthentication();
