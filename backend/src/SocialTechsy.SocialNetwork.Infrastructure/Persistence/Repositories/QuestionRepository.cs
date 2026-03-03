@@ -51,12 +51,12 @@ public class QuestionRepository : IQuestionRepository
                 .ThenInclude(qt => qt.Tag)
             .AsQueryable();
 
-        // Filter by search term
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            query = query.Where(q => 
-                q.Title.Contains(searchTerm) || 
-                q.Body.Contains(searchTerm));
+            var term = searchTerm.Trim();
+            query = query.Where(q =>
+                EF.Functions.Like(q.Title, $"%{term}%") ||
+                EF.Functions.Like(q.Body, $"%{term}%"));
         }
 
         // Filter by tag
