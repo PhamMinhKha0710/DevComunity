@@ -23,4 +23,8 @@ public interface IGroupRepository
     Task UpdateMemberRoleAsync(int groupId, int userId, GroupRole role, CancellationToken cancellationToken = default);
     Task<bool> IsMemberAsync(int groupId, int userId, CancellationToken cancellationToken = default);
     Task<int> GetMemberCountAsync(int groupId, CancellationToken cancellationToken = default);
+
+    // Batch operations to avoid N+1
+    Task<Dictionary<int, int>> GetMemberCountsBatchAsync(IEnumerable<int> groupIds, CancellationToken cancellationToken = default);
+    Task<Dictionary<int, GroupMember?>> GetUserMembershipsBatchAsync(IEnumerable<int> groupIds, int userId, CancellationToken cancellationToken = default);
 }
