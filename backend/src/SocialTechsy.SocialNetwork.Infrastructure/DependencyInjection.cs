@@ -45,6 +45,8 @@ public static class DependencyInjection
         services.AddScoped<ITagPreferenceRepository, TagPreferenceRepository>();
 
 
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
         // Register services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
