@@ -42,11 +42,33 @@ public class RegisterCommand
     public string? DisplayName { get; set; }
 }
 
-/// <summary>
-/// Command for refreshing tokens
-/// </summary>
 public class RefreshTokenCommand
 {
     [Required]
     public string RefreshToken { get; set; } = null!;
+}
+
+public class ForgotPasswordCommand
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = null!;
+}
+
+public class ResetPasswordCommand
+{
+    [Required]
+    public string Token { get; set; } = null!;
+
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = null!;
+
+    [Required]
+    [MinLength(6)]
+    public string NewPassword { get; set; } = null!;
+
+    [Required]
+    [Compare("NewPassword")]
+    public string ConfirmPassword { get; set; } = null!;
 }
