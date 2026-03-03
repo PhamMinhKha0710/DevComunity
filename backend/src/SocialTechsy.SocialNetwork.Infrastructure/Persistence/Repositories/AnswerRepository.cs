@@ -73,24 +73,20 @@ public class AnswerRepository : IAnswerRepository
 
     public async Task<bool> AcceptAnswerAsync(int answerId, int questionId, CancellationToken cancellationToken = default)
     {
-        // Unaccept any previously accepted answer
-        var previouslyAccepted = await _context.Answers
-            .Where(a => a.QuestionId == questionId && a.IsAccepted)
-            .AsTracking()
-            .ToListAsync(cancellationToken);
+        var answer = await _context.Answers
+            .FirstOrDefaultAsync(a => a.AnswerId == answerId && a.QuestionId == questionId, cancellationToken);
 
-        foreach (var answer in previouslyAccepted)
-        {
-            answer.IsAccepted = false;
-        }
-
-        // Accept the new answer
-        var newAccepted = await _context.Answers.FindAsync(new object[] { answerId }, cancellationToken);
-        if (newAccepted == null || newAccepted.QuestionId != questionId)
+        if (answer == null)
             return false;
 
-        newAccepted.IsAccepted = true;
-        await _context.SaveChangesAsync(cancellationToken);
+        await _context.Answers
+            .Where(a => a.QuestionId == questionId && a.IsAccepted)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.IsAccepted, false), cancellationToken);
+
+        await _context.Answers
+            .Where(a => a.AnswerId == answerId)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.IsAccepted, true), cancellationToken);
+
         return true;
     }
 
