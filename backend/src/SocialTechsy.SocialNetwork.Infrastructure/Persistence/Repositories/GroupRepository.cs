@@ -135,4 +135,24 @@ public class GroupRepository : IGroupRepository
         return await _context.GroupMembers
             .CountAsync(m => m.GroupId == groupId, cancellationToken);
     }
+
+    public async Task<Dictionary<int, int>> GetMemberCountsBatchAsync(IEnumerable<int> groupIds, CancellationToken cancellationToken = default)
+    {
+        var ids = groupIds.ToList();
+        return await _context.GroupMembers
+            .Where(m => ids.Contains(m.GroupId))
+            .GroupBy(m => m.GroupId)
+            .Select(g => new { GroupId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken);
+    }
+
+    public async Task<Dictionary<int, GroupMember?>> GetUserMembershipsBatchAsync(IEnumerable<int> groupIds, int userId, CancellationToken cancellationToken = default)
+    {
+        var ids = groupIds.ToList();
+        var memberships = await _context.GroupMembers
+            .Where(m => ids.Contains(m.GroupId) && m.UserId == userId)
+            .ToDictionaryAsync(m => m.GroupId, cancellationToken);
+
+        return ids.ToDictionary(id => id, id => memberships.GetValueOrDefault(id));
+    }
 }
