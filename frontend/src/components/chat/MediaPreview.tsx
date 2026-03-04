@@ -95,7 +95,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                         onClick={onRemove}
                         className="w-8 h-8 rounded-full hover:bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 transition flex-shrink-0"
                     >
-                        <i className="bi bi-x-lg"></i>
+                        <span className="material-symbols-outlined">close</span>
                     </button>
                 )}
             </div>
