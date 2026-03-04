@@ -60,10 +60,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                     >
                         <div className="toast-header">
                             <strong className="me-auto">
-                                {toast.type === 'success' && <i className="bi bi-check-circle-fill text-success me-2" />}
-                                {toast.type === 'error' && <i className="bi bi-exclamation-circle-fill text-danger me-2" />}
-                                {toast.type === 'warning' && <i className="bi bi-exclamation-triangle-fill text-warning me-2" />}
-                                {toast.type === 'info' && <i className="bi bi-info-circle-fill text-info me-2" />}
+                                {toast.type === 'success' && <span className="material-symbols-outlined text-success me-2">check_circle</span>}
+                                {toast.type === 'error' && <span className="material-symbols-outlined text-danger me-2">error</span>}
+                                {toast.type === 'warning' && <span className="material-symbols-outlined text-warning me-2">warning</span>}
+                                {toast.type === 'info' && <span className="material-symbols-outlined text-info me-2">info</span>}
                                 {toast.title}
                             </strong>
                             <button

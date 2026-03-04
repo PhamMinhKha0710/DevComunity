@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./landing.css";
 
 /* Enable class-based dark mode for Tailwind v4 */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -25,10 +26,10 @@
   --shadow-color: rgba(15, 23, 42, 0.08);
 
   /* Brand colors */
-  --primary: #f97316;
-  --primary-rgb: 249, 115, 22;
-  --primary-light: #fff7ed;
-  --primary-dark: #ea580c;
+  --primary: #137fec;
+  --primary-rgb: 19, 127, 236;
+  --primary-light: #e8f2fd;
+  --primary-dark: #1170d4;
   --accent: #3b82f6;
   --success: #22c55e;
   --warning: #eab308;
@@ -46,7 +47,7 @@
   --gradient-purple: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
   --gradient-blue: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   --gradient-green: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  --gradient-orange: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  --gradient-orange: linear-gradient(135deg, #e8f2fd 0%, #dbeafe 100%);
 }
 
 /* Theme Variables - Dark Mode (Modern Discord/GitHub style) */
@@ -62,7 +63,7 @@ html.dark {
   --border-color: #2d333b;
   --shadow-color: rgba(0, 0, 0, 0.4);
 
-  --primary-light: rgba(249, 115, 22, 0.15);
+  --primary-light: rgba(19, 127, 236, 0.15);
   --code-bg: #161b22;
 
   /* Glassmorphism */

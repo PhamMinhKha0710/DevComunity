@@ -1,126 +1,78 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-
-interface TrendingTopic {
-    name: string;
-    count: number;
-}
-
-interface TopContributor {
-    userId: number;
-    username: string;
-    displayName: string;
-    reputation: number;
-}
 
 export default function RightSidebar() {
     const { isAuthenticated } = useAuth();
-    const [trendingTopics] = useState<TrendingTopic[]>([
-        { name: 'react', count: 1523 },
-        { name: 'javascript', count: 1289 },
-        { name: 'typescript', count: 987 },
-        { name: 'python', count: 856 },
-        { name: 'nextjs', count: 654 },
-    ]);
-
-    const [topContributors] = useState<TopContributor[]>([
-        { userId: 1, username: 'johndoe', displayName: 'John Doe', reputation: 12500 },
-        { userId: 2, username: 'janesmith', displayName: 'Jane Smith', reputation: 9800 },
-        { userId: 3, username: 'devmaster', displayName: 'Dev Master', reputation: 7650 },
-    ]);
 
     return (
-        <aside className="hidden xl:block w-80 h-[calc(100vh-64px)] sticky top-16 py-6 pr-4 overflow-y-auto">
+        <aside className="hidden xl:flex flex-col w-80 shrink-0 space-y-8">
             {/* Trending Topics */}
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 mb-4">
-                <h3 className="flex items-center gap-2 font-semibold text-[var(--text-primary)] mb-4">
-                    <i className="bi bi-fire text-orange-500"></i>
-                    Trending Topics
-                </h3>
-                <div className="space-y-2">
-                    {trendingTopics.map((topic) => (
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Trending Topics</h3>
+                <div className="space-y-4">
+                    {[
+                        { tag: '#GenerativeAI', count: '2.5k discussions today' },
+                        { tag: '#RustLang', count: '1.2k discussions today' },
+                        { tag: '#CyberSecurity2024', count: '850 discussions today' },
+                        { tag: '#TailwindCSSv4', count: '640 discussions today' },
+                    ].map((topic) => (
                         <Link
-                            key={topic.name}
-                            href={`/questions?tag=${topic.name}`}
-                            className="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-hover)] transition group"
+                            key={topic.tag}
+                            href={`/questions?tag=${topic.tag.replace('#', '')}`}
+                            className="flex items-center justify-between group cursor-pointer"
                         >
-                            <span className="text-[var(--primary)] font-medium group-hover:underline">
-                                #{topic.name}
-                            </span>
-                            <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-full">
-                                {topic.count.toLocaleString('en-US')} posts
-                            </span>
+                            <div>
+                                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-[var(--primary)] transition-colors">{topic.tag}</p>
+                                <p className="text-xs text-slate-500">{topic.count}</p>
+                            </div>
+                            <span className="material-symbols-outlined text-slate-300 text-sm">trending_up</span>
                         </Link>
                     ))}
                 </div>
+                <button className="w-full mt-6 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Show More</button>
             </div>
 
-            {/* Top Contributors */}
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 mb-4">
-                <h3 className="flex items-center gap-2 font-semibold text-[var(--text-primary)] mb-4">
-                    <i className="bi bi-trophy text-yellow-500"></i>
-                    Top Contributors
-                </h3>
-                <div className="space-y-3">
-                    {topContributors.map((user, index) => (
-                        <Link
-                            key={user.userId}
-                            href={`/users/${user.userId}`}
-                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--bg-hover)] transition"
-                        >
-                            <span className={`w-6 h-6 flex items-center justify-center text-sm font-bold rounded-full ${index === 0 ? 'bg-yellow-500 text-black' :
-                                index === 1 ? 'bg-gray-400 text-black' :
-                                    'bg-orange-600 text-white'
+            {/* Upcoming Events */}
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Upcoming Events</h3>
+                <div className="space-y-6">
+                    {[
+                        { month: 'Mar', day: '15', title: 'Techsy Global Meetup 2026', location: 'Ho Chi Minh City, VN', icon: 'location_on', color: 'primary' },
+                        { month: 'Mar', day: '22', title: 'AI Workshop: Practical NLP', location: 'Online Webinar', icon: 'videocam', color: 'amber' },
+                        { month: 'Apr', day: '05', title: 'Open Source Contributors Night', location: 'Da Nang, VN', icon: 'location_on', color: 'emerald' },
+                    ].map((event, i) => (
+                        <div key={i} className="flex gap-4">
+                            <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg shrink-0 ${event.color === 'primary' ? 'bg-[var(--primary)]/10' : event.color === 'amber' ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20'
                                 }`}>
-                                {index + 1}
-                            </span>
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
-                                {user.username.charAt(0).toUpperCase()}
+                                <span className={`font-bold text-xs uppercase ${event.color === 'primary' ? 'text-[var(--primary)]' : event.color === 'amber' ? 'text-amber-600' : 'text-emerald-600'
+                                    }`}>{event.month}</span>
+                                <span className={`font-black text-lg leading-none ${event.color === 'primary' ? 'text-[var(--primary)]' : event.color === 'amber' ? 'text-amber-600' : 'text-emerald-600'
+                                    }`}>{event.day}</span>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[var(--text-primary)] truncate">{user.displayName}</p>
-                                <p className="text-xs text-[var(--text-muted)]">{user.reputation.toLocaleString('en-US')} rep</p>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200 leading-snug">{event.title}</p>
+                                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-xs">{event.icon}</span> {event.location}
+                                </p>
                             </div>
-                        </Link>
+                        </div>
                     ))}
                 </div>
+                <button className="w-full mt-6 bg-[var(--primary)]/10 text-[var(--primary)] py-2 rounded-lg text-xs font-bold hover:bg-[var(--primary)]/20 transition-all">Browse All Events</button>
             </div>
 
-            {/* Quick Actions */}
-            {isAuthenticated && (
-                <div className="bg-gradient-to-br from-[var(--bg-secondary)] to-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-2xl p-4">
-                    <h3 className="flex items-center gap-2 font-semibold text-[var(--text-primary)] mb-4">
-                        <i className="bi bi-lightning-fill text-yellow-400"></i>
-                        Quick Actions
-                    </h3>
-                    <div className="space-y-2">
-                        <Link
-                            href="/questions/ask"
-                            className="flex items-center gap-2 p-3 w-full bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-dark)] transition font-medium"
-                        >
-                            <i className="bi bi-plus-circle"></i>
-                            Ask a Question
-                        </Link>
-                        <Link
-                            href="/groups"
-                            className="flex items-center gap-2 p-3 w-full bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl border border-[var(--border-color)] hover:border-[var(--primary)] transition"
-                        >
-                            <i className="bi bi-collection"></i>
-                            Create a Group
-                        </Link>
-                        <Link
-                            href="/users"
-                            className="flex items-center gap-2 p-3 w-full bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl border border-[var(--border-color)] hover:border-[var(--primary)] transition"
-                        >
-                            <i className="bi bi-person-plus"></i>
-                            Find Friends
-                        </Link>
-                    </div>
+            {/* Community CTA */}
+            <div className="relative overflow-hidden rounded-lg bg-[var(--primary)] p-6 text-white">
+                <div className="relative z-10">
+                    <h4 className="font-bold text-lg leading-tight">Join the Techsy Pro community</h4>
+                    <p className="text-white/80 text-xs mt-2">Get exclusive access to mentors, premium courses, and job boards.</p>
+                    <button className="mt-4 bg-white text-[var(--primary)] px-4 py-2 rounded-lg text-xs font-bold shadow-lg hover:scale-105 transition-transform">Upgrade Now</button>
                 </div>
-            )}
+                <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <div className="absolute -left-10 -top-10 w-24 h-24 bg-white/5 rounded-full blur-xl"></div>
+            </div>
         </aside>
     );
 }

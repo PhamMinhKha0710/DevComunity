@@ -90,7 +90,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
             // Show browser notification if permitted
             if (Notification.permission === 'granted') {
-                new Notification('DevCommunity', {
+                new Notification('SocialTechsy', {
                     body: notification.message,
                     icon: '/images/favicon.ico',
                 });

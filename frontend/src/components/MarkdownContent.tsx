@@ -96,7 +96,7 @@ export default function MarkdownContent({ content, className = '' }: MarkdownCon
                         return (
                             <blockquote
                                 style={{
-                                    borderLeft: '4px solid var(--primary, #f97316)',
+                                    borderLeft: '4px solid var(--primary, #137fec)',
                                     paddingLeft: '1rem',
                                     marginLeft: 0,
                                     marginBottom: '1rem',
@@ -113,7 +113,7 @@ export default function MarkdownContent({ content, className = '' }: MarkdownCon
                             <a
                                 href={href}
                                 style={{
-                                    color: 'var(--primary, #f97316)',
+                                    color: 'var(--primary, #137fec)',
                                     textDecoration: 'underline',
                                 }}
                                 target="_blank"
