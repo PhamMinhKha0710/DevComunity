@@ -119,7 +119,7 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
             .HasForeignKey(r => r.MessageId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Reply/Quote - self-referencing relationship
+        // Reply/Quote - self-referencing (NoAction to avoid multiple cascade paths on SQL Server)
         builder.HasOne(m => m.ReplyToMessage)
             .WithMany()
             .HasForeignKey(m => m.ReplyToMessageId)
