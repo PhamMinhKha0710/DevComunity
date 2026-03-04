@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { Question, PaginatedResponse, Tag } from "@/types";
 import apiClient from "@/lib/api/client";
 import AppLayout from "@/components/AppLayout";
+import LandingPage from "@/components/landing/LandingPage";
 
 const stripHtml = (html: string): string => {
   if (!html) return '';
@@ -13,13 +14,17 @@ const stripHtml = (html: string): string => {
 };
 
 export default function HomePage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchQuestions();
-  }, []);
+    if (isAuthenticated) {
+      fetchQuestions();
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const fetchQuestions = async () => {
     try {
@@ -46,77 +51,63 @@ export default function HomePage() {
     return date.toLocaleDateString();
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f6f7f8] dark:bg-[#101922]">
+        <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LandingPage />;
+  }
+
   return (
     <AppLayout>
-      {/* Hero Stats */}
-      {isAuthenticated && user && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-[var(--bg-secondary)] border border-purple-200 dark:border-purple-900 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <i className="bi bi-trophy-fill text-2xl text-purple-600 dark:text-purple-400"></i>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-[var(--text-primary)]">{user.reputationPoints || 0}</p>
-                <p className="text-sm text-[var(--text-muted)]">Reputation</p>
-              </div>
+      {/* Welcome Section */}
+      <div>
+        <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          Welcome back, {user?.displayName || user?.username || 'Developer'}!
+        </h2>
+        <p className="text-slate-500 mt-1">Here is what&apos;s happening in your network today.</p>
+      </div>
+
+      {/* Stats Cards */}
+      {user && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-4">
+              <span className="material-symbols-outlined text-[var(--primary)] bg-[var(--primary)]/10 p-2 rounded-lg">stars</span>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">+12%</span>
             </div>
+            <p className="text-slate-500 text-sm font-medium">Reputation</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{(user.reputationPoints || 0).toLocaleString()}</p>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-blue-200 dark:border-blue-900 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <i className="bi bi-question-circle-fill text-2xl text-blue-600 dark:text-blue-400"></i>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-[var(--text-primary)]">0</p>
-                <p className="text-sm text-[var(--text-muted)]">Questions</p>
-              </div>
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-4">
+              <span className="material-symbols-outlined text-amber-500 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">help_center</span>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">+2%</span>
             </div>
+            <p className="text-slate-500 text-sm font-medium">Questions Asked</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
           </div>
-          <div className="bg-[var(--bg-secondary)] border border-green-200 dark:border-green-900 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <i className="bi bi-chat-quote-fill text-2xl text-green-600 dark:text-green-400"></i>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-[var(--text-primary)]">0</p>
-                <p className="text-sm text-[var(--text-muted)]">Answers</p>
-              </div>
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-4">
+              <span className="material-symbols-outlined text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg">forum</span>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">+5%</span>
             </div>
+            <p className="text-slate-500 text-sm font-medium">Answers Given</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
           </div>
         </div>
       )}
 
-      {/* Welcome Banner for guests */}
-      {!isAuthenticated && (
-        <div className="bg-[var(--bg-secondary)] border border-[var(--primary)] border-opacity-30 rounded-2xl p-8 mb-8 shadow-sm">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-3">
-            Welcome to DevCommunity 👋
-          </h1>
-          <p className="text-[var(--text-secondary)] mb-6 max-w-2xl">
-            Join thousands of developers sharing knowledge, asking questions, and building together.
-          </p>
-          <div className="flex gap-3">
-            <Link href="/register" className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition shadow-lg shadow-[var(--primary)]/30">
-              Get Started
-            </Link>
-            <Link href="/questions" className="px-6 py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium hover:bg-[var(--bg-hover)] transition border border-[var(--border-color)]">
-              Browse Questions
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* Questions Feed */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-            <i className="bi bi-lightning-charge-fill text-yellow-400"></i>
-            Recent Questions
-          </h2>
-          <Link href="/questions" className="text-sm text-[var(--primary)] hover:underline">
-            View all →
-          </Link>
+      {/* Recent Questions */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Questions from your Network</h3>
+          <Link href="/questions" className="text-[var(--primary)] text-sm font-semibold hover:underline">View all</Link>
         </div>
 
         {isLoading ? (
@@ -124,76 +115,79 @@ export default function HomePage() {
             <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
           </div>
         ) : questions.length === 0 ? (
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
-            <i className="bi bi-inbox text-5xl text-[var(--text-muted)] mb-4"></i>
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No questions yet</h3>
-            <p className="text-[var(--text-muted)] mb-4">Be the first to ask!</p>
-            <Link href="/questions/ask" className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-xl">
-              <i className="bi bi-plus-circle"></i> Ask Question
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg p-12 text-center shadow-sm">
+            <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">inbox</span>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No questions yet</h3>
+            <p className="text-slate-500 mb-4">Be the first to ask!</p>
+            <Link href="/questions/ask" className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold">
+              <span className="material-symbols-outlined text-sm">add</span> Ask Question
             </Link>
           </div>
         ) : (
-          questions.map((question) => (
-            <div
-              key={question.questionId}
-              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--primary)]/50 transition group"
-            >
-              <div className="flex gap-4">
-                {/* Stats */}
-                <div className="hidden sm:flex flex-col items-center gap-2 min-w-[60px]">
-                  <div className={`px-3 py-1.5 rounded-lg text-center ${question.score > 0 ? 'bg-green-500/20 text-green-400' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>
-                    <span className="block text-lg font-bold">{question.score}</span>
-                    <span className="text-xs">votes</span>
-                  </div>
-                  <div className={`px-3 py-1.5 rounded-lg text-center ${question.answerCount > 0 ? 'bg-blue-500/20 text-blue-400' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>
-                    <span className="block text-lg font-bold">{question.answerCount}</span>
-                    <span className="text-xs">answers</span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <Link
-                    href={`/questions/${question.questionId}`}
-                    className="text-lg font-semibold text-[var(--text-primary)] hover:text-[var(--primary)] transition line-clamp-2"
-                  >
-                    {question.title}
-                  </Link>
-                  <p className="mt-2 text-sm text-[var(--text-muted)] line-clamp-2">
-                    {stripHtml(question.bodyExcerpt || question.body || '')}
-                  </p>
-
-                  {/* Tags & Meta */}
-                  <div className="flex flex-wrap items-center gap-3 mt-4">
-                    <div className="flex flex-wrap gap-2">
-                      {question.tags?.slice(0, 4).map((tag: Tag) => (
-                        <Link
-                          key={tag.tagId}
-                          href={`/questions?tag=${tag.tagName}`}
-                          className="px-2.5 py-1 text-xs font-medium bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 transition"
-                        >
-                          {tag.tagName}
-                        </Link>
-                      ))}
-                      {question.tags?.length > 4 && (
-                        <span className="px-2 py-1 text-xs text-[var(--text-muted)]">+{question.tags.length - 4}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 ml-auto text-xs text-[var(--text-muted)]">
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold">
+          <div className="space-y-4">
+            {questions.map((question) => (
+              <Link
+                key={question.questionId}
+                href={`/questions/${question.questionId}`}
+                className="block bg-white dark:bg-slate-900 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 hover:border-[var(--primary)]/50 transition-all cursor-pointer group"
+              >
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    {/* Author */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold">
                         {question.authorUsername?.charAt(0).toUpperCase() || '?'}
                       </div>
-                      <span>{question.authorUsername || 'Anonymous'}</span>
-                      <span>•</span>
-                      <span>{formatDate(question.createdDate)}</span>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        {question.authorUsername || 'Anonymous'}
+                      </span>
+                      <span className="text-xs text-slate-400">• {formatDate(question.createdDate)}</span>
+                    </div>
+
+                    {/* Title */}
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-[var(--primary)] transition-colors line-clamp-2">
+                      {question.title}
+                    </h4>
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {question.tags?.slice(0, 3).map((tag: Tag) => (
+                        <span
+                          key={tag.tagId}
+                          className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded uppercase tracking-wider"
+                        >
+                          {tag.tagName}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          ))
+
+                {/* Stats Bar */}
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                  <div className="flex items-center gap-4 text-slate-500 text-xs font-medium">
+                    <div className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm">thumb_up</span>
+                      {question.score || 0}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm">comment</span>
+                      {question.answerCount || 0}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm">visibility</span>
+                      {question.viewCount || 0}
+                    </div>
+                  </div>
+                  <span className="text-slate-400 hover:text-[var(--primary)] transition-colors">
+                    <span className="material-symbols-outlined text-lg">bookmark</span>
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
         )}
-      </div>
+      </section>
     </AppLayout>
   );
 }
