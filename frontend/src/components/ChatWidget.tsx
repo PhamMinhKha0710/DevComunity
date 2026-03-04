@@ -669,7 +669,7 @@ export default function ChatWidget() {
                 className="chat-widget-button"
                 title="Messages"
             >
-                <i className={`bi ${isOpen ? 'bi-x-lg' : 'bi-chat-dots-fill'}`}></i>
+                <span className="material-symbols-outlined">{isOpen ? 'close' : 'chat_bubble'}</span>
                 {!isOpen && totalUnread > 0 && (
                     <span className="chat-widget-badge">{totalUnread > 9 ? '9+' : totalUnread}</span>
                 )}
@@ -683,7 +683,7 @@ export default function ChatWidget() {
                         <div className="d-flex align-items-center">
                             {activeView !== 'list' && (
                                 <button className="btn btn-sm btn-link text-white p-0 me-2" onClick={handleBackToList}>
-                                    <i className="bi bi-arrow-left"></i>
+                                    <span className="material-symbols-outlined">arrow_back</span>
                                 </button>
                             )}
                             <h6 className="mb-0 fw-bold text-white">
@@ -697,11 +697,11 @@ export default function ChatWidget() {
                         <div className="d-flex gap-2">
                             {activeView === 'list' && (
                                 <button className="btn btn-sm btn-link text-white p-0" onClick={handleNewChat} title="New message">
-                                    <i className="bi bi-pencil-square"></i>
+                                    <span className="material-symbols-outlined">edit</span>
                                 </button>
                             )}
                             <button className="btn btn-sm btn-link text-white p-0" onClick={() => setIsMinimized(!isMinimized)}>
-                                <i className={`bi bi-${isMinimized ? 'chevron-up' : 'dash'}`}></i>
+                                <span className="material-symbols-outlined">{isMinimized ? 'expand_less' : 'remove'}</span>
                             </button>
                         </div>
                     </div>
@@ -720,7 +720,7 @@ export default function ChatWidget() {
                                 <div className="chat-widget-conversations">
                                     {conversations.length === 0 ? (
                                         <div className="text-center py-4 text-muted">
-                                            <i className="bi bi-chat-square-dots fs-2 mb-2 d-block"></i>
+                                            <span className="material-symbols-outlined text-3xl mb-2 block">chat</span>
                                             <p className="small mb-2">No conversations yet</p>
                                             <button className="btn btn-sm btn-primary" onClick={handleNewChat}>Start a chat</button>
                                         </div>
@@ -758,7 +758,7 @@ export default function ChatWidget() {
                                     <div className="chat-widget-messages">
                                         {messages.length === 0 ? (
                                             <div className="text-center text-muted py-4">
-                                                <i className="bi bi-chat-square-dots fs-3 mb-2 d-block"></i>
+                                                <span className="material-symbols-outlined text-2xl mb-2 block">chat</span>
                                                 <p className="small">No messages yet. Say hi!</p>
                                             </div>
                                         ) : (
@@ -820,7 +820,7 @@ export default function ChatWidget() {
                                             onKeyPress={handleKeyPress}
                                         />
                                         <button onClick={sendMessage} disabled={!newMessage.trim()}>
-                                            <i className="bi bi-send-fill"></i>
+                                            <span className="material-symbols-outlined">send</span>
                                         </button>
                                     </div>
                                 </>
@@ -832,7 +832,7 @@ export default function ChatWidget() {
                                     <div className="chat-widget-new-chat">
                                         <div className="p-2 border-bottom">
                                             <div className="input-group input-group-sm">
-                                                <span className="input-group-text bg-transparent border-end-0"><i className="bi bi-search"></i></span>
+                                                <span className="input-group-text bg-transparent border-end-0"><span className="material-symbols-outlined">search</span></span>
                                                 <input
                                                     type="text"
                                                     className="form-control border-start-0"
@@ -870,7 +870,7 @@ export default function ChatWidget() {
                                     {selectedUser && (
                                         <div className="chat-widget-input">
                                             <input type="text" placeholder="Type your message..." value={newMessage} onChange={handleInputChange} onKeyPress={handleKeyPress} />
-                                            <button onClick={startNewConversation} disabled={!newMessage.trim()}><i className="bi bi-send-fill"></i></button>
+                                            <button onClick={startNewConversation} disabled={!newMessage.trim()}><span className="material-symbols-outlined">send</span></button>
                                         </div>
                                     )}
                                 </>
@@ -884,14 +884,14 @@ export default function ChatWidget() {
             {notification && (
                 <div className="chat-notification-toast" onClick={() => { setNotification(null); setIsOpen(true); }}>
                     <div className="toast-icon">
-                        <i className="bi bi-chat-fill"></i>
+                        <span className="material-symbols-outlined">chat</span>
                     </div>
                     <div className="toast-content">
                         <div className="toast-sender">{notification.sender}</div>
                         <div className="toast-message">{notification.message}</div>
                     </div>
                     <button className="toast-close" onClick={(e) => { e.stopPropagation(); setNotification(null); }}>
-                        <i className="bi bi-x"></i>
+                        <span className="material-symbols-outlined">close</span>
                     </button>
                 </div>
             )}
