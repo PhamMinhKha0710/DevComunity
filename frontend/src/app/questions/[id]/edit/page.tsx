@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import type { Question } from '@/types';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 
 export default function EditQuestionPage() {
     const params = useParams();
@@ -90,148 +91,152 @@ export default function EditQuestionPage() {
         setFormData({ ...formData, body: newText });
     };
 
+    const toolbarButtons = [
+        { icon: 'format_bold', action: '**bold**', title: 'Bold' },
+        { icon: 'format_italic', action: '*italic*', title: 'Italic' },
+        { icon: 'title', action: '# ', title: 'Heading 1' },
+        { icon: 'title', action: '## ', title: 'Heading 2' },
+        { icon: 'code', action: '`code`', title: 'Code' },
+        { icon: 'link', action: '[Link](url)', title: 'Link' },
+        { icon: 'format_list_bulleted', action: '- ', title: 'Bullet List' },
+        { icon: 'format_list_numbered', action: '1. ', title: 'Numbered List' },
+    ];
+
     if (isLoading) {
         return (
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
+            <AppLayout showRightSidebar={false}>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-3 border-[rgba(19,127,236,0.2)] border-t-[#137fec] rounded-full animate-spin" />
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
     return (
-        <div className="container py-4">
+        <AppLayout showRightSidebar={false}>
             {/* Breadcrumb */}
-            <nav aria-label="breadcrumb" className="mb-4">
-                <ol className="breadcrumb">
-                    <li className="breadcrumb-item"><Link href="/">Home</Link></li>
-                    <li className="breadcrumb-item"><Link href="/questions">Questions</Link></li>
-                    <li className="breadcrumb-item active">Edit Question</li>
-                </ol>
+            <nav className="flex items-center gap-2 text-sm text-[#64748b] mb-4">
+                <Link href="/questions" className="hover:text-[#137fec] transition-colors">Questions</Link>
+                <span>/</span>
+                <Link href={`/questions/${questionId}`} className="hover:text-[#137fec] transition-colors">Question</Link>
+                <span>/</span>
+                <span className="text-[#0f172a] dark:text-white font-medium">Edit</span>
             </nav>
 
-            <div className="row">
+            <div className="grid lg:grid-cols-3 gap-6">
                 {/* Main Form */}
-                <div className="col-lg-8">
-                    <div className="card border-0 shadow-sm rounded-4 mb-4">
-                        <div className="card-header bg-primary text-white py-3 rounded-top-4">
-                            <h1 className="card-title fs-4 fw-bold mb-0">
-                                <i className="bi bi-pencil-square me-2"></i>Edit Your Question
+                <div className="lg:col-span-2">
+                    <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden">
+                        <div className="bg-[#137fec] text-white px-6 py-4">
+                            <h1 className="text-lg font-bold flex items-center gap-2">
+                                <span className="material-symbols-outlined">edit</span>
+                                Edit Your Question
                             </h1>
                         </div>
-                        <div className="card-body p-4">
+                        <div className="p-6">
                             {error && (
-                                <div className="alert alert-danger" role="alert">
-                                    <i className="bi bi-exclamation-circle me-2"></i>{error}
+                                <div className="mb-4 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">error</span>
+                                    {error}
                                 </div>
                             )}
 
-                            <form onSubmit={handleSubmit}>
+                            <form onSubmit={handleSubmit} className="space-y-6">
                                 {/* Title */}
-                                <div className="mb-4">
-                                    <label className="form-label fw-medium">
-                                        <i className="bi bi-type-h1 me-1 text-primary"></i>Title
+                                <div>
+                                    <label className="block text-sm font-bold text-[#334155] dark:text-[var(--text-secondary)] mb-2 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[#137fec] text-base">title</span>Title
                                     </label>
                                     <input
                                         type="text"
-                                        className="form-control form-control-lg rounded-3"
                                         placeholder="What's your question? Be specific."
                                         value={formData.title}
                                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                         required
+                                        className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[#94a3b8] focus:border-[#137fec] focus:ring-2 focus:ring-[rgba(19,127,236,0.1)] outline-none transition text-lg"
                                     />
-                                    <div className="form-text mt-2">
-                                        <i className="bi bi-info-circle text-primary me-1"></i>
-                                        Be specific and imagine you're asking a question to another person.
-                                    </div>
+                                    <p className="text-xs text-[#94a3b8] mt-2 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[#137fec] text-sm">info</span>
+                                        Be specific and imagine you&apos;re asking a question to another person.
+                                    </p>
                                 </div>
 
                                 {/* Body with Markdown Toolbar */}
-                                <div className="mb-4">
-                                    <label className="form-label fw-medium">
-                                        <i className="bi bi-textarea-t me-1 text-primary"></i>Body
+                                <div>
+                                    <label className="block text-sm font-bold text-[#334155] dark:text-[var(--text-secondary)] mb-2 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[#137fec] text-base">notes</span>Body
                                     </label>
-                                    <div className="border rounded-3 overflow-hidden shadow-sm">
-                                        <div className="bg-light p-2 border-bottom d-flex align-items-center gap-1">
-                                            <button type="button" className="btn btn-sm btn-light" onClick={() => insertMarkdown('**bold**')}>
-                                                <i className="bi bi-type-bold"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" onClick={() => insertMarkdown('*italic*')}>
-                                                <i className="bi bi-type-italic"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" onClick={() => insertMarkdown('# ')}>
-                                                <i className="bi bi-type-h1"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" onClick={() => insertMarkdown('## ')}>
-                                                <i className="bi bi-type-h2"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" onClick={() => insertMarkdown('`code`')}>
-                                                <i className="bi bi-code"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" onClick={() => insertMarkdown('[Link](url)')}>
-                                                <i className="bi bi-link"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" onClick={() => insertMarkdown('- ')}>
-                                                <i className="bi bi-list-ul"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" onClick={() => insertMarkdown('1. ')}>
-                                                <i className="bi bi-list-ol"></i>
-                                            </button>
+                                    <div className="border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-xl overflow-hidden">
+                                        <div className="bg-[#f8fafc] dark:bg-[var(--bg-tertiary)] p-2 border-b border-[#e2e8f0] dark:border-[var(--border-color)] flex items-center gap-1">
+                                            {toolbarButtons.map((btn, i) => (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    title={btn.title}
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[#64748b] hover:bg-[#e2e8f0] dark:hover:bg-[var(--border-color)] hover:text-[#0f172a] dark:hover:text-white transition"
+                                                    onClick={() => insertMarkdown(btn.action)}
+                                                >
+                                                    <span className="material-symbols-outlined text-lg">{btn.icon}</span>
+                                                </button>
+                                            ))}
                                         </div>
                                         <textarea
                                             name="body"
-                                            className="form-control border-0"
                                             rows={12}
                                             placeholder="Include all the information someone would need to answer your question"
                                             value={formData.body}
                                             onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                                             required
+                                            className="w-full px-4 py-3 bg-transparent text-[var(--text-primary)] placeholder-[#94a3b8] outline-none resize-none"
                                         />
                                     </div>
-                                    <div className="form-text mt-2">
-                                        <i className="bi bi-markdown text-primary me-1"></i>
+                                    <p className="text-xs text-[#94a3b8] mt-2 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[#137fec] text-sm">description</span>
                                         Supports Markdown formatting.
-                                    </div>
+                                    </p>
                                 </div>
 
                                 {/* Tags */}
-                                <div className="mb-4">
-                                    <label className="form-label fw-medium">
-                                        <i className="bi bi-tags-fill me-1 text-primary"></i>Tags
+                                <div>
+                                    <label className="block text-sm font-bold text-[#334155] dark:text-[var(--text-secondary)] mb-2 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[#137fec] text-base">sell</span>Tags
                                     </label>
-                                    <div className="input-group shadow-sm rounded-3 overflow-hidden">
-                                        <span className="input-group-text bg-light border-end-0">
-                                            <i className="bi bi-tags"></i>
+                                    <div className="flex items-center gap-0 border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-xl overflow-hidden">
+                                        <span className="px-3 py-3 bg-[#f8fafc] dark:bg-[var(--bg-tertiary)] text-[#94a3b8] border-r border-[#e2e8f0] dark:border-[var(--border-color)]">
+                                            <span className="material-symbols-outlined text-lg">sell</span>
                                         </span>
                                         <input
                                             type="text"
-                                            className="form-control border-start-0"
                                             placeholder="e.g. javascript, react, node.js (comma separated)"
                                             value={formData.tags}
                                             onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                                            className="flex-1 px-4 py-3 bg-transparent text-[var(--text-primary)] placeholder-[#94a3b8] outline-none"
                                         />
                                     </div>
-                                    <div className="form-text mt-2">
-                                        <i className="bi bi-info-circle text-primary me-1"></i>
+                                    <p className="text-xs text-[#94a3b8] mt-2 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[#137fec] text-sm">info</span>
                                         Add up to 5 tags to describe what your question is about.
-                                    </div>
+                                    </p>
                                 </div>
 
                                 {/* Actions */}
-                                <div className="d-flex justify-content-end gap-2 mt-4">
-                                    <Link href={`/questions/${questionId}`} className="btn btn-outline-secondary rounded-pill">
-                                        <i className="bi bi-x-lg me-1"></i>Cancel
+                                <div className="flex justify-end gap-3 pt-4 border-t border-[#e2e8f0] dark:border-[var(--border-color)]">
+                                    <Link href={`/questions/${questionId}`} className="px-5 py-2.5 rounded-xl font-bold text-sm border border-[#e2e8f0] dark:border-[var(--border-color)] text-[#334155] dark:text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[var(--bg-tertiary)] transition-all flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-base">close</span>Cancel
                                     </Link>
-                                    <button type="submit" className="btn btn-success btn-lg rounded-pill" disabled={isSubmitting}>
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
                                         {isSubmitting ? (
                                             <>
-                                                <span className="spinner-border spinner-border-sm me-2"></span>
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                                 Saving...
                                             </>
                                         ) : (
                                             <>
-                                                <i className="bi bi-check-lg me-1"></i>Save Changes
+                                                <span className="material-symbols-outlined text-base">check</span>Save Changes
                                             </>
                                         )}
                                     </button>
@@ -242,79 +247,62 @@ export default function EditQuestionPage() {
                 </div>
 
                 {/* Sidebar Tips */}
-                <div className="col-lg-4">
-                    <div className="card border-0 shadow-sm rounded-4 mb-4">
-                        <div className="card-header bg-info text-white py-3 rounded-top-4">
-                            <h5 className="mb-0 fw-bold"><i className="bi bi-lightbulb-fill me-2"></i>Editing Tips</h5>
+                <div className="space-y-4">
+                    <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden">
+                        <div className="bg-blue-500 text-white px-5 py-3">
+                            <h3 className="font-bold text-sm flex items-center gap-2">
+                                <span className="material-symbols-outlined text-base">lightbulb</span>Editing Tips
+                            </h3>
                         </div>
-                        <div className="card-body p-4">
-                            <div className="mb-3 p-3 bg-light rounded-3">
-                                <div className="d-flex">
-                                    <div className="rounded-circle bg-primary text-white p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 36, height: 36 }}>
-                                        <i className="bi bi-brightness-high"></i>
+                        <div className="p-4 space-y-3">
+                            {[
+                                { icon: 'wb_sunny', title: 'Improve clarity', desc: 'Make your question clearer and more focused.' },
+                                { icon: 'checklist', title: 'Add relevant details', desc: 'Include any additional context that could help.' },
+                                { icon: 'format_paragraph', title: 'Use proper formatting', desc: 'Format code, use headings for readability.' },
+                            ].map(tip => (
+                                <div key={tip.title} className="flex gap-3 p-3 bg-[#f8fafc] dark:bg-[var(--bg-tertiary)] rounded-xl">
+                                    <div className="w-9 h-9 rounded-full bg-[#137fec] flex items-center justify-center text-white shrink-0">
+                                        <span className="material-symbols-outlined text-base">{tip.icon}</span>
                                     </div>
                                     <div>
-                                        <h6 className="fw-bold mb-1">Improve clarity</h6>
-                                        <p className="text-muted small mb-0">Make your question clearer and more focused.</p>
+                                        <p className="font-bold text-sm text-[#0f172a] dark:text-white">{tip.title}</p>
+                                        <p className="text-xs text-[#64748b]">{tip.desc}</p>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="mb-3 p-3 bg-light rounded-3">
-                                <div className="d-flex">
-                                    <div className="rounded-circle bg-primary text-white p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 36, height: 36 }}>
-                                        <i className="bi bi-list-check"></i>
-                                    </div>
-                                    <div>
-                                        <h6 className="fw-bold mb-1">Add relevant details</h6>
-                                        <p className="text-muted small mb-0">Include any additional context that could help.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-3 bg-light rounded-3">
-                                <div className="d-flex">
-                                    <div className="rounded-circle bg-primary text-white p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 36, height: 36 }}>
-                                        <i className="bi bi-text-paragraph"></i>
-                                    </div>
-                                    <div>
-                                        <h6 className="fw-bold mb-1">Use proper formatting</h6>
-                                        <p className="text-muted small mb-0">Format code, use headings for readability.</p>
-                                    </div>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </div>
 
-                    <div className="card border-0 shadow-sm rounded-4">
-                        <div className="card-header bg-success text-white py-3 rounded-top-4">
-                            <h5 className="mb-0 fw-bold"><i className="bi bi-check2-circle me-2"></i>Editing Etiquette</h5>
+                    <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden">
+                        <div className="bg-green-600 text-white px-5 py-3">
+                            <h3 className="font-bold text-sm flex items-center gap-2">
+                                <span className="material-symbols-outlined text-base">check_circle</span>Editing Etiquette
+                            </h3>
                         </div>
-                        <div className="card-body p-4">
-                            <div className="alert alert-light border rounded-3 mb-3">
-                                <i className="bi bi-info-circle-fill text-primary me-2"></i>
-                                <span className="small">Editing after receiving answers should clarify, not change meaning.</span>
+                        <div className="p-4">
+                            <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2 mb-3">
+                                <span className="material-symbols-outlined text-base">info</span>
+                                Editing after receiving answers should clarify, not change meaning.
                             </div>
-                            <ul className="list-unstyled mb-0">
-                                <li className="mb-2 d-flex">
-                                    <i className="bi bi-check-circle-fill text-success me-2"></i>
-                                    <span className="small">Clarify ambiguous points</span>
-                                </li>
-                                <li className="mb-2 d-flex">
-                                    <i className="bi bi-check-circle-fill text-success me-2"></i>
-                                    <span className="small">Fix typos and grammar</span>
-                                </li>
-                                <li className="mb-2 d-flex">
-                                    <i className="bi bi-x-circle-fill text-danger me-2"></i>
-                                    <span className="small">Completely change the meaning</span>
-                                </li>
-                                <li className="d-flex">
-                                    <i className="bi bi-x-circle-fill text-danger me-2"></i>
-                                    <span className="small">Invalidate existing answers</span>
-                                </li>
-                            </ul>
+                            <div className="space-y-2">
+                                {[
+                                    { ok: true, text: 'Clarify ambiguous points' },
+                                    { ok: true, text: 'Fix typos and grammar' },
+                                    { ok: false, text: 'Completely change the meaning' },
+                                    { ok: false, text: 'Invalidate existing answers' },
+                                ].map(item => (
+                                    <div key={item.text} className="flex items-center gap-2 text-sm">
+                                        <span className={`material-symbols-outlined text-base ${item.ok ? 'text-green-500' : 'text-red-500'}`}>
+                                            {item.ok ? 'check_circle' : 'cancel'}
+                                        </span>
+                                        <span className="text-[#475569] dark:text-[var(--text-secondary)]">{item.text}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </AppLayout>
     );
 }
