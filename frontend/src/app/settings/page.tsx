@@ -94,10 +94,10 @@ export default function SettingsPage() {
     if (!user) return null;
 
     const tabs = [
-        { key: 'profile', label: 'Profile', icon: 'bi-person' },
-        { key: 'account', label: 'Security', icon: 'bi-shield-lock' },
-        { key: 'notifications', label: 'Notifications', icon: 'bi-bell' },
-        { key: 'preferences', label: 'Preferences', icon: 'bi-sliders' },
+        { key: 'profile', label: 'Profile', icon: 'person' },
+        { key: 'account', label: 'Security', icon: 'security' },
+        { key: 'notifications', label: 'Notifications', icon: 'notifications' },
+        { key: 'preferences', label: 'Preferences', icon: 'tune' },
     ];
 
     return (
@@ -105,7 +105,7 @@ export default function SettingsPage() {
             {/* Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <i className="bi bi-gear-fill text-[var(--primary)]"></i>
+                    <span className="material-symbols-outlined text-[var(--primary)]">settings</span>
                     Settings
                 </h1>
                 <p className="text-[var(--text-muted)]">Manage your account and preferences</p>
@@ -117,7 +117,7 @@ export default function SettingsPage() {
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden">
                         {/* User Preview */}
                         <div className="p-5 text-center border-b border-[var(--border-color)]">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 p-0.5 mx-auto mb-3">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 p-0.5 mx-auto mb-3">
                                 <div className="w-full h-full rounded-full bg-[var(--bg-secondary)] flex items-center justify-center text-xl font-bold text-[var(--text-primary)]">
                                     {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
                                 </div>
@@ -137,7 +137,7 @@ export default function SettingsPage() {
                                             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                                         }`}
                                 >
-                                    <i className={`bi ${tab.icon}`}></i>
+                                    <span className="material-symbols-outlined text-[20px]">{tab.icon}</span>
                                     {tab.label}
                                 </button>
                             ))}
@@ -153,10 +153,10 @@ export default function SettingsPage() {
                                 ? 'bg-green-500/10 border border-green-500/30 text-green-500'
                                 : 'bg-red-500/10 border border-red-500/30 text-red-500'
                             }`}>
-                            <i className={`bi ${message.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'}`}></i>
+                            <span className="material-symbols-outlined">{message.type === 'success' ? 'check_circle' : 'error'}</span>
                             {message.text}
                             <button onClick={() => setMessage({ type: '', text: '' })} className="ml-auto">
-                                <i className="bi bi-x"></i>
+                                <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
                     )}
@@ -287,7 +287,7 @@ export default function SettingsPage() {
                                         onClick={logout}
                                         className="flex items-center gap-2 px-5 py-2.5 border border-red-500 text-red-500 rounded-xl hover:bg-red-500/10 transition"
                                     >
-                                        <i className="bi bi-box-arrow-right"></i>
+                                        <span className="material-symbols-outlined">logout</span>
                                         Sign Out
                                     </button>
                                 </div>
