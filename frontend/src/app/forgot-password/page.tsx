@@ -12,24 +12,14 @@ export default function ForgotPasswordPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-
-        if (!email.trim()) {
-            setError('Please enter your email address');
-            return;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            setError('Please enter a valid email address');
-            return;
-        }
-
         setIsSubmitting(true);
+        setError('');
 
         try {
             await apiClient.post('/auth/forgot-password', { email });
             setSuccess(true);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to send reset email. Please try again.');
+            setError(err.response?.data?.message || 'Failed to send reset email');
         } finally {
             setIsSubmitting(false);
         }
@@ -93,7 +83,7 @@ export default function ForgotPasswordPage() {
                             </button>
 
                             <div className="text-center">
-                                <Link href="/auth?mode=login" className="text-[#137fec] hover:underline text-sm flex items-center justify-center gap-1">
+                                <Link href="/login" className="text-[#137fec] hover:underline text-sm flex items-center justify-center gap-1">
                                     <span className="material-symbols-outlined text-sm">arrow_back</span>Back to Login
                                 </Link>
                             </div>
