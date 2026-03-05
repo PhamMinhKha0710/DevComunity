@@ -4,6 +4,8 @@ using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Queries.Users;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Users;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Badges;
+using SocialTechsy.SocialNetwork.Application.Commands.Users;
+using SocialTechsy.SocialNetwork.Application.CommandHandlers.Users;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
@@ -20,6 +22,7 @@ public class UsersController : ControllerBase
     private readonly GetUserQuestionsQueryHandler _getUserQuestionsHandler;
     private readonly GetUserAnswersQueryHandler _getUserAnswersHandler;
     private readonly GetUserBadgesQueryHandler _getUserBadgesHandler;
+    private readonly UpdateProfileCommandHandler _updateProfileHandler;
 
     public UsersController(
         ILogger<UsersController> logger,
@@ -27,7 +30,8 @@ public class UsersController : ControllerBase
         GetUsersQueryHandler getUsersHandler,
         GetUserQuestionsQueryHandler getUserQuestionsHandler,
         GetUserAnswersQueryHandler getUserAnswersHandler,
-        GetUserBadgesQueryHandler getUserBadgesHandler)
+        GetUserBadgesQueryHandler getUserBadgesHandler,
+        UpdateProfileCommandHandler updateProfileHandler)
     {
         _logger = logger;
         _getUserByIdHandler = getUserByIdHandler;
@@ -35,6 +39,33 @@ public class UsersController : ControllerBase
         _getUserQuestionsHandler = getUserQuestionsHandler;
         _getUserAnswersHandler = getUserAnswersHandler;
         _getUserBadgesHandler = getUserBadgesHandler;
+        _updateProfileHandler = updateProfileHandler;
+    }
+
+    /// <summary>
+    /// Update current user's profile
+    /// </summary>
+    [HttpPut("profile")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateProfile(
+        [FromBody] UpdateProfileCommand command,
+        CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+            return Unauthorized();
+
+        _logger.LogInformation("Updating profile for user {UserId}", userId);
+
+        var success = await _updateProfileHandler.HandleAsync(userId, command, cancellationToken);
+
+        if (!success)
+            return NotFound(new { message = "User not found" });
+
+        return Ok(new { message = "Profile updated successfully" });
     }
 
     /// <summary>

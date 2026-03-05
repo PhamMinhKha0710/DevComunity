@@ -70,6 +70,9 @@ public static class DependencyInjection
         services.AddScoped<GetUserQuestionsQueryHandler>();
         services.AddScoped<GetUserAnswersQueryHandler>();
 
+        // User Command Handlers
+        services.AddScoped<SocialTechsy.SocialNetwork.Application.CommandHandlers.Users.UpdateProfileCommandHandler>();
+
         // Comment Command Handlers
         services.AddScoped<CreateQuestionCommentCommandHandler>();
         services.AddScoped<CreateAnswerCommentCommandHandler>();
