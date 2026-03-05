@@ -41,8 +41,8 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
         builder.HasIndex(q => q.Score);
         builder.HasIndex(q => q.ViewCount);
 
-        builder.HasIndex(q => q.UserId);
-        builder.HasIndex(q => q.Status);
+        // Full-text search index (optional)
+        // builder.HasIndex(q => q.Title).HasMethod("GIN");
 
         // Relationships
         builder.HasOne(q => q.User)

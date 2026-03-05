@@ -9,7 +9,7 @@ public interface IChatRepository
 {
     // Conversations
     Task<Conversation?> GetConversationByIdAsync(int id, CancellationToken cancellationToken = default);
-    Task<(IEnumerable<Conversation> Items, int TotalCount)> GetUserConversationsAsync(int userId, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Conversation>> GetUserConversationsAsync(int userId, CancellationToken cancellationToken = default);
     Task<Conversation?> GetConversationBetweenUsersAsync(int userId1, int userId2, CancellationToken cancellationToken = default);
     Task<Conversation> CreateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default);
     

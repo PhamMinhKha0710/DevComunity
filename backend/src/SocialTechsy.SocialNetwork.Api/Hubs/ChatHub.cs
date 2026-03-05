@@ -149,22 +149,26 @@ public class ChatHub : Hub
             _logger.LogInformation("Message {MessageId} saved, broadcasting to participants", 
                 savedMessage.MessageId);
 
-            var sendTasks = new List<Task>();
+            // Only broadcast to user groups (not conversation group) to prevent duplicates
+            // Each participant receives exactly ONE message through their personal group
             foreach (var participant in conversation.Participants)
             {
-                sendTasks.Add(Clients.Group($"user_{participant.UserId}").SendAsync("ReceiveMessage", messageDto));
-
+                _logger.LogInformation("Broadcasting message to user_{UserId}", participant.UserId);
+                
+                // Send ReceiveMessage to user's personal group
+                await Clients.Group($"user_{participant.UserId}").SendAsync("ReceiveMessage", messageDto);
+                
+                // Also send notification for users who are not the sender
                 if (participant.UserId != userId)
                 {
-                    sendTasks.Add(Clients.Group($"user_{participant.UserId}").SendAsync("NewMessageNotification", new
+                    await Clients.Group($"user_{participant.UserId}").SendAsync("NewMessageNotification", new
                     {
                         conversationId,
                         messagePreview = content.Length > 50 ? content.Substring(0, 50) + "..." : content,
                         senderName = sender?.DisplayName ?? sender?.Username
-                    }));
+                    });
                 }
             }
-            await Task.WhenAll(sendTasks);
         }
         catch (Exception ex)
         {
@@ -263,27 +267,26 @@ public class ChatHub : Hub
             _logger.LogInformation("Media message {MessageId} saved, broadcasting to participants", 
                 savedMessage.MessageId);
 
-            var mediaTasks = new List<Task>();
+            // Broadcast to all participants
             foreach (var participant in conversation.Participants)
             {
-                mediaTasks.Add(Clients.Group($"user_{participant.UserId}").SendAsync("ReceiveMessage", messageDto));
-
+                await Clients.Group($"user_{participant.UserId}").SendAsync("ReceiveMessage", messageDto);
+                
                 if (participant.UserId != userId)
                 {
-                    var preview = messageType == "image" ? "Photo"
-                        : messageType == "video" ? "Video"
-                        : messageType == "audio" ? "Audio"
-                        : attachmentFileName ?? "File";
-
-                    mediaTasks.Add(Clients.Group($"user_{participant.UserId}").SendAsync("NewMessageNotification", new
+                    var preview = messageType == "image" ? "📷 Photo" 
+                        : messageType == "video" ? "🎥 Video"
+                        : messageType == "audio" ? "🎵 Audio"
+                        : $"📎 {attachmentFileName}";
+                        
+                    await Clients.Group($"user_{participant.UserId}").SendAsync("NewMessageNotification", new
                     {
                         conversationId,
                         messagePreview = preview,
                         senderName = sender?.DisplayName ?? sender?.Username
-                    }));
+                    });
                 }
             }
-            await Task.WhenAll(mediaTasks);
         }
         catch (Exception ex)
         {
@@ -391,8 +394,10 @@ public class ChatHub : Hub
                 var conversation = await chatRepository.GetConversationByIdAsync(message.ConversationId);
                 if (conversation != null)
                 {
-                    await Task.WhenAll(conversation.Participants.Select(p =>
-                        Clients.Group($"user_{p.UserId}").SendAsync("ReceiveReaction", reactionDto)));
+                    foreach (var participant in conversation.Participants)
+                    {
+                        await Clients.Group($"user_{participant.UserId}").SendAsync("ReceiveReaction", reactionDto);
+                    }
                 }
             }
 
@@ -430,8 +435,14 @@ public class ChatHub : Hub
                 var conversation = await chatRepository.GetConversationByIdAsync(message.ConversationId);
                 if (conversation != null)
                 {
-                    await Task.WhenAll(conversation.Participants.Select(p =>
-                        Clients.Group($"user_{p.UserId}").SendAsync("RemoveReaction", new { messageId, userId })));
+                    foreach (var participant in conversation.Participants)
+                    {
+                        await Clients.Group($"user_{participant.UserId}").SendAsync("RemoveReaction", new
+                        {
+                            messageId,
+                            userId
+                        });
+                    }
                 }
             }
 

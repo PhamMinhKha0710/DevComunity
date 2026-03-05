@@ -25,22 +25,14 @@ public class ChatRepository : IChatRepository
             .FirstOrDefaultAsync(c => c.ConversationId == id, cancellationToken);
     }
 
-    public async Task<(IEnumerable<Conversation> Items, int TotalCount)> GetUserConversationsAsync(int userId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<Conversation>> GetUserConversationsAsync(int userId, CancellationToken cancellationToken = default)
     {
-        var query = _context.Conversations
+        return await _context.Conversations
             .Include(c => c.Participants)
                 .ThenInclude(p => p.User)
             .Where(c => c.Participants.Any(p => p.UserId == userId))
-            .OrderByDescending(c => c.LastMessageDate ?? c.CreatedDate);
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .OrderByDescending(c => c.LastMessageDate ?? c.CreatedDate)
             .ToListAsync(cancellationToken);
-
-        return (items, totalCount);
     }
 
     public async Task<Conversation?> GetConversationBetweenUsersAsync(int userId1, int userId2, CancellationToken cancellationToken = default)

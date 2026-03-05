@@ -15,33 +15,27 @@ public class GetConversationsQueryHandler
         _chatRepository = chatRepository;
     }
 
-    public async Task<PaginatedResponse<ConversationDto>> HandleAsync(int userId, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<IEnumerable<ConversationDto>> HandleAsync(int userId, CancellationToken cancellationToken)
     {
-        var (conversations, totalCount) = await _chatRepository.GetUserConversationsAsync(userId, page, pageSize, cancellationToken);
+        var conversations = await _chatRepository.GetUserConversationsAsync(userId, cancellationToken);
 
-        return new PaginatedResponse<ConversationDto>
+        return conversations.Select(c => new ConversationDto
         {
-            Items = conversations.Select(c => new ConversationDto
+            ConversationId = c.ConversationId,
+            Title = c.Title,
+            IsGroupChat = c.IsGroupChat,
+            CreatedDate = c.CreatedDate,
+            LastMessageDate = c.LastMessageDate,
+            LastMessagePreview = c.Messages.OrderByDescending(m => m.SentDate).FirstOrDefault()?.Content?.Substring(0, Math.Min(50, c.Messages.OrderByDescending(m => m.SentDate).FirstOrDefault()?.Content?.Length ?? 0)),
+            UnreadCount = c.Messages.Count(m => !m.IsRead && m.SenderId != userId),
+            Participants = c.Participants.Select(p => new ConversationParticipantDto
             {
-                ConversationId = c.ConversationId,
-                Title = c.Title,
-                IsGroupChat = c.IsGroupChat,
-                CreatedDate = c.CreatedDate,
-                LastMessageDate = c.LastMessageDate,
-                LastMessagePreview = c.Messages.OrderByDescending(m => m.SentDate).FirstOrDefault()?.Content?.Substring(0, Math.Min(50, c.Messages.OrderByDescending(m => m.SentDate).FirstOrDefault()?.Content?.Length ?? 0)),
-                UnreadCount = c.Messages.Count(m => !m.IsRead && m.SenderId != userId),
-                Participants = c.Participants.Select(p => new ConversationParticipantDto
-                {
-                    UserId = p.User?.UserId ?? 0,
-                    Username = p.User?.Username ?? "",
-                    DisplayName = p.User?.DisplayName,
-                    ProfilePicture = p.User?.ProfilePicture
-                }).ToList()
-            }).ToList(),
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = totalCount
-        };
+                UserId = p.User?.UserId ?? 0,
+                Username = p.User?.Username ?? "",
+                DisplayName = p.User?.DisplayName,
+                ProfilePicture = p.User?.ProfilePicture
+            }).ToList()
+        }).ToList();
     }
 }
 

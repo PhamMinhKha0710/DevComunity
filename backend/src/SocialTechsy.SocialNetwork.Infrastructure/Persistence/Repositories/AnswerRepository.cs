@@ -27,25 +27,17 @@ public class AnswerRepository : IAnswerRepository
             .FirstOrDefaultAsync(a => a.AnswerId == id, cancellationToken);
     }
 
-    public async Task<(IEnumerable<Answer> Items, int TotalCount)> GetByQuestionIdAsync(int questionId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<Answer>> GetByQuestionIdAsync(int questionId, CancellationToken cancellationToken = default)
     {
-        var query = _context.Answers
+        return await _context.Answers
             .Include(a => a.User)
             .Include(a => a.Comments)
                 .ThenInclude(c => c.User)
             .Include(a => a.ChildAnswers)
             .Where(a => a.QuestionId == questionId && a.ParentAnswerId == null)
             .OrderByDescending(a => a.IsAccepted)
-            .ThenByDescending(a => a.Score);
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .ThenByDescending(a => a.Score)
             .ToListAsync(cancellationToken);
-
-        return (items, totalCount);
     }
 
     public async Task<Answer> AddAsync(Answer answer, CancellationToken cancellationToken = default)
@@ -73,20 +65,23 @@ public class AnswerRepository : IAnswerRepository
 
     public async Task<bool> AcceptAnswerAsync(int answerId, int questionId, CancellationToken cancellationToken = default)
     {
-        var answer = await _context.Answers
-            .FirstOrDefaultAsync(a => a.AnswerId == answerId && a.QuestionId == questionId, cancellationToken);
+        // Unaccept any previously accepted answer
+        var previouslyAccepted = await _context.Answers
+            .Where(a => a.QuestionId == questionId && a.IsAccepted)
+            .ToListAsync(cancellationToken);
 
-        if (answer == null)
+        foreach (var answer in previouslyAccepted)
+        {
+            answer.IsAccepted = false;
+        }
+
+        // Accept the new answer
+        var newAccepted = await _context.Answers.FindAsync(new object[] { answerId }, cancellationToken);
+        if (newAccepted == null || newAccepted.QuestionId != questionId)
             return false;
 
-        await _context.Answers
-            .Where(a => a.QuestionId == questionId && a.IsAccepted)
-            .ExecuteUpdateAsync(s => s.SetProperty(a => a.IsAccepted, false), cancellationToken);
-
-        await _context.Answers
-            .Where(a => a.AnswerId == answerId)
-            .ExecuteUpdateAsync(s => s.SetProperty(a => a.IsAccepted, true), cancellationToken);
-
+        newAccepted.IsAccepted = true;
+        await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
 

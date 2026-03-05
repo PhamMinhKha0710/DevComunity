@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { RepositoryFile } from '@/types';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 
 export default function FileViewPage() {
     const params = useParams();
@@ -24,17 +25,14 @@ export default function FileViewPage() {
 
     const fetchContent = async () => {
         try {
-            // First try to get as file content
             const response = await apiClient.get<{ content?: string; files?: RepositoryFile[] }>(
                 `/repositories/${id}/files/content?path=${encodeURIComponent(filePath)}`
             );
 
             if (response.data.files) {
-                // It's a directory
                 setIsDirectory(true);
                 setFiles(response.data.files);
             } else {
-                // It's a file
                 setIsDirectory(false);
                 setContent(response.data.content || '');
             }
@@ -46,130 +44,117 @@ export default function FileViewPage() {
     };
 
     const getFileIcon = (file: RepositoryFile) => {
-        if (file.type === 'dir') return 'bi-folder-fill text-warning';
+        if (file.type === 'dir') return 'folder';
         const ext = file.name.split('.').pop()?.toLowerCase();
         switch (ext) {
-            case 'js':
-            case 'jsx':
-            case 'ts':
-            case 'tsx': return 'bi-file-earmark-code text-info';
-            case 'json': return 'bi-file-earmark-code text-warning';
-            case 'md': return 'bi-markdown text-primary';
-            case 'css':
-            case 'scss': return 'bi-filetype-css';
-            case 'html': return 'bi-filetype-html text-danger';
-            default: return 'bi-file-earmark text-muted';
+            case 'js': case 'jsx': case 'ts': case 'tsx': return 'code';
+            case 'json': return 'data_object';
+            case 'md': return 'description';
+            case 'css': case 'scss': return 'palette';
+            case 'html': return 'html';
+            default: return 'draft';
         }
     };
 
-    const getLanguage = (filename: string) => {
-        const ext = filename.split('.').pop()?.toLowerCase();
+    const getFileIconColor = (file: RepositoryFile) => {
+        if (file.type === 'dir') return 'text-amber-500';
+        const ext = file.name.split('.').pop()?.toLowerCase();
         switch (ext) {
-            case 'js':
-            case 'jsx': return 'javascript';
-            case 'ts':
-            case 'tsx': return 'typescript';
-            case 'json': return 'json';
-            case 'css': return 'css';
-            case 'html': return 'html';
-            case 'md': return 'markdown';
-            case 'py': return 'python';
-            case 'cs': return 'csharp';
-            default: return 'plaintext';
+            case 'js': case 'jsx': case 'ts': case 'tsx': return 'text-blue-500';
+            case 'json': return 'text-amber-500';
+            case 'md': return 'text-[#137fec]';
+            case 'css': case 'scss': return 'text-purple-500';
+            case 'html': return 'text-red-500';
+            default: return 'text-[#94a3b8]';
         }
     };
 
     if (isLoading) {
         return (
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
+            <AppLayout showRightSidebar={false}>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-3 border-[rgba(19,127,236,0.2)] border-t-[#137fec] rounded-full animate-spin" />
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
-    // Build breadcrumb parts
     const breadcrumbParts = filePath.split('/').filter(Boolean);
 
     return (
-        <div className="container py-4">
+        <AppLayout showRightSidebar={false}>
             {/* Breadcrumb */}
-            <nav aria-label="breadcrumb" className="mb-4">
-                <ol className="breadcrumb">
-                    <li className="breadcrumb-item"><Link href="/repositories">Repositories</Link></li>
-                    <li className="breadcrumb-item"><Link href={`/repositories/${id}`}>Repository</Link></li>
-                    {breadcrumbParts.map((part, index) => {
-                        const partPath = breadcrumbParts.slice(0, index + 1).join('/');
-                        const isLast = index === breadcrumbParts.length - 1;
-                        return isLast ? (
-                            <li key={part} className="breadcrumb-item active">{part}</li>
-                        ) : (
-                            <li key={part} className="breadcrumb-item">
-                                <Link href={`/repositories/${id}/files/${partPath}`}>{part}</Link>
-                            </li>
-                        );
-                    })}
-                </ol>
+            <nav className="flex items-center gap-2 text-sm text-[#64748b] mb-6 flex-wrap">
+                <Link href="/repositories" className="hover:text-[#137fec] transition-colors">Repositories</Link>
+                <span>/</span>
+                <Link href={`/repositories/${id}`} className="hover:text-[#137fec] transition-colors">Repository</Link>
+                {breadcrumbParts.map((part, index) => {
+                    const partPath = breadcrumbParts.slice(0, index + 1).join('/');
+                    const isLast = index === breadcrumbParts.length - 1;
+                    return (
+                        <span key={part} className="flex items-center gap-2">
+                            <span>/</span>
+                            {isLast ? (
+                                <span className="text-[#0f172a] dark:text-white font-medium">{part}</span>
+                            ) : (
+                                <Link href={`/repositories/${id}/files/${partPath}`} className="hover:text-[#137fec] transition-colors">{part}</Link>
+                            )}
+                        </span>
+                    );
+                })}
             </nav>
 
             {isDirectory ? (
-                // Directory listing
-                <div className="card border-0 shadow-sm rounded-4">
-                    <div className="card-header bg-white">
-                        <i className="bi bi-folder-fill text-warning me-2"></i>
+                <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#e2e8f0] dark:border-[var(--border-color)] flex items-center gap-2 text-sm font-bold text-[#0f172a] dark:text-white">
+                        <span className="material-symbols-outlined text-amber-500 text-base">folder</span>
                         {filePath || 'Root'}
                     </div>
-                    <div className="list-group list-group-flush">
-                        {pathSegments.length > 0 && (
-                            <Link
-                                href={`/repositories/${id}/files/${breadcrumbParts.slice(0, -1).join('/')}`}
-                                className="list-group-item list-group-item-action d-flex align-items-center py-2"
-                            >
-                                <i className="bi bi-arrow-90deg-up me-3 text-muted"></i>
-                                <span>..</span>
-                            </Link>
-                        )}
-                        {files.sort((a, b) => {
-                            if (a.type === 'dir' && b.type !== 'dir') return -1;
-                            if (a.type !== 'dir' && b.type === 'dir') return 1;
-                            return a.name.localeCompare(b.name);
-                        }).map((file) => (
-                            <Link
-                                key={file.path}
-                                href={`/repositories/${id}/files/${file.path}`}
-                                className="list-group-item list-group-item-action d-flex align-items-center py-2"
-                            >
-                                <i className={`bi ${getFileIcon(file)} me-3`}></i>
-                                <span>{file.name}</span>
-                            </Link>
-                        ))}
-                    </div>
+                    {pathSegments.length > 0 && (
+                        <Link
+                            href={`/repositories/${id}/files/${breadcrumbParts.slice(0, -1).join('/')}`}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#f8fafc] dark:hover:bg-[var(--bg-tertiary)] transition text-[#64748b] border-b border-[#f1f5f9] dark:border-[var(--border-color)]"
+                        >
+                            <span className="material-symbols-outlined text-lg">arrow_upward</span>
+                            <span className="text-sm">..</span>
+                        </Link>
+                    )}
+                    {files.sort((a, b) => {
+                        if (a.type === 'dir' && b.type !== 'dir') return -1;
+                        if (a.type !== 'dir' && b.type === 'dir') return 1;
+                        return a.name.localeCompare(b.name);
+                    }).map((file, index) => (
+                        <Link
+                            key={file.path}
+                            href={`/repositories/${id}/files/${file.path}`}
+                            className={`flex items-center gap-3 px-4 py-2.5 hover:bg-[#f8fafc] dark:hover:bg-[var(--bg-tertiary)] transition text-[#0f172a] dark:text-[var(--text-primary)] ${index > 0 || pathSegments.length > 0 ? 'border-t border-[#f1f5f9] dark:border-[var(--border-color)]' : ''}`}
+                        >
+                            <span className={`material-symbols-outlined text-lg ${getFileIconColor(file)}`}>{getFileIcon(file)}</span>
+                            <span className="text-sm">{file.name}</span>
+                        </Link>
+                    ))}
                 </div>
             ) : (
-                // File content
-                <div className="card border-0 shadow-sm rounded-4">
-                    <div className="card-header bg-white d-flex justify-content-between align-items-center">
-                        <div>
-                            <i className="bi bi-file-earmark-code me-2"></i>
+                <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#e2e8f0] dark:border-[var(--border-color)] flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm font-bold text-[#0f172a] dark:text-white">
+                            <span className="material-symbols-outlined text-blue-500 text-base">code</span>
                             {pathSegments[pathSegments.length - 1] || 'File'}
                         </div>
-                        <div className="d-flex gap-2">
-                            <button className="btn btn-sm btn-outline-secondary rounded-pill">
-                                <i className="bi bi-pencil me-1"></i>Edit
+                        <div className="flex gap-2">
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-[#e2e8f0] dark:border-[var(--border-color)] text-[#334155] dark:text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[var(--bg-tertiary)] transition">
+                                <span className="material-symbols-outlined text-sm">edit</span>Edit
                             </button>
-                            <button className="btn btn-sm btn-outline-secondary rounded-pill">
-                                <i className="bi bi-download me-1"></i>Download
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-[#e2e8f0] dark:border-[var(--border-color)] text-[#334155] dark:text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[var(--bg-tertiary)] transition">
+                                <span className="material-symbols-outlined text-sm">download</span>Download
                             </button>
                         </div>
                     </div>
-                    <div className="card-body p-0">
-                        <pre className="m-0 p-4 bg-light" style={{ maxHeight: '600px', overflow: 'auto' }}>
-                            <code>{content}</code>
-                        </pre>
-                    </div>
+                    <pre className="m-0 p-4 bg-[#f8fafc] dark:bg-[var(--bg-tertiary)] overflow-auto text-sm font-mono text-[#334155] dark:text-[var(--text-secondary)]" style={{ maxHeight: '600px' }}>
+                        <code>{content}</code>
+                    </pre>
                 </div>
             )}
-        </div>
+        </AppLayout>
     );
 }

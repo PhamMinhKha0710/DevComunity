@@ -7,9 +7,7 @@ public class GetAnswersByQuestionQuery
 {
     public int QuestionId { get; set; }
     public int? CurrentUserId { get; set; }
-    public string Sort { get; set; } = "votes";
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 50;
+    public string Sort { get; set; } = "votes"; // votes, oldest, newest
 }
 
 /// <summary>

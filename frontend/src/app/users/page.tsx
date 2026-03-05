@@ -17,16 +17,32 @@ interface User {
     createdDate: string;
 }
 
+const getBadge = (rep: number) => {
+    if (rep >= 20000) return { label: 'Elite', style: 'bg-[var(--primary)]/10 text-[var(--primary)]', icon: 'star' };
+    if (rep >= 10000) return { label: 'Expert', style: 'bg-[var(--primary)]/10 text-[var(--primary)]', icon: 'verified' };
+    if (rep >= 5000) return { label: 'Pro', style: 'bg-[var(--primary)]/10 text-[var(--primary)]', icon: 'verified' };
+    if (rep >= 2000) return { label: 'Moderator', style: 'bg-slate-100 dark:bg-slate-800 text-slate-500', icon: 'verified_user' };
+    if (rep >= 1000) return { label: 'Editor', style: 'bg-slate-100 dark:bg-slate-800 text-slate-500', icon: 'military_tech' };
+    if (rep >= 100) return { label: 'Rising', style: 'bg-slate-100 dark:bg-slate-800 text-slate-500', icon: 'trending_up' };
+    return { label: 'Member', style: 'bg-slate-100 dark:bg-slate-800 text-slate-500', icon: 'shield' };
+};
+
+const formatRep = (rep: number) => {
+    if (rep >= 1000) return `${(rep / 1000).toFixed(1)}k`;
+    return rep.toLocaleString();
+};
+
 export default function UsersPage() {
     const { user: currentUser } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('reputation');
+    const [timeFilter, setTimeFilter] = useState('month');
     const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
     const [followLoading, setFollowLoading] = useState<number | null>(null);
-    const [friendStatus, setFriendStatus] = useState<Record<number, { areFriends: boolean; requestPending: boolean; isSentByMe: boolean }>>({});
-    const [friendLoading, setFriendLoading] = useState<number | null>(null);
+    const [page, setPage] = useState(1);
+    const perPage = 8;
 
     useEffect(() => {
         fetchUsers();
@@ -79,39 +95,6 @@ export default function UsersPage() {
         }
     };
 
-    const checkFriendStatus = async (targetId: number) => {
-        if (!currentUser) return;
-        try {
-            const response = await apiClient.get<{ areFriends: boolean; requestPending: boolean; isSentByMe: boolean }>(`/Friendship/check/${targetId}`);
-            setFriendStatus(prev => ({ ...prev, [targetId]: response.data }));
-        } catch {
-            // Ignore errors
-        }
-    };
-
-    const handleAddFriend = async (targetId: number) => {
-        if (!currentUser) return;
-        setFriendLoading(targetId);
-        try {
-            await apiClient.post(`/Friendship/request/${targetId}`);
-            setFriendStatus(prev => ({ ...prev, [targetId]: { areFriends: false, requestPending: true, isSentByMe: true } }));
-        } catch (error) {
-            console.error('Failed to send friend request:', error);
-        } finally {
-            setFriendLoading(null);
-        }
-    };
-
-    useEffect(() => {
-        if (currentUser && users.length > 0) {
-            users.forEach(user => {
-                if (user.userId !== currentUser.userId) {
-                    checkFriendStatus(user.userId);
-                }
-            });
-        }
-    }, [currentUser, users]);
-
     const fetchUsers = async () => {
         try {
             const response = await apiClient.get<any>(`/users?sortBy=${sortBy}`);
@@ -136,152 +119,183 @@ export default function UsersPage() {
         (user.displayName || '').toLowerCase().includes(search.toLowerCase())
     );
 
-    const sortOptions = [
-        { key: 'reputation', label: 'Reputation', icon: 'bi-award' },
-        { key: 'newest', label: 'New Users', icon: 'bi-person-plus' },
+    const totalPages = Math.ceil(filteredUsers.length / perPage);
+    const paginatedUsers = filteredUsers.slice((page - 1) * perPage, page * perPage);
+
+    const getPageNumbers = () => {
+        const pages: (number | '...')[] = [];
+        if (totalPages <= 5) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+            pages.push(1);
+            if (page > 3) pages.push('...');
+            for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+            if (page < totalPages - 2) pages.push('...');
+            pages.push(totalPages);
+        }
+        return pages;
+    };
+
+    const timeFilters = [
+        { key: 'week', label: 'Week' },
+        { key: 'month', label: 'Month' },
+        { key: 'all', label: 'All Time' },
     ];
 
     return (
-        <AppLayout>
-            {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <i className="bi bi-people-fill text-[var(--primary)]"></i>
-                    Community Members
-                </h1>
-                <p className="text-[var(--text-muted)]">Connect with developers in our community</p>
-            </div>
-
-            {/* Search & Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="relative flex-1">
-                    <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"></i>
-                    <input
-                        type="text"
-                        placeholder="Search users..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
-                    />
+        <AppLayout showRightSidebar={false}>
+            {/* Title & Filter Section */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-8">
+                <div className="flex flex-col gap-1">
+                    <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Top Contributors</h3>
+                    <p className="text-slate-500">Discover and connect with the most active members of SocialTechsy.</p>
                 </div>
-                <div className="flex gap-2">
-                    {sortOptions.map((opt) => (
+                <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex gap-1">
+                    {timeFilters.map((tf) => (
                         <button
-                            key={opt.key}
-                            onClick={() => setSortBy(opt.key)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition ${sortBy === opt.key
-                                ? 'bg-[var(--primary)] text-white'
-                                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
+                            key={tf.key}
+                            onClick={() => setTimeFilter(tf.key)}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${timeFilter === tf.key
+                                ? 'bg-white dark:bg-slate-700 text-[var(--primary)] shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
                                 }`}
                         >
-                            <i className={`bi ${opt.icon}`}></i>
-                            {opt.label}
+                            {tf.label}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Users Grid */}
+            {/* Search */}
+            <div className="mb-8">
+                <div className="relative max-w-sm">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                        placeholder="Search members..."
+                        className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-[var(--primary)] text-sm placeholder:text-slate-500 text-slate-900 dark:text-white"
+                    />
+                </div>
+            </div>
+
+            {/* User Grid */}
             {isLoading ? (
                 <div className="flex items-center justify-center py-16">
                     <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
                 </div>
-            ) : filteredUsers.length === 0 ? (
-                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
-                    <i className="bi bi-people text-5xl text-[var(--text-muted)] mb-4"></i>
-                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No users found</h3>
-                    <p className="text-[var(--text-muted)]">Try a different search term</p>
+            ) : paginatedUsers.length === 0 ? (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center">
+                    <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">group</span>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No users found</h3>
+                    <p className="text-slate-500">Try a different search term</p>
                 </div>
             ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredUsers.map((user) => (
-                        <div
-                            key={user.userId}
-                            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 text-center hover:border-[var(--primary)]/50 transition"
-                        >
-                            {/* Avatar */}
-                            <Link href={`/users/${user.userId}`}>
-                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 p-0.5 mx-auto mb-3">
-                                    <div className="w-full h-full rounded-full bg-[var(--bg-secondary)] flex items-center justify-center text-2xl font-bold text-[var(--text-primary)]">
-                                        {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {paginatedUsers.map((user) => {
+                        const badge = getBadge(user.reputationPoints);
+                        return (
+                            <Link
+                                key={user.userId}
+                                href={`/users/${user.userId}`}
+                                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all group"
+                            >
+                                {/* Top: Avatar + Badge */}
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg group-hover:ring-4 ring-[var(--primary)]/10 transition-all">
+                                        {user.profilePicture ? (
+                                            <img src={user.profilePicture} alt={user.displayName || user.username} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
+                                                {(user.displayName || user.username || '?').substring(0, 2).toUpperCase()}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className={`${badge.style} text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest`}>
+                                            {badge.label}
+                                        </span>
+                                        <div className="flex items-center gap-1 mt-2 text-[var(--primary)]">
+                                            <span className="material-symbols-outlined text-base">{badge.icon}</span>
+                                            <span className="text-xs font-bold">{formatRep(user.reputationPoints)}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </Link>
 
-                            <Link href={`/users/${user.userId}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--primary)] transition">
-                                {user.displayName || user.username}
-                            </Link>
-                            <p className="text-sm text-[var(--text-muted)] mb-3">@{user.username}</p>
+                                {/* Name & Bio */}
+                                <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                                    {user.displayName || user.username}
+                                </h4>
+                                <p className="text-slate-500 text-sm mb-4 line-clamp-2">
+                                    @{user.username} • Joined {new Date(user.createdDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                </p>
 
-                            {/* Stats */}
-                            <div className="flex justify-center gap-4 text-center mb-4">
-                                <div>
-                                    <span className="block text-lg font-bold text-[var(--primary)]">{user.reputationPoints}</span>
-                                    <span className="text-xs text-[var(--text-muted)]">reputation</span>
-                                </div>
-                                <div className="w-px bg-[var(--border-color)]"></div>
-                                <div>
-                                    <span className="block text-lg font-bold text-[var(--text-primary)]">{user.questionCount || 0}</span>
-                                    <span className="text-xs text-[var(--text-muted)]">questions</span>
-                                </div>
-                            </div>
-
-                            {/* Follow Button */}
-                            {currentUser && currentUser.userId !== user.userId && (
-                                <div className="space-y-2">
+                                {/* Follow Button (stop propagation to prevent link navigation) */}
+                                {currentUser && currentUser.userId !== user.userId && (
                                     <button
-                                        onClick={() => followingIds.has(user.userId) ? handleUnfollow(user.userId) : handleFollow(user.userId)}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            followingIds.has(user.userId) ? handleUnfollow(user.userId) : handleFollow(user.userId);
+                                        }}
                                         disabled={followLoading === user.userId}
-                                        className={`w-full py-2 rounded-xl font-medium text-sm transition ${followingIds.has(user.userId)
-                                            ? 'border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)]/10'
-                                            : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
+                                        className={`w-full font-bold py-2 rounded-lg text-xs transition-all mt-2 ${followingIds.has(user.userId)
+                                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-200'
+                                            : 'bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90'
                                             }`}
                                     >
                                         {followLoading === user.userId ? (
                                             <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto"></div>
-                                        ) : followingIds.has(user.userId) ? (
-                                            <><i className="bi bi-person-check mr-1"></i> Following</>
-                                        ) : (
-                                            <><i className="bi bi-person-plus mr-1"></i> Follow</>
-                                        )}
+                                        ) : followingIds.has(user.userId) ? 'Following' : 'Follow'}
                                     </button>
+                                )}
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
 
-                                    {/* Add Friend Button */}
-                                    {(() => {
-                                        const status = friendStatus[user.userId];
-                                        if (status?.areFriends) {
-                                            return (
-                                                <button disabled className="w-full py-2 rounded-xl font-medium text-sm bg-green-500/20 text-green-500 border border-green-500/30">
-                                                    <i className="bi bi-people-fill mr-1"></i> Friends
-                                                </button>
-                                            );
-                                        }
-                                        if (status?.requestPending) {
-                                            return (
-                                                <button disabled className="w-full py-2 rounded-xl font-medium text-sm bg-yellow-500/20 text-yellow-600 border border-yellow-500/30">
-                                                    <i className="bi bi-hourglass-split mr-1"></i>
-                                                    {status.isSentByMe ? 'Request Sent' : 'Respond to Request'}
-                                                </button>
-                                            );
-                                        }
-                                        return (
-                                            <button
-                                                onClick={() => handleAddFriend(user.userId)}
-                                                disabled={friendLoading === user.userId}
-                                                className="w-full py-2 rounded-xl font-medium text-sm border border-[var(--border-color)] text-[var(--text-muted)] hover:border-blue-500 hover:text-blue-500 transition"
-                                            >
-                                                {friendLoading === user.userId ? (
-                                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto"></div>
-                                                ) : (
-                                                    <><i className="bi bi-person-plus-fill mr-1"></i> Add Friend</>
-                                                )}
-                                            </button>
-                                        );
-                                    })()}
-                                </div>
+            {/* Pagination Footer */}
+            {totalPages > 0 && !isLoading && (
+                <div className="mt-12 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-6">
+                    <p className="text-sm text-slate-500 font-medium">
+                        Showing <span className="text-slate-900 dark:text-white">{(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredUsers.length)}</span> of {filteredUsers.length.toLocaleString()} users
+                    </p>
+                    {totalPages > 1 && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-30"
+                            >
+                                <span className="material-symbols-outlined text-sm align-middle">chevron_left</span>
+                            </button>
+                            {getPageNumbers().map((p, i) =>
+                                p === '...' ? (
+                                    <span key={`dots-${i}`} className="px-2 text-slate-400">...</span>
+                                ) : (
+                                    <button
+                                        key={p}
+                                        onClick={() => setPage(p as number)}
+                                        className={`px-3 py-1 rounded-lg text-sm font-bold transition-colors ${page === p
+                                            ? 'bg-[var(--primary)] text-white'
+                                            : 'border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                            }`}
+                                    >
+                                        {p}
+                                    </button>
+                                )
                             )}
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                className="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-30"
+                            >
+                                <span className="material-symbols-outlined text-sm align-middle">chevron_right</span>
+                            </button>
                         </div>
-                    ))}
+                    )}
                 </div>
             )}
         </AppLayout>

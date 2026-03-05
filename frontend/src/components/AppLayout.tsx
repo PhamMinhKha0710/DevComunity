@@ -3,7 +3,6 @@
 import ModernNavbar from './ModernNavbar';
 import ModernSidebar from './ModernSidebar';
 import RightSidebar from './RightSidebar';
-import ModernFooter from './ModernFooter';
 
 interface AppLayoutProps {
     children: React.ReactNode;
@@ -12,25 +11,28 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, showRightSidebar = true }: AppLayoutProps) {
     return (
-        <div className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
-            <ModernNavbar />
+        <div className="flex min-h-screen bg-[#f6f7f8] dark:bg-[#101922]">
+            {/* Fixed Sidebar */}
+            <ModernSidebar />
 
-            <div className="flex flex-1 pt-16">
-                <ModernSidebar />
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Top Header */}
+                <ModernNavbar />
 
-                <main className="flex-1 min-w-0 p-6 flex flex-col">
-                    <div className="max-w-4xl mx-auto w-full flex-1">
-                        {children}
+                {/* Scrollable Content */}
+                <main className="flex-1 overflow-y-auto p-8">
+                    <div className="max-w-7xl mx-auto flex gap-8">
+                        {/* Main Feed */}
+                        <div className="flex-1 min-w-0 space-y-8">
+                            {children}
+                        </div>
+
+                        {/* Right Sidebar */}
+                        {showRightSidebar && <RightSidebar />}
                     </div>
-
-                    {/* Spacer to push footer down if content is short */}
-                    <div className="mt-12"></div>
                 </main>
-
-                {showRightSidebar && <RightSidebar />}
             </div>
-
-            <ModernFooter />
         </div>
     );
 }

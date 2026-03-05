@@ -154,10 +154,10 @@ export default function TagPreferencesPage() {
             <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
                     <Link href="/tags" className="text-[var(--text-muted)] hover:text-[var(--primary)]">
-                        <i className="bi bi-arrow-left"></i>
+                        <span className="material-symbols-outlined">arrow_back</span>
                     </Link>
                     <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                        <i className="bi bi-gear-fill text-[var(--primary)]"></i>
+                        <span className="material-symbols-outlined text-[var(--primary)]">settings</span>
                         Tag Preferences
                     </h1>
                 </div>
@@ -171,7 +171,7 @@ export default function TagPreferencesPage() {
                 <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
-                            <i className="bi bi-heart-fill text-green-500"></i>
+                            <span className="material-symbols-outlined text-green-500">favorite</span>
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-[var(--text-primary)]">{followedCount}</p>
@@ -179,10 +179,10 @@ export default function TagPreferencesPage() {
                         </div>
                     </div>
                 </div>
-                <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
+                <div className="bg-gradient-to-r from-red-500/10 to-rose-500/10 border border-red-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-                            <i className="bi bi-eye-slash-fill text-red-500"></i>
+                            <span className="material-symbols-outlined text-red-500">visibility_off</span>
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-[var(--text-primary)]">{ignoredCount}</p>
@@ -213,7 +213,7 @@ export default function TagPreferencesPage() {
             {/* Search */}
             <div className="mb-6">
                 <div className="relative">
-                    <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"></i>
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">search</span>
                     <input
                         type="text"
                         placeholder="Filter tags..."
@@ -231,7 +231,7 @@ export default function TagPreferencesPage() {
                 </div>
             ) : displayedTags.length === 0 ? (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
-                    <i className="bi bi-tags text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <span className="material-symbols-outlined text-5xl text-[var(--text-muted)] mb-4">sell</span>
                     <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
                         {activeTab === 'followed' && "You're not following any tags"}
                         {activeTab === 'ignored' && "You haven't ignored any tags"}
@@ -280,9 +280,9 @@ export default function TagPreferencesPage() {
                                             className="flex-1 px-3 py-2 bg-green-500/10 text-green-500 rounded-lg font-medium text-sm hover:bg-green-500/20 transition disabled:opacity-50"
                                         >
                                             {isActionLoading ? (
-                                                <i className="bi bi-hourglass-split animate-spin"></i>
+                                                <span className="material-symbols-outlined animate-spin">hourglass_empty</span>
                                             ) : (
-                                                <><i className="bi bi-check-circle-fill mr-1"></i> Following</>
+                                                <><span className="material-symbols-outlined mr-1">check_circle</span> Following</>
                                             )}
                                         </button>
                                     ) : (
@@ -292,9 +292,9 @@ export default function TagPreferencesPage() {
                                             className="flex-1 px-3 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg font-medium text-sm hover:bg-green-500/10 hover:text-green-500 transition disabled:opacity-50"
                                         >
                                             {isActionLoading ? (
-                                                <i className="bi bi-hourglass-split animate-spin"></i>
+                                                <span className="material-symbols-outlined animate-spin">hourglass_empty</span>
                                             ) : (
-                                                <><i className="bi bi-heart mr-1"></i> Follow</>
+                                                <><span className="material-symbols-outlined mr-1">favorite</span> Follow</>
                                             )}
                                         </button>
                                     )}
@@ -306,9 +306,9 @@ export default function TagPreferencesPage() {
                                             className="px-3 py-2 bg-red-500/10 text-red-500 rounded-lg font-medium text-sm hover:bg-red-500/20 transition disabled:opacity-50"
                                         >
                                             {isActionLoading ? (
-                                                <i className="bi bi-hourglass-split animate-spin"></i>
+                                                <span className="material-symbols-outlined animate-spin">hourglass_empty</span>
                                             ) : (
-                                                <i className="bi bi-eye-slash-fill"></i>
+                                                <span className="material-symbols-outlined">visibility_off</span>
                                             )}
                                         </button>
                                     ) : (
@@ -319,9 +319,9 @@ export default function TagPreferencesPage() {
                                             title="Ignore this tag"
                                         >
                                             {isActionLoading ? (
-                                                <i className="bi bi-hourglass-split animate-spin"></i>
+                                                <span className="material-symbols-outlined animate-spin">hourglass_empty</span>
                                             ) : (
-                                                <i className="bi bi-eye-slash"></i>
+                                                <span className="material-symbols-outlined">visibility_off</span>
                                             )}
                                         </button>
                                     )}

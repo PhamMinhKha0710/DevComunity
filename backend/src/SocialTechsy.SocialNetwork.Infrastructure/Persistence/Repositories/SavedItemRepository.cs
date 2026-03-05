@@ -30,6 +30,8 @@ public class SavedItemRepository : ISavedItemRepository
         var query = _context.SavedItems
             .Include(s => s.Question)
                 .ThenInclude(q => q!.User)
+            .Include(s => s.Question)
+                .ThenInclude(q => q!.Answers)
             .Include(s => s.Answer)
                 .ThenInclude(a => a!.User)
             .Include(s => s.Answer)
@@ -100,7 +102,6 @@ public class SavedItemRepository : ISavedItemRepository
     public async Task DeleteByQuestionAsync(int userId, int questionId, CancellationToken cancellationToken = default)
     {
         var item = await _context.SavedItems
-            .AsTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.QuestionId == questionId, cancellationToken);
         if (item != null)
         {
@@ -112,7 +113,6 @@ public class SavedItemRepository : ISavedItemRepository
     public async Task DeleteByAnswerAsync(int userId, int answerId, CancellationToken cancellationToken = default)
     {
         var item = await _context.SavedItems
-            .AsTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.AnswerId == answerId, cancellationToken);
         if (item != null)
         {

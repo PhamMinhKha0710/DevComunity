@@ -31,13 +31,13 @@ export default function NotificationsPage() {
 
     const getNotificationIcon = (type: string) => {
         switch (type) {
-            case 'answer': return { icon: 'bi-chat-left-text-fill', color: 'text-green-500', bg: 'bg-green-500/20' };
-            case 'comment': return { icon: 'bi-chat-dots-fill', color: 'text-blue-500', bg: 'bg-blue-500/20' };
-            case 'vote': return { icon: 'bi-hand-thumbs-up-fill', color: 'text-yellow-500', bg: 'bg-yellow-500/20' };
-            case 'accepted': return { icon: 'bi-check-circle-fill', color: 'text-green-500', bg: 'bg-green-500/20' };
-            case 'mention': return { icon: 'bi-at', color: 'text-purple-500', bg: 'bg-purple-500/20' };
-            case 'follow': return { icon: 'bi-person-plus-fill', color: 'text-pink-500', bg: 'bg-pink-500/20' };
-            default: return { icon: 'bi-bell-fill', color: 'text-[var(--text-muted)]', bg: 'bg-[var(--bg-tertiary)]' };
+            case 'answer': return { icon: 'chat', color: 'text-green-500', bg: 'bg-green-500/20' };
+            case 'comment': return { icon: 'comment', color: 'text-blue-500', bg: 'bg-blue-500/20' };
+            case 'vote': return { icon: 'thumb_up', color: 'text-yellow-500', bg: 'bg-yellow-500/20' };
+            case 'accepted': return { icon: 'check_circle', color: 'text-green-500', bg: 'bg-green-500/20' };
+            case 'mention': return { icon: 'alternate_email', color: 'text-purple-500', bg: 'bg-purple-500/20' };
+            case 'follow': return { icon: 'person_add', color: 'text-pink-500', bg: 'bg-pink-500/20' };
+            default: return { icon: 'notifications', color: 'text-[var(--text-muted)]', bg: 'bg-[var(--bg-tertiary)]' };
         }
     };
 
@@ -61,7 +61,7 @@ export default function NotificationsPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                        <i className="bi bi-bell-fill text-[var(--primary)]"></i>
+                        <span className="material-symbols-outlined text-[var(--primary)]">notifications</span>
                         Notifications
                     </h1>
                     <p className="text-[var(--text-muted)]">
@@ -73,7 +73,7 @@ export default function NotificationsPage() {
                         onClick={markAllAsRead}
                         className="flex items-center gap-2 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
                     >
-                        <i className="bi bi-check-all"></i>
+                        <span className="material-symbols-outlined">done_all</span>
                         Mark all as read
                     </button>
                 )}
@@ -94,7 +94,7 @@ export default function NotificationsPage() {
                                     }`}
                             >
                                 <div className={`w-10 h-10 rounded-xl ${iconStyle.bg} flex items-center justify-center flex-shrink-0`}>
-                                    <i className={`bi ${iconStyle.icon} ${iconStyle.color}`}></i>
+                                    <span className={`material-symbols-outlined ${iconStyle.color}`}>{iconStyle.icon}</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className={`text-[var(--text-primary)] ${!notification.isRead ? 'font-medium' : ''}`}>
@@ -115,7 +115,7 @@ export default function NotificationsPage() {
                 </div>
             ) : (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
-                    <i className="bi bi-bell-slash text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <span className="material-symbols-outlined text-5xl text-[var(--text-muted)] mb-4">notifications_off</span>
                     <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No notifications yet</h3>
                     <p className="text-[var(--text-muted)]">When you get notifications, they&apos;ll show up here</p>
                 </div>

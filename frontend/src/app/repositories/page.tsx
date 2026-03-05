@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import type { Repository, PaginatedResponse } from '@/types';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 
 function RepositoriesContent() {
     const searchParams = useSearchParams();
@@ -32,144 +33,151 @@ function RepositoriesContent() {
         }
     };
 
+    const gradients = [
+        'from-blue-600 to-cyan-500',
+        'from-purple-600 to-pink-500',
+        'from-green-600 to-emerald-500',
+        'from-indigo-600 to-violet-500',
+        'from-orange-500 to-amber-500',
+    ];
+
     return (
-        <div className="container py-4">
+        <AppLayout>
             {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="fw-bold mb-1">
-                        <i className="bi bi-archive me-2"></i>Code Repositories
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-[#0f172a] dark:text-white flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#137fec]">inventory_2</span>
+                        Code Repositories
                     </h1>
-                    <p className="text-muted mb-0">Explore and share code with the community</p>
+                    <p className="text-[#64748b] text-sm mt-1">Explore and share code with the community</p>
                 </div>
-                <div className="d-flex gap-2">
-                    <Link href="/repositories/create" className="btn btn-primary rounded-pill">
-                        <i className="bi bi-plus-circle me-2"></i>Create Repository
+                <div className="flex gap-2">
+                    <Link href="/repositories/create" className="flex items-center gap-2 bg-[#137fec] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_4px_12px_rgba(19,127,236,0.2)] hover:bg-[#1170d4] hover:-translate-y-px transition-all">
+                        <span className="material-symbols-outlined text-lg">add_circle</span>
+                        Create Repository
                     </Link>
-                    <Link href="/repositories/my" className="btn btn-outline-primary rounded-pill">
-                        <i className="bi bi-person me-2"></i>My Repositories
+                    <Link href="/repositories/my" className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border border-[#e2e8f0] dark:border-[var(--border-color)] text-[#334155] dark:text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[var(--bg-tertiary)] transition-all">
+                        <span className="material-symbols-outlined text-lg">person</span>
+                        My Repositories
                     </Link>
                 </div>
             </div>
 
             {/* Search */}
-            <div className="card border-0 shadow-sm rounded-4 mb-4">
-                <div className="card-body p-3">
-                    <form onSubmit={(e) => { e.preventDefault(); fetchRepositories(); }}>
-                        <div className="input-group">
-                            <span className="input-group-text bg-transparent border-end-0">
-                                <i className="bi bi-search"></i>
-                            </span>
-                            <input
-                                type="text"
-                                className="form-control border-start-0"
-                                placeholder="Search repositories by name, description or language..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                            <button type="submit" className="btn btn-primary">Search</button>
-                        </div>
-                    </form>
-                </div>
+            <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl p-4">
+                <form onSubmit={(e) => { e.preventDefault(); fetchRepositories(); }} className="flex gap-3">
+                    <div className="flex-1 relative">
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8]">search</span>
+                        <input
+                            type="text"
+                            placeholder="Search repositories by name, description or language..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3 bg-[var(--bg-tertiary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[#94a3b8] focus:border-[#137fec] transition"
+                        />
+                    </div>
+                    <button type="submit" className="px-5 py-3 bg-[#137fec] text-white rounded-xl font-bold text-sm hover:bg-[#1170d4] transition-all">
+                        Search
+                    </button>
+                </form>
             </div>
 
             {/* Repository Grid */}
             {isLoading ? (
-                <div className="text-center py-5">
-                    <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                    </div>
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-10 h-10 border-3 border-[rgba(19,127,236,0.2)] border-t-[#137fec] rounded-full animate-spin" />
                 </div>
             ) : repositories.length > 0 ? (
-                <div className="row row-cols-1 row-cols-md-2 g-4">
-                    {repositories.map((repo) => (
-                        <div key={repo.repositoryId} className="col">
-                            <div className="card h-100 border-0 shadow-sm rounded-4 hover-lift">
-                                <div className="card-body">
-                                    {/* Owner */}
-                                    <div className="d-flex align-items-center mb-2">
-                                        <img
-                                            src={repo.ownerProfilePicture || '/images/default-avatar.png'}
-                                            className="rounded-circle me-2"
-                                            width="32"
-                                            height="32"
-                                            alt={repo.ownerUsername}
-                                        />
-                                        <Link href={`/users/${repo.ownerId}`} className="text-decoration-none text-muted">
-                                            {repo.ownerUsername}
-                                        </Link>
+                <div className="grid md:grid-cols-2 gap-4">
+                    {repositories.map((repo, index) => (
+                        <div key={repo.repositoryId} className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden hover:border-[rgba(19,127,236,0.5)] transition-all group">
+                            {/* Gradient accent */}
+                            <div className={`h-1.5 bg-gradient-to-r ${gradients[index % gradients.length]}`} />
+                            <div className="p-5">
+                                {/* Owner */}
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${gradients[index % gradients.length]} flex items-center justify-center text-white text-xs font-bold`}>
+                                        {repo.ownerUsername?.charAt(0).toUpperCase() || '?'}
                                     </div>
-
-                                    {/* Name */}
-                                    <h5 className="card-title fw-bold">
-                                        <Link href={`/repositories/${repo.repositoryId}`} className="text-decoration-none text-dark">
-                                            {repo.repositoryName}
-                                        </Link>
-                                    </h5>
-
-                                    {/* Description */}
-                                    <p className="card-text text-muted">
-                                        {repo.description || <span className="fst-italic">No description provided</span>}
-                                    </p>
-
-                                    {/* Stats & Badges */}
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <div className="d-flex gap-2">
-                                            <span className="badge bg-secondary rounded-pill">{repo.defaultBranch || 'main'}</span>
-                                            <span className={`badge rounded-pill ${repo.visibility === 'Private' ? 'bg-danger' : 'bg-success'}`}>
-                                                {repo.visibility}
-                                            </span>
-                                            {repo.language && (
-                                                <span className="badge bg-primary rounded-pill">{repo.language}</span>
-                                            )}
-                                        </div>
-                                        <div className="d-flex gap-3 text-muted small">
-                                            <span><i className="bi bi-star me-1"></i>{repo.starsCount || 0}</span>
-                                            <span><i className="bi bi-diagram-2 me-1"></i>{repo.forksCount || 0}</span>
-                                        </div>
-                                    </div>
+                                    <Link href={`/users/${repo.ownerId}`} className="text-sm text-[#64748b] hover:text-[#137fec] transition-colors">
+                                        {repo.ownerUsername}
+                                    </Link>
                                 </div>
-                                <div className="card-footer bg-transparent border-0">
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <small className="text-muted">
-                                            <i className="bi bi-clock me-1"></i>
-                                            Updated {new Date(repo.updatedDate || repo.createdDate).toLocaleDateString()}
-                                        </small>
-                                        <Link href={`/repositories/${repo.repositoryId}`} className="btn btn-sm btn-outline-primary rounded-pill">
-                                            <i className="bi bi-code-square me-1"></i>View
-                                        </Link>
+
+                                {/* Name */}
+                                <Link href={`/repositories/${repo.repositoryId}`} className="text-lg font-bold text-[#0f172a] dark:text-white hover:text-[#137fec] dark:hover:text-[#137fec] transition-colors">
+                                    {repo.repositoryName}
+                                </Link>
+
+                                {/* Description */}
+                                <p className="text-[#475569] dark:text-[var(--text-secondary)] text-sm mt-2 line-clamp-2">
+                                    {repo.description || <span className="italic text-[#94a3b8]">No description provided</span>}
+                                </p>
+
+                                {/* Badges */}
+                                <div className="flex flex-wrap gap-2 mt-4">
+                                    <span className="px-3 py-1 rounded-full bg-[#f1f5f9] dark:bg-[var(--bg-tertiary)] text-xs font-bold text-[#64748b]">
+                                        {repo.defaultBranch || 'main'}
+                                    </span>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${repo.visibility === 'Private'
+                                        ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400'
+                                        : 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400'
+                                        }`}>
+                                        {repo.visibility}
+                                    </span>
+                                    {repo.language && (
+                                        <span className="px-3 py-1 rounded-full bg-[rgba(19,127,236,0.1)] text-xs font-bold text-[#137fec]">
+                                            {repo.language}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Footer stats */}
+                                <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#e2e8f0] dark:border-[var(--border-color)]">
+                                    <div className="flex gap-4 text-[#64748b] text-sm">
+                                        <span className="flex items-center gap-1">
+                                            <span className="material-symbols-outlined text-base">star</span>
+                                            {repo.starsCount || 0}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="material-symbols-outlined text-base">fork_right</span>
+                                            {repo.forksCount || 0}
+                                        </span>
                                     </div>
+                                    <span className="text-xs text-[#94a3b8]">
+                                        Updated {new Date(repo.updatedDate || repo.createdDate).toLocaleDateString()}
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-5">
-                    <div className="mb-4">
-                        <i className="bi bi-archive fs-1 text-muted"></i>
-                    </div>
-                    <h5>No repositories found</h5>
-                    <p className="text-muted mb-4">
+                <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <span className="material-symbols-outlined text-5xl text-[#94a3b8] mb-4 block">inventory_2</span>
+                    <h3 className="text-lg font-bold text-[#0f172a] dark:text-white mb-2">No repositories found</h3>
+                    <p className="text-[#64748b] mb-4">
                         {search ? 'Try a different search term' : 'Be the first to create a repository!'}
                     </p>
-                    <Link href="/repositories/create" className="btn btn-primary rounded-pill">
-                        <i className="bi bi-plus-circle me-2"></i>Create Repository
+                    <Link href="/repositories/create" className="inline-flex items-center gap-2 bg-[#137fec] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_4px_12px_rgba(19,127,236,0.2)] hover:bg-[#1170d4] transition-all">
+                        <span className="material-symbols-outlined text-lg">add_circle</span>
+                        Create Repository
                     </Link>
                 </div>
             )}
-        </div>
+        </AppLayout>
     );
 }
 
 export default function RepositoriesPage() {
     return (
         <Suspense fallback={
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
+            <AppLayout>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-3 border-[rgba(19,127,236,0.2)] border-t-[#137fec] rounded-full animate-spin" />
                 </div>
-            </div>
+            </AppLayout>
         }>
             <RepositoriesContent />
         </Suspense>

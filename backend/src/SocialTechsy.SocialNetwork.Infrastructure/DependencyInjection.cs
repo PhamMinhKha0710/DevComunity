@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
+using SocialTechsy.SocialNetwork.Infrastructure.External.Gitea;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Repositories;
 using SocialTechsy.SocialNetwork.Infrastructure.Services;
@@ -21,10 +22,8 @@ public static class DependencyInjection
         // Database context
         services.AddDbContext<SocialTechsySocialNetworkDbContext>(options =>
             options.UseSqlServer(
-                    configuration.GetConnectionString("DefaultConnection"),
-                    b => b.MigrationsAssembly(typeof(SocialTechsySocialNetworkDbContext).Assembly.FullName)
-                          .EnableRetryOnFailure(3))
-                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+                configuration.GetConnectionString("DefaultConnection"),
+                b => b.MigrationsAssembly(typeof(SocialTechsySocialNetworkDbContext).Assembly.FullName)));
 
         // Register repositories
         services.AddScoped<IQuestionRepository, QuestionRepository>();
@@ -46,16 +45,17 @@ public static class DependencyInjection
         services.AddScoped<IPostRepository, PostRepository>();
         services.AddScoped<ITagPreferenceRepository, TagPreferenceRepository>();
 
-
-        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
-        services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
-
         // Register services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<DataSeeder>();
-        services.AddSingleton<ICacheService, CacheService>();
+
+        // Gitea integration
+        services.Configure<GiteaConfiguration>(
+            configuration.GetSection(GiteaConfiguration.SectionName));
+        services.AddHttpClient<IGiteaService, GiteaService>();
 
         return services;
     }
 }
+

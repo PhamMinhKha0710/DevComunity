@@ -16,9 +16,9 @@ public class GetAnswersByQuestionQueryHandler
         _answerRepository = answerRepository;
     }
 
-    public async Task<PaginatedResponse<AnswerDto>> HandleAsync(GetAnswersByQuestionQuery query, CancellationToken cancellationToken = default)
+    public async Task<List<AnswerDto>> HandleAsync(GetAnswersByQuestionQuery query, CancellationToken cancellationToken = default)
     {
-        var (answers, totalCount) = await _answerRepository.GetByQuestionIdAsync(query.QuestionId, query.Page, query.PageSize, cancellationToken);
+        var answers = await _answerRepository.GetByQuestionIdAsync(query.QuestionId, cancellationToken);
 
         var answerDtos = answers.Select(a => new AnswerDto
         {
@@ -45,20 +45,15 @@ public class GetAnswersByQuestionQueryHandler
             }).ToList() ?? new List<CommentDto>()
         }).ToList();
 
+        // Sort answers
         answerDtos = query.Sort switch
         {
             "oldest" => answerDtos.OrderBy(a => a.CreatedDate).ToList(),
             "newest" => answerDtos.OrderByDescending(a => a.CreatedDate).ToList(),
-            _ => answerDtos.OrderByDescending(a => a.IsAccepted).ThenByDescending(a => a.Score).ToList()
+            _ => answerDtos.OrderByDescending(a => a.IsAccepted).ThenByDescending(a => a.Score).ToList() // votes
         };
 
-        return new PaginatedResponse<AnswerDto>
-        {
-            Items = answerDtos,
-            Page = query.Page,
-            PageSize = query.PageSize,
-            TotalCount = totalCount
-        };
+        return answerDtos;
     }
 }
 
