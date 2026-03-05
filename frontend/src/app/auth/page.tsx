@@ -40,6 +40,7 @@ function AuthContent() {
     const validateLoginForm = () => {
         const errors: Record<string, string> = {};
         if (!loginEmail.trim()) errors.email = 'Email is required';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail)) errors.email = 'Please enter a valid email address';
         if (!loginPassword) errors.password = 'Password is required';
         else if (loginPassword.length < 6) errors.password = 'Password must be at least 6 characters';
         setFieldErrors(errors);
@@ -49,10 +50,13 @@ function AuthContent() {
     const validateRegisterForm = () => {
         const errors: Record<string, string> = {};
         if (!fullName.trim()) errors.fullName = 'Full name is required';
+        else if (fullName.trim().length > 50) errors.fullName = 'Full name must be 50 characters or less';
+        else if (fullName.trim().length < 2) errors.fullName = 'Full name must be at least 2 characters';
         if (!registerEmail.trim()) errors.email = 'Email is required';
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail)) errors.email = 'Please enter a valid email';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail)) errors.email = 'Please enter a valid email address';
         if (!registerPassword) errors.password = 'Password is required';
-        else if (registerPassword.length < 6) errors.password = 'Password must be at least 6 characters';
+        else if (registerPassword.length < 8) errors.password = 'Password must be at least 8 characters';
+        else if (!/(?=.*[A-Z])(?=.*[0-9])/.test(registerPassword)) errors.password = 'Password must contain at least one uppercase letter and one number';
         if (!confirmPassword) errors.confirmPassword = 'Please confirm your password';
         else if (registerPassword !== confirmPassword) errors.confirmPassword = 'Passwords do not match';
         if (!agreeTerms) errors.terms = 'You must agree to the terms';
