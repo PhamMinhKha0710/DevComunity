@@ -50,3 +50,13 @@ public class RefreshTokenCommand
     [Required]
     public string RefreshToken { get; set; } = null!;
 }
+
+/// <summary>
+/// Command for forgot password
+/// </summary>
+public class ForgotPasswordCommand
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = null!;
+}
