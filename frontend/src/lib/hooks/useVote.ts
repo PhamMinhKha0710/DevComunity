@@ -43,8 +43,8 @@ export function useVote(
             const newVoteType = voteType === state.userVote ? 'none' : voteType;
 
             const endpoint = itemType === 'question'
-                ? `/votes/questions/${itemId}`
-                : `/votes/answers/${itemId}`;
+                ? `/votes/question/${itemId}`
+                : `/votes/answer/${itemId}`;
 
             if (newVoteType === 'none') {
                 // Remove vote

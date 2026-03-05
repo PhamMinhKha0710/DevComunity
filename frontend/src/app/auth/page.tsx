@@ -69,7 +69,14 @@ function AuthContent() {
             await login({ email: loginEmail, password: loginPassword });
             router.push('/');
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+            const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
+            if (axiosErr?.response?.status === 401) {
+                setError('Invalid email or password. Please try again.');
+            } else if (axiosErr?.response?.status === 400) {
+                setError(axiosErr.response.data?.message || 'Invalid input. Please check your data.');
+            } else {
+                setError('Login failed. Please try again later.');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -90,7 +97,12 @@ function AuthContent() {
             });
             router.push('/');
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+            const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
+            if (axiosErr?.response?.data?.message) {
+                setError(axiosErr.response.data.message);
+            } else {
+                setError('Registration failed. Please try again later.');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -150,7 +162,7 @@ function AuthContent() {
                             >
                                 <div className="max-w-sm mx-auto w-full">
                                     <h2 className="text-3xl lg:text-4xl font-black text-gray-800 mb-2 tracking-tight">
-                                        Create <span className="text-[var(--primary)]">Account</span>
+                                        Create <span className="text-orange-500">Account</span>
                                     </h2>
                                     <p className="text-gray-500 mb-6">Join our community of developers</p>
 
@@ -166,9 +178,9 @@ function AuthContent() {
                                             <input
                                                 type="text"
                                                 value={fullName}
-                                                onChange={(e) => setFullName(e.target.value)}
+                                                onChange={(e) => { setFullName(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.fullName; return n; }); }}
                                                 placeholder="John Doe"
-                                                className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.fullName ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-[var(--primary)] focus:bg-white outline-none transition-all`}
+                                                className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.fullName ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all`}
                                             />
                                             {fieldErrors.fullName && <p className="text-red-500 text-xs mt-1">{fieldErrors.fullName}</p>}
                                         </div>
@@ -178,9 +190,9 @@ function AuthContent() {
                                             <input
                                                 type="email"
                                                 value={registerEmail}
-                                                onChange={(e) => setRegisterEmail(e.target.value)}
+                                                onChange={(e) => { setRegisterEmail(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.email; return n; }); }}
                                                 placeholder="you@example.com"
-                                                className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-[var(--primary)] focus:bg-white outline-none transition-all`}
+                                                className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all`}
                                             />
                                             {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
                                         </div>
@@ -191,16 +203,16 @@ function AuthContent() {
                                                 <input
                                                     type={showRegisterPassword ? 'text' : 'password'}
                                                     value={registerPassword}
-                                                    onChange={(e) => setRegisterPassword(e.target.value)}
+                                                    onChange={(e) => { setRegisterPassword(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.password; return n; }); }}
                                                     placeholder="••••••••"
-                                                    className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-[var(--primary)] focus:bg-white outline-none transition-all pr-12`}
+                                                    className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all pr-12`}
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowRegisterPassword(!showRegisterPassword)}
                                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                                                 >
-                                                    <span className="material-symbols-outlined text-lg">{showRegisterPassword ? 'visibility_off' : 'visibility'}</span>
+                                                    <i className={`bi ${showRegisterPassword ? 'bi-eye-slash' : 'bi-eye'} text-lg`}></i>
                                                 </button>
                                             </div>
                                             {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
@@ -212,16 +224,16 @@ function AuthContent() {
                                                 <input
                                                     type={showConfirmPassword ? 'text' : 'password'}
                                                     value={confirmPassword}
-                                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                                    onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.confirmPassword; return n; }); }}
                                                     placeholder="••••••••"
-                                                    className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.confirmPassword ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-[var(--primary)] focus:bg-white outline-none transition-all pr-12`}
+                                                    className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.confirmPassword ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all pr-12`}
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                                                 >
-                                                    <span className="material-symbols-outlined text-lg">{showConfirmPassword ? 'visibility_off' : 'visibility'}</span>
+                                                    <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'} text-lg`}></i>
                                                 </button>
                                             </div>
                                             {fieldErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{fieldErrors.confirmPassword}</p>}
@@ -232,11 +244,11 @@ function AuthContent() {
                                                 type="checkbox"
                                                 id="terms"
                                                 checked={agreeTerms}
-                                                onChange={(e) => setAgreeTerms(e.target.checked)}
-                                                className="w-4 h-4 mt-1 rounded border-gray-300 text-[var(--primary)] focus:ring-[var(--primary)]"
+                                                onChange={(e) => { setAgreeTerms(e.target.checked); setFieldErrors(prev => { const n = {...prev}; delete n.terms; return n; }); }}
+                                                className="w-4 h-4 mt-1 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                                             />
                                             <label htmlFor="terms" className="text-gray-600 text-sm">
-                                                I agree to the <Link href="/terms" className="text-[var(--primary)] hover:underline">Terms</Link> and <Link href="/privacy" className="text-[var(--primary)] hover:underline">Privacy</Link>
+                                                I agree to the <Link href="/terms" className="text-orange-500 hover:underline">Terms</Link> and <Link href="/privacy" className="text-orange-500 hover:underline">Privacy</Link>
                                             </label>
                                         </div>
                                         {fieldErrors.terms && <p className="text-red-500 text-xs">{fieldErrors.terms}</p>}
@@ -244,7 +256,7 @@ function AuthContent() {
                                         <button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="w-full py-3.5 bg-[var(--primary)] text-white rounded-xl font-bold text-lg hover:bg-[var(--primary-dark)] active:scale-[0.98] transition-all shadow-lg shadow-[var(--primary)]/30 disabled:opacity-70"
+                                            className="w-full py-3.5 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 disabled:opacity-70"
                                         >
                                             {isLoading ? 'Creating Account...' : 'Create Account'}
                                         </button>
@@ -252,7 +264,7 @@ function AuthContent() {
 
                                     <p className="text-center mt-6 text-gray-500 lg:hidden">
                                         Already have an account?{' '}
-                                        <button onClick={toggleMode} className="text-[var(--primary)] font-semibold hover:underline">
+                                        <button onClick={toggleMode} className="text-orange-500 font-semibold hover:underline">
                                             Sign In
                                         </button>
                                     </p>
@@ -269,7 +281,7 @@ function AuthContent() {
                             >
                                 <div className="max-w-sm mx-auto w-full">
                                     <h2 className="text-3xl lg:text-4xl font-black text-gray-800 mb-2 tracking-tight">
-                                        Sign <span className="text-[var(--primary)]">In</span>
+                                        Sign <span className="text-orange-500">In</span>
                                     </h2>
                                     <p className="text-gray-500 mb-6">Enter your credentials to continue</p>
 
@@ -285,9 +297,9 @@ function AuthContent() {
                                             <input
                                                 type="text"
                                                 value={loginEmail}
-                                                onChange={(e) => setLoginEmail(e.target.value)}
+                                                onChange={(e) => { setLoginEmail(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.email; return n; }); }}
                                                 placeholder="you@example.com"
-                                                className={`w-full px-4 py-3.5 bg-gray-50 border-2 ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-[var(--primary)] focus:bg-white outline-none transition-all text-lg`}
+                                                className={`w-full px-4 py-3.5 bg-gray-50 border-2 ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all text-lg`}
                                             />
                                             {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
                                         </div>
@@ -295,7 +307,7 @@ function AuthContent() {
                                         <div>
                                             <div className="flex justify-between items-center mb-2">
                                                 <label className="text-gray-700 text-sm font-semibold">Password</label>
-                                                <Link href="/forgot-password" className="text-[var(--primary)] text-sm hover:underline font-medium">
+                                                <Link href="/forgot-password" className="text-orange-500 text-sm hover:underline font-medium">
                                                     Forgot password?
                                                 </Link>
                                             </div>
@@ -303,30 +315,30 @@ function AuthContent() {
                                                 <input
                                                     type={showLoginPassword ? 'text' : 'password'}
                                                     value={loginPassword}
-                                                    onChange={(e) => setLoginPassword(e.target.value)}
+                                                    onChange={(e) => { setLoginPassword(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.password; return n; }); }}
                                                     placeholder="••••••••"
-                                                    className={`w-full px-4 py-3.5 bg-gray-50 border-2 ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-[var(--primary)] focus:bg-white outline-none transition-all pr-12 text-lg`}
+                                                    className={`w-full px-4 py-3.5 bg-gray-50 border-2 ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all pr-12 text-lg`}
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowLoginPassword(!showLoginPassword)}
                                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                                                 >
-                                                    <span className="material-symbols-outlined text-xl">{showLoginPassword ? 'visibility_off' : 'visibility'}</span>
+                                                    <i className={`bi ${showLoginPassword ? 'bi-eye-slash' : 'bi-eye'} text-xl`}></i>
                                                 </button>
                                             </div>
                                             {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
                                         </div>
 
                                         <div className="flex items-center gap-2">
-                                            <input type="checkbox" id="remember" className="w-4 h-4 rounded border-gray-300 text-[var(--primary)] focus:ring-[var(--primary)]" />
+                                            <input type="checkbox" id="remember" className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500" />
                                             <label htmlFor="remember" className="text-gray-600 text-sm">Remember me</label>
                                         </div>
 
                                         <button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="w-full py-4 bg-[var(--primary)] text-white rounded-xl font-bold text-lg hover:bg-[var(--primary-dark)] active:scale-[0.98] transition-all shadow-lg shadow-[var(--primary)]/30 disabled:opacity-70"
+                                            className="w-full py-4 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 disabled:opacity-70"
                                         >
                                             {isLoading ? 'Signing In...' : 'Sign In'}
                                         </button>
@@ -340,19 +352,19 @@ function AuthContent() {
 
                                     <div className="grid grid-cols-3 gap-3">
                                         <button className="flex items-center justify-center py-3 bg-gray-50 border-2 border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all">
-                                            <span className="material-symbols-outlined text-xl text-gray-600">public</span>
+                                            <i className="bi bi-google text-xl text-gray-600"></i>
                                         </button>
                                         <button className="flex items-center justify-center py-3 bg-gray-50 border-2 border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all">
-                                            <span className="material-symbols-outlined text-xl text-gray-600">code</span>
+                                            <i className="bi bi-github text-xl text-gray-600"></i>
                                         </button>
                                         <button className="flex items-center justify-center py-3 bg-gray-50 border-2 border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all">
-                                            <span className="material-symbols-outlined text-xl text-gray-600">alternate_email</span>
+                                            <i className="bi bi-twitter-x text-xl text-gray-600"></i>
                                         </button>
                                     </div>
 
                                     <p className="text-center mt-6 text-gray-500 lg:hidden">
                                         Don&apos;t have an account?{' '}
-                                        <button onClick={toggleMode} className="text-[var(--primary)] font-semibold hover:underline">
+                                        <button onClick={toggleMode} className="text-orange-500 font-semibold hover:underline">
                                             Sign Up
                                         </button>
                                     </p>
@@ -361,7 +373,7 @@ function AuthContent() {
 
                             {/* Gradient Overlay for Register Mode */}
                             <div
-                                className={`absolute inset-0 bg-[var(--primary)] flex items-center justify-center transition-all duration-700 ease-in-out ${!isLoginMode ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+                                className={`absolute inset-0 bg-orange-500 flex items-center justify-center transition-all duration-700 ease-in-out ${!isLoginMode ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
                                     }`}
                             >
                                 <div className="text-center p-8 lg:p-12 text-white max-w-md">
@@ -417,7 +429,7 @@ export default function AuthPage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
             </div>
         }>
             <AuthContent />
