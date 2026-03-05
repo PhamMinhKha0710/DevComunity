@@ -19,17 +19,20 @@ public class AuthController : ControllerBase
     private readonly RegisterCommandHandler _registerHandler;
     private readonly LoginCommandHandler _loginHandler;
     private readonly GetCurrentUserQueryHandler _getCurrentUserHandler;
+    private readonly ForgotPasswordCommandHandler _forgotPasswordHandler;
 
     public AuthController(
         ILogger<AuthController> logger,
         RegisterCommandHandler registerHandler,
         LoginCommandHandler loginHandler,
-        GetCurrentUserQueryHandler getCurrentUserHandler)
+        GetCurrentUserQueryHandler getCurrentUserHandler,
+        ForgotPasswordCommandHandler forgotPasswordHandler)
     {
         _logger = logger;
         _registerHandler = registerHandler;
         _loginHandler = loginHandler;
         _getCurrentUserHandler = getCurrentUserHandler;
+        _forgotPasswordHandler = forgotPasswordHandler;
     }
 
     /// <summary>
@@ -88,6 +91,28 @@ public class AuthController : ControllerBase
             return Unauthorized(result);
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Request password reset
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { message = "Please provide a valid email address" });
+        }
+
+        _logger.LogInformation("Password reset requested for: {Email}", command.Email);
+
+        var result = await _forgotPasswordHandler.HandleAsync(command, cancellationToken);
+
+        // Always return 200 to prevent email enumeration
+        return Ok(new { success = true, message = result.Message });
     }
 
     /// <summary>
