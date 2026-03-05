@@ -31,7 +31,7 @@ export default function SavedItemsPage() {
 
     const fetchSavedItems = async () => {
         try {
-            const response = await apiClient.get<{ items: SavedItem[] }>('/saved');
+            const response = await apiClient.get<{ items: SavedItem[] }>('/SavedItems');
             setSavedItems(response.data.items || []);
         } catch (error) {
             console.error('Failed to fetch saved items:', error);
@@ -44,7 +44,7 @@ export default function SavedItemsPage() {
         e.preventDefault();
         e.stopPropagation();
         try {
-            await apiClient.delete(`/saved/${id}`);
+            await apiClient.delete(`/SavedItems/${id}`);
             setSavedItems(prev => prev.filter(item => item.savedItemId !== id));
         } catch (error) {
             console.error('Failed to remove saved item:', error);
@@ -75,7 +75,7 @@ export default function SavedItemsPage() {
             {/* Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <i className="bi bi-bookmark-fill text-[var(--primary)]"></i>
+                    <span className="material-symbols-outlined text-[var(--primary)]">bookmark</span>
                     Saved Items
                 </h1>
                 <p className="text-[var(--text-muted)]">Your personal collection of questions and answers</p>
@@ -99,7 +99,7 @@ export default function SavedItemsPage() {
                             : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
                         }`}
                 >
-                    <i className="bi bi-question-circle"></i>
+                    <span className="material-symbols-outlined">help</span>
                     Questions ({savedItems.filter(i => i.targetType === 'Question').length})
                 </button>
                 <button
@@ -109,7 +109,7 @@ export default function SavedItemsPage() {
                             : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
                         }`}
                 >
-                    <i className="bi bi-chat-left-text"></i>
+                    <span className="material-symbols-outlined">chat</span>
                     Answers ({savedItems.filter(i => i.targetType === 'Answer').length})
                 </button>
             </div>
@@ -128,7 +128,7 @@ export default function SavedItemsPage() {
                                         ? 'bg-blue-500/10 text-blue-500'
                                         : 'bg-green-500/10 text-green-500'
                                     }`}>
-                                    <i className={`bi ${item.targetType === 'Question' ? 'bi-question-lg' : 'bi-chat-left-text'}`}></i>
+                                    <span className="material-symbols-outlined">{item.targetType === 'Question' ? 'help' : 'chat'}</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between">
@@ -152,7 +152,7 @@ export default function SavedItemsPage() {
                                             className="p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition"
                                             title="Remove from saved"
                                         >
-                                            <i className="bi bi-bookmark-x-fill text-lg"></i>
+                                            <span className="material-symbols-outlined text-lg">bookmark_remove</span>
                                         </button>
                                     </div>
                                     <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
@@ -164,7 +164,7 @@ export default function SavedItemsPage() {
                                         }
                                     </p>
                                     <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
-                                        <i className="bi bi-clock"></i>
+                                        <span className="material-symbols-outlined">schedule</span>
                                         Saved on {new Date(item.createdDate).toLocaleDateString()}
                                     </div>
                                 </div>
@@ -174,7 +174,7 @@ export default function SavedItemsPage() {
                 </div>
             ) : (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
-                    <i className="bi bi-bookmark text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <span className="material-symbols-outlined text-5xl text-[var(--text-muted)] mb-4">bookmark</span>
                     <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No saved items found</h3>
                     <p className="text-[var(--text-muted)] mb-6">
                         {filter === 'all'

@@ -46,7 +46,7 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
                 onClick={onClose}
                 className="absolute top-4 right-4 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-2xl transition z-10"
             >
-                <i className="bi bi-x-lg"></i>
+                <span className="material-symbols-outlined">close</span>
             </button>
 
             {/* Download button */}
@@ -58,7 +58,7 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
                 onClick={(e) => e.stopPropagation()}
                 className="absolute top-4 right-20 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl transition z-10"
             >
-                <i className="bi bi-download"></i>
+                <span className="material-symbols-outlined">download</span>
             </a>
 
             {/* Media content */}

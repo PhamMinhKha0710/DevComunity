@@ -47,16 +47,17 @@ public class QuestionRepository : IQuestionRepository
     {
         var query = _context.Questions
             .Include(q => q.User)
+            .Include(q => q.Answers)
             .Include(q => q.QuestionTags)
                 .ThenInclude(qt => qt.Tag)
             .AsQueryable();
 
+        // Filter by search term
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = searchTerm.Trim();
-            query = query.Where(q =>
-                EF.Functions.Like(q.Title, $"%{term}%") ||
-                EF.Functions.Like(q.Body, $"%{term}%"));
+            query = query.Where(q => 
+                q.Title.Contains(searchTerm) || 
+                q.Body.Contains(searchTerm));
         }
 
         // Filter by tag

@@ -27,7 +27,9 @@ secrets.json
 # ========================
 # NEXT.JS / FRONTEND
 # ========================
-# Build output
+# Build output & Turbopack cache (avoid pushing large .sst files)
+.next/
+**/.next/
 frontend/.next/
 frontend/out/
 frontend/build/

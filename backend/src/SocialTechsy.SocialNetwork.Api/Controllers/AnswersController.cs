@@ -45,12 +45,10 @@ public class AnswersController : ControllerBase
     /// Get answers for a question
     /// </summary>
     [HttpGet("question/{questionId:int}")]
-    [ProducesResponseType(typeof(PaginatedResponse<AnswerDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<PaginatedResponse<AnswerDto>>> GetAnswersByQuestion(
+    [ProducesResponseType(typeof(List<AnswerDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<AnswerDto>>> GetAnswersByQuestion(
         int questionId,
         [FromQuery] string sort = "votes",
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting answers for question {QuestionId}", questionId);
@@ -58,9 +56,7 @@ public class AnswersController : ControllerBase
         var query = new GetAnswersByQuestionQuery
         {
             QuestionId = questionId,
-            Sort = sort,
-            Page = page,
-            PageSize = pageSize
+            Sort = sort
         };
 
         var result = await _getAnswersByQuestionHandler.HandleAsync(query, cancellationToken);

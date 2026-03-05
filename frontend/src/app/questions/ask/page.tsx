@@ -51,7 +51,7 @@ export default function AskQuestionPage() {
         return (
             <AppLayout showRightSidebar={false}>
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <i className="bi bi-lock-fill text-5xl text-[var(--text-muted)] mb-4"></i>
+                    <span className="material-symbols-outlined text-5xl text-[var(--text-muted)] mb-4">lock</span>
                     <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Please log in to ask a question</h2>
                     <p className="text-[var(--text-muted)] mb-6">You need to be signed in to participate in discussions</p>
                     <Link href="/login" className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition">
@@ -67,7 +67,7 @@ export default function AskQuestionPage() {
             {/* Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <i className="bi bi-question-circle-fill text-[var(--primary)]"></i>
+                    <span className="material-symbols-outlined text-[var(--primary)]">help</span>
                     Ask a Question
                 </h1>
                 <p className="text-[var(--text-muted)]">Get help from the community by asking a well-crafted question</p>
@@ -75,7 +75,7 @@ export default function AskQuestionPage() {
 
             {error && (
                 <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-500 flex items-center gap-2">
-                    <i className="bi bi-exclamation-circle"></i>
+                    <span className="material-symbols-outlined">error</span>
                     {error}
                 </div>
             )}
@@ -163,7 +163,7 @@ export default function AskQuestionPage() {
                             </>
                         ) : (
                             <>
-                                <i className="bi bi-send"></i>
+                                <span className="material-symbols-outlined">send</span>
                                 Post your question
                             </>
                         )}

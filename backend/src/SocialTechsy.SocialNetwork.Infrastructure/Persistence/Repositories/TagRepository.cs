@@ -39,6 +39,7 @@ public class TagRepository : ITagRepository
         CancellationToken cancellationToken = default)
     {
         var query = _context.Tags
+            .Include(t => t.QuestionTags)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -86,6 +87,7 @@ public class TagRepository : ITagRepository
     public async Task<IEnumerable<Tag>> GetPopularTagsAsync(int count = 10, CancellationToken cancellationToken = default)
     {
         return await _context.Tags
+            .Include(t => t.QuestionTags)
             .OrderByDescending(t => t.QuestionTags.Count)
             .Take(count)
             .ToListAsync(cancellationToken);

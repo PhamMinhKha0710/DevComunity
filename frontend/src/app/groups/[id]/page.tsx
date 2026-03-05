@@ -169,18 +169,18 @@ export default function GroupDetailPage() {
                         <div>
                             <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2 flex items-center gap-2">
                                 {group.name}
-                                {group.isPrivate && <i className="bi bi-lock-fill text-[var(--text-muted)] text-base"></i>}
+                                {group.isPrivate && <span className="material-symbols-outlined text-[var(--text-muted)] text-base">lock</span>}
                             </h1>
                             <p className="text-[var(--text-secondary)] max-w-2xl mb-4">
                                 {group.description || 'No description available.'}
                             </p>
                             <div className="flex items-center gap-4 text-sm text-[var(--text-muted)]">
                                 <span className="flex items-center gap-1">
-                                    <i className="bi bi-people-fill"></i>
+                                    <span className="material-symbols-outlined">group</span>
                                     {group.memberCount} members
                                 </span>
                                 <span className="flex items-center gap-1">
-                                    <i className="bi bi-calendar3"></i>
+                                    <span className="material-symbols-outlined">calendar_today</span>
                                     Created {formatDate(group.createdAt)}
                                 </span>
                             </div>
@@ -194,9 +194,9 @@ export default function GroupDetailPage() {
                                     }`}
                             >
                                 {isMember ? (
-                                    <><i className="bi bi-box-arrow-right"></i> Leave Group</>
+                                    <><span className="material-symbols-outlined">logout</span> Leave Group</>
                                 ) : (
-                                    <><i className="bi bi-person-plus-fill"></i> Join Group</>
+                                    <><span className="material-symbols-outlined">person_add</span> Join Group</>
                                 )}
                             </button>
                         )}
@@ -257,10 +257,10 @@ export default function GroupDetailPage() {
                                     </p>
                                     <div className="flex items-center gap-4 text-[var(--text-muted)] pt-4 border-t border-[var(--border-color)]">
                                         <button className="flex items-center gap-2 hover:text-[var(--primary)] transition">
-                                            <i className="bi bi-heart"></i> Like
+                                            <span className="material-symbols-outlined">favorite</span> Like
                                         </button>
                                         <button className="flex items-center gap-2 hover:text-[var(--primary)] transition">
-                                            <i className="bi bi-chat"></i> Comment
+                                            <span className="material-symbols-outlined">chat</span> Comment
                                         </button>
                                     </div>
                                 </div>
@@ -268,7 +268,7 @@ export default function GroupDetailPage() {
                         </div>
                     ) : (
                         <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
-                            <i className="bi bi-chat-square-text text-5xl text-[var(--text-muted)] mb-4"></i>
+                            <span className="material-symbols-outlined text-5xl text-[var(--text-muted)] mb-4">chat</span>
                             <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No posts yet</h3>
                             <p className="text-[var(--text-muted)]">Be the first to share something in this group!</p>
                         </div>
@@ -281,11 +281,11 @@ export default function GroupDetailPage() {
                         <h3 className="font-bold text-[var(--text-primary)] mb-4">About</h3>
                         <div className="space-y-3 text-sm text-[var(--text-muted)]">
                             <div className="flex items-center gap-2">
-                                <i className="bi bi-globe"></i>
+                                <span className="material-symbols-outlined">public</span>
                                 <span>Public Group</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <i className="bi bi-clock-history"></i>
+                                <span className="material-symbols-outlined">history</span>
                                 <span>Active today</span>
                             </div>
                         </div>
@@ -294,7 +294,7 @@ export default function GroupDetailPage() {
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
                         <h3 className="font-bold text-[var(--text-primary)] mb-4">Admins</h3>
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
                                 A
                             </div>
                             <span className="text-sm font-medium text-[var(--text-primary)]">Admin User</span>

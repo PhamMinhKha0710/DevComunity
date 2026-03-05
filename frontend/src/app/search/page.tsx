@@ -74,9 +74,9 @@ function SearchContent() {
         return (
             <div className="text-center py-20">
                 <div className="inline-block p-4 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] mb-4 shadow-sm">
-                    <i className="bi bi-search text-4xl text-[var(--primary)]"></i>
+                    <span className="material-symbols-outlined text-4xl text-[var(--primary)]">search</span>
                 </div>
-                <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Search DevCommunity</h2>
+                <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Search SocialTechsy</h2>
                 <p className="text-[var(--text-secondary)]">Enter a keyword to find questions, users, or topics.</p>
             </div>
         );
@@ -129,7 +129,7 @@ function SearchContent() {
                         <div className="space-y-4">
                             {activeTab === 'all' && (
                                 <h3 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-                                    <i className="bi bi-question-circle-fill text-blue-500"></i> Questions
+                                    <span className="material-symbols-outlined text-blue-500">help</span> Questions
                                 </h3>
                             )}
                             <div className="grid gap-4">
@@ -175,7 +175,7 @@ function SearchContent() {
                         <div className="space-y-4">
                             {activeTab === 'all' && (
                                 <h3 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-                                    <i className="bi bi-people-fill text-purple-500"></i> Users
+                                    <span className="material-symbols-outlined text-purple-500">group</span> Users
                                 </h3>
                             )}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -193,7 +193,7 @@ function SearchContent() {
                                                 {user.displayName || user.username}
                                             </Link>
                                             <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                                                <i className="bi bi-trophy-fill text-yellow-500 text-xs"></i>
+                                                <span className="material-symbols-outlined text-yellow-500 text-xs">emoji_events</span>
                                                 <span>{user.reputationPoints} reputation</span>
                                             </div>
                                         </div>
@@ -208,7 +208,7 @@ function SearchContent() {
                         <div className="space-y-4">
                             {activeTab === 'all' && (
                                 <h3 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-                                    <i className="bi bi-tags-fill text-orange-500"></i> Tags
+                                    <span className="material-symbols-outlined text-[var(--primary)]">sell</span> Tags
                                 </h3>
                             )}
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -230,7 +230,7 @@ function SearchContent() {
             ) : (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-16 text-center">
                     <div className="w-20 h-20 bg-[var(--bg-tertiary)] rounded-full flex items-center justify-center mx-auto mb-6">
-                        <i className="bi bi-search text-3xl text-[var(--text-muted)]"></i>
+                        <span className="material-symbols-outlined text-3xl text-[var(--text-muted)]">search</span>
                     </div>
                     <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">No results found</h3>
                     <p className="text-[var(--text-secondary)] max-w-md mx-auto">

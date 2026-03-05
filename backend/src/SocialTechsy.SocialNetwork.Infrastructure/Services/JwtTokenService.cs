@@ -96,13 +96,12 @@ public class JwtTokenService : IJwtTokenService
 
     public bool ValidateRefreshToken(string token)
     {
-        if (string.IsNullOrWhiteSpace(token))
-            return false;
-
+        // In a real application, you would validate the refresh token against a stored token
+        // For now, just check if it's a valid base64 string
         try
         {
-            var bytes = Convert.FromBase64String(token);
-            return bytes.Length == 64;
+            Convert.FromBase64String(token);
+            return true;
         }
         catch
         {

@@ -74,7 +74,7 @@ const MediaPicker: React.FC<MediaPickerProps> = ({ onFileSelect, onClose, isOpen
             type: '.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar', 
             icon: '📎', 
             label: 'File', 
-            color: 'from-orange-500 to-amber-500' 
+            color: 'from-blue-500 to-sky-500' 
         },
     ];
 

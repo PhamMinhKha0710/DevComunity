@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import type { User, Question, Answer } from '@/types';
 import apiClient from '@/lib/api/client';
+import AppLayout from '@/components/AppLayout';
 
 interface UserProfile extends User {
     bio?: string;
@@ -21,7 +22,6 @@ export default function UserProfilePage() {
     const userId = params.id as string;
     const [user, setUser] = useState<UserProfile | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
-    const [answers, setAnswers] = useState<Answer[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'questions' | 'answers' | 'about'>('questions');
 
@@ -46,233 +46,190 @@ export default function UserProfilePage() {
 
     if (isLoading) {
         return (
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
+            <AppLayout>
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-10 h-10 border-3 border-[rgba(19,127,236,0.2)] border-t-[#137fec] rounded-full animate-spin" />
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
     if (!user) {
         return (
-            <div className="container py-5 text-center">
-                <i className="bi bi-person-x fs-1 text-muted mb-3"></i>
-                <h3>User not found</h3>
-                <Link href="/users" className="btn btn-primary mt-3">Browse Users</Link>
-            </div>
+            <AppLayout>
+                <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl p-12 text-center">
+                    <span className="material-symbols-outlined text-5xl text-[#94a3b8] mb-4 block">person_remove</span>
+                    <h3 className="text-lg font-bold text-[#0f172a] dark:text-white mb-2">User not found</h3>
+                    <Link href="/users" className="inline-flex items-center gap-2 bg-[#137fec] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#1170d4] transition-all mt-4">
+                        Browse Users
+                    </Link>
+                </div>
+            </AppLayout>
         );
     }
 
+    const tabs = [
+        { id: 'questions' as const, label: `Questions (${questions.length})`, icon: 'help' },
+        { id: 'answers' as const, label: `Answers (${user.answerCount || 0})`, icon: 'chat' },
+        { id: 'about' as const, label: 'About', icon: 'person' },
+    ];
+
     return (
-        <div className="container py-4">
+        <AppLayout>
             {/* Profile Header */}
-            <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-                <div className="bg-primary text-white p-4" style={{
-                    background: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)'
-                }}>
-                    <div className="row align-items-center">
-                        <div className="col-auto">
-                            <img
-                                src={user.profilePicture || '/images/default-avatar.png'}
-                                className="rounded-circle border border-3 border-white"
-                                width="120"
-                                height="120"
-                                alt={user.displayName || user.username}
-                            />
-                        </div>
-                        <div className="col">
-                            <h1 className="fw-bold mb-1">{user.displayName || user.username}</h1>
-                            <p className="mb-2 opacity-75">@{user.username}</p>
+            <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden mb-6">
+                <div className="h-32 bg-gradient-to-r from-[#6a11cb] to-[#2575fc]" />
+                <div className="px-6 pb-6 -mt-12">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+                        <img
+                            src={user.profilePicture || '/images/default-avatar.png'}
+                            className="w-24 h-24 rounded-2xl border-4 border-white dark:border-[var(--bg-secondary)] object-cover"
+                            alt={user.displayName || user.username}
+                        />
+                        <div className="flex-1">
+                            <h1 className="text-2xl font-black text-[#0f172a] dark:text-white">{user.displayName || user.username}</h1>
+                            <p className="text-[#64748b] text-sm">@{user.username}</p>
                             {user.location && (
-                                <p className="mb-0 small">
-                                    <i className="bi bi-geo-alt me-1"></i>{user.location}
+                                <p className="text-[#64748b] text-sm flex items-center gap-1 mt-1">
+                                    <span className="material-symbols-outlined text-sm">location_on</span>{user.location}
                                 </p>
                             )}
                         </div>
-                        <div className="col-auto">
-                            <div className="d-flex gap-3 text-center">
-                                <div className="bg-white bg-opacity-10 rounded-3 px-3 py-2">
-                                    <div className="fw-bold fs-5">{user.reputationPoints || 0}</div>
-                                    <small className="text-uppercase opacity-75" style={{ letterSpacing: '1px', fontSize: '0.7rem' }}>Reputation</small>
+                        <div className="flex gap-3">
+                            {[
+                                { value: user.reputationPoints || 0, label: 'Reputation' },
+                                { value: questions.length, label: 'Questions' },
+                                { value: user.answerCount || 0, label: 'Answers' },
+                            ].map(stat => (
+                                <div key={stat.label} className="text-center px-4 py-2 bg-[#f1f5f9] dark:bg-[var(--bg-tertiary)] rounded-xl">
+                                    <div className="text-lg font-bold text-[#0f172a] dark:text-white">{stat.value}</div>
+                                    <div className="text-[10px] uppercase tracking-wider text-[#64748b] font-bold">{stat.label}</div>
                                 </div>
-                                <div className="bg-white bg-opacity-10 rounded-3 px-3 py-2">
-                                    <div className="fw-bold fs-5">{questions.length}</div>
-                                    <small className="text-uppercase opacity-75" style={{ letterSpacing: '1px', fontSize: '0.7rem' }}>Questions</small>
-                                </div>
-                                <div className="bg-white bg-opacity-10 rounded-3 px-3 py-2">
-                                    <div className="fw-bold fs-5">{user.answerCount || 0}</div>
-                                    <small className="text-uppercase opacity-75" style={{ letterSpacing: '1px', fontSize: '0.7rem' }}>Answers</small>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="row">
+            <div className="grid lg:grid-cols-3 gap-6">
                 {/* Main Content */}
-                <div className="col-lg-8">
+                <div className="lg:col-span-2 space-y-4">
                     {/* Tabs */}
-                    <ul className="nav nav-tabs mb-4">
-                        <li className="nav-item">
+                    <div className="flex gap-1 bg-[#f1f5f9] dark:bg-[var(--bg-tertiary)] rounded-xl p-1 w-fit">
+                        {tabs.map(tab => (
                             <button
-                                className={`nav-link ${activeTab === 'questions' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('questions')}
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === tab.id ? 'bg-white dark:bg-[var(--bg-secondary)] text-[#0f172a] dark:text-white shadow-sm' : 'text-[#64748b] hover:text-[#0f172a] dark:hover:text-white'}`}
                             >
-                                <i className="bi bi-question-circle me-1"></i>Questions ({questions.length})
+                                <span className="material-symbols-outlined text-base">{tab.icon}</span>
+                                {tab.label}
                             </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link ${activeTab === 'answers' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('answers')}
-                            >
-                                <i className="bi bi-chat-left-text me-1"></i>Answers ({user.answerCount || 0})
-                            </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link ${activeTab === 'about' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('about')}
-                            >
-                                <i className="bi bi-person me-1"></i>About
-                            </button>
-                        </li>
-                    </ul>
+                        ))}
+                    </div>
 
-                    {/* Tab Content */}
+                    {/* Questions Tab */}
                     {activeTab === 'questions' && (
-                        <div className="card border-0 shadow-sm rounded-4">
+                        <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden">
                             {questions.length > 0 ? (
-                                <div className="list-group list-group-flush">
-                                    {questions.map((q) => (
-                                        <Link
-                                            key={q.questionId}
-                                            href={`/questions/${q.questionId}`}
-                                            className="list-group-item list-group-item-action p-3"
-                                        >
-                                            <div className="d-flex justify-content-between">
-                                                <h6 className="mb-1 fw-semibold">{q.title}</h6>
-                                                <span className={`badge ${q.hasAcceptedAnswer ? 'bg-success' : 'bg-secondary'} rounded-pill`}>
-                                                    {q.answerCount} answers
-                                                </span>
-                                            </div>
-                                            <div className="d-flex gap-3 text-muted small">
-                                                <span><i className="bi bi-hand-thumbs-up me-1"></i>{q.score}</span>
-                                                <span><i className="bi bi-eye me-1"></i>{q.viewCount}</span>
-                                                <span>{new Date(q.createdDate).toLocaleDateString()}</span>
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
+                                questions.map((q, index) => (
+                                    <Link
+                                        key={q.questionId}
+                                        href={`/questions/${q.questionId}`}
+                                        className={`block p-4 hover:bg-[#f8fafc] dark:hover:bg-[var(--bg-tertiary)] transition ${index > 0 ? 'border-t border-[#e2e8f0] dark:border-[var(--border-color)]' : ''}`}
+                                    >
+                                        <div className="flex justify-between items-start gap-3">
+                                            <h3 className="text-sm font-bold text-[#0f172a] dark:text-white">{q.title}</h3>
+                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${q.hasAcceptedAnswer ? 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-[#f1f5f9] dark:bg-[var(--bg-tertiary)] text-[#64748b]'}`}>
+                                                {q.answerCount} answers
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-4 text-[#94a3b8] text-xs mt-2">
+                                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">thumb_up</span>{q.score}</span>
+                                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">visibility</span>{q.viewCount}</span>
+                                            <span>{new Date(q.createdDate).toLocaleDateString()}</span>
+                                        </div>
+                                    </Link>
+                                ))
                             ) : (
-                                <div className="card-body text-center py-5">
-                                    <i className="bi bi-question-circle fs-1 text-muted mb-3"></i>
-                                    <p className="text-muted">No questions yet</p>
+                                <div className="p-12 text-center">
+                                    <span className="material-symbols-outlined text-5xl text-[#94a3b8] mb-4 block">help</span>
+                                    <p className="text-[#64748b]">No questions yet</p>
                                 </div>
                             )}
                         </div>
                     )}
 
+                    {/* Answers Tab */}
                     {activeTab === 'answers' && (
-                        <div className="card border-0 shadow-sm rounded-4">
-                            <div className="card-body text-center py-5">
-                                <i className="bi bi-chat-left-text fs-1 text-muted mb-3"></i>
-                                <p className="text-muted">Answers will be displayed here</p>
-                            </div>
+                        <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl p-12 text-center">
+                            <span className="material-symbols-outlined text-5xl text-[#94a3b8] mb-4 block">chat</span>
+                            <p className="text-[#64748b]">Answers will be displayed here</p>
                         </div>
                     )}
 
+                    {/* About Tab */}
                     {activeTab === 'about' && (
-                        <div className="card border-0 shadow-sm rounded-4">
-                            <div className="card-body p-4">
-                                <h5 className="fw-bold mb-3">About</h5>
-                                <p className="text-muted">{user.bio || 'This user has not added a bio yet.'}</p>
-
-                                <hr />
-
-                                <div className="row g-3">
-                                    <div className="col-md-6">
-                                        <div className="d-flex align-items-center text-muted">
-                                            <i className="bi bi-calendar3 me-2"></i>
-                                            <span>Joined {user.memberSince ? new Date(user.memberSince).toLocaleDateString() : 'Recently'}</span>
-                                        </div>
-                                    </div>
-                                    {user.website && (
-                                        <div className="col-md-6">
-                                            <div className="d-flex align-items-center">
-                                                <i className="bi bi-link-45deg me-2 text-muted"></i>
-                                                <a href={user.website} target="_blank" rel="noopener noreferrer">{user.website}</a>
-                                            </div>
-                                        </div>
-                                    )}
+                        <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl p-6">
+                            <h3 className="font-bold text-[#0f172a] dark:text-white mb-3">About</h3>
+                            <p className="text-[#475569] dark:text-[var(--text-secondary)]">{user.bio || 'This user has not added a bio yet.'}</p>
+                            <div className="border-t border-[#e2e8f0] dark:border-[var(--border-color)] mt-4 pt-4 grid sm:grid-cols-2 gap-3">
+                                <div className="flex items-center gap-2 text-[#64748b] text-sm">
+                                    <span className="material-symbols-outlined text-base">calendar_today</span>
+                                    Joined {user.memberSince ? new Date(user.memberSince).toLocaleDateString() : 'Recently'}
                                 </div>
+                                {user.website && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <span className="material-symbols-outlined text-base text-[#94a3b8]">link</span>
+                                        <a href={user.website} target="_blank" rel="noopener noreferrer" className="text-[#137fec] hover:underline truncate">{user.website}</a>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* Sidebar */}
-                <div className="col-lg-4">
+                <div className="space-y-4">
                     {/* Badges */}
-                    <div className="card border-0 shadow-sm rounded-4 mb-4">
-                        <div className="card-header bg-white border-0 pt-4">
-                            <h5 className="fw-bold mb-0"><i className="bi bi-award me-2 text-warning"></i>Badges</h5>
-                        </div>
-                        <div className="card-body">
-                            {user.badges && user.badges.length > 0 ? (
-                                <div className="d-flex flex-wrap gap-2">
-                                    {user.badges.map((badge, idx) => (
-                                        <span key={idx} className={`badge rounded-pill ${badge.type === 'gold' ? 'bg-warning' :
-                                                badge.type === 'silver' ? 'bg-secondary' : 'bg-info'
-                                            }`}>
-                                            {badge.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-muted mb-0">No badges yet</p>
-                            )}
-                        </div>
+                    <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl p-5">
+                        <h3 className="font-bold text-[#0f172a] dark:text-white mb-3 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-amber-500">military_tech</span>Badges
+                        </h3>
+                        {user.badges && user.badges.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {user.badges.map((badge, idx) => (
+                                    <span key={idx} className={`px-3 py-1 rounded-full text-xs font-bold ${badge.type === 'gold' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600' : badge.type === 'silver' ? 'bg-gray-100 dark:bg-gray-500/10 text-gray-600' : 'bg-blue-50 dark:bg-blue-500/10 text-blue-600'}`}>
+                                        {badge.name}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-[#94a3b8] text-sm">No badges yet</p>
+                        )}
                     </div>
 
-                    {/* Stats Card */}
-                    <div className="card border-0 shadow-sm rounded-4">
-                        <div className="card-header bg-white border-0 pt-4">
-                            <h5 className="fw-bold mb-0"><i className="bi bi-graph-up me-2 text-success"></i>Stats</h5>
-                        </div>
-                        <div className="card-body">
-                            <div className="row g-3">
-                                <div className="col-6">
-                                    <div className="text-center p-3 bg-light rounded-3">
-                                        <div className="fs-4 fw-bold text-primary">{user.reputationPoints || 0}</div>
-                                        <small className="text-muted">Reputation</small>
-                                    </div>
+                    {/* Stats */}
+                    <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl p-5">
+                        <h3 className="font-bold text-[#0f172a] dark:text-white mb-3 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-green-500">trending_up</span>Stats
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            {[
+                                { value: user.reputationPoints || 0, label: 'Reputation', color: 'text-[#137fec]' },
+                                { value: questions.length, label: 'Questions', color: 'text-green-500' },
+                                { value: user.answerCount || 0, label: 'Answers', color: 'text-blue-400' },
+                                { value: user.badges?.length || 0, label: 'Badges', color: 'text-amber-500' },
+                            ].map(stat => (
+                                <div key={stat.label} className="text-center p-3 bg-[#f8fafc] dark:bg-[var(--bg-tertiary)] rounded-xl">
+                                    <div className={`text-lg font-bold ${stat.color}`}>{stat.value}</div>
+                                    <div className="text-[#94a3b8] text-xs">{stat.label}</div>
                                 </div>
-                                <div className="col-6">
-                                    <div className="text-center p-3 bg-light rounded-3">
-                                        <div className="fs-4 fw-bold text-success">{questions.length}</div>
-                                        <small className="text-muted">Questions</small>
-                                    </div>
-                                </div>
-                                <div className="col-6">
-                                    <div className="text-center p-3 bg-light rounded-3">
-                                        <div className="fs-4 fw-bold text-info">{user.answerCount || 0}</div>
-                                        <small className="text-muted">Answers</small>
-                                    </div>
-                                </div>
-                                <div className="col-6">
-                                    <div className="text-center p-3 bg-light rounded-3">
-                                        <div className="fs-4 fw-bold text-warning">{user.badges?.length || 0}</div>
-                                        <small className="text-muted">Badges</small>
-                                    </div>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </AppLayout>
     );
 }

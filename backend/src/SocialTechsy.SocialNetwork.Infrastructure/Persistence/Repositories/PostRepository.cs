@@ -28,29 +28,39 @@ public class PostRepository : IPostRepository
     public async Task<(IEnumerable<Post> Items, int TotalCount)> GetNewsfeedAsync(
         int userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        // Use subqueries instead of loading IDs into memory to avoid large IN clauses
-        var friendIdsQuery = _context.Friendships
+        // Get friends list (users who are friends with current user)
+        var friendIds = await _context.Friendships
             .Where(f => f.Status == FriendshipStatus.Accepted &&
                 (f.RequesterId == userId || f.AddresseeId == userId))
-            .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId);
+            .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
 
-        var followingIdsQuery = _context.UserFollows
+        // Get followed users
+        var followingIds = await _context.UserFollows
             .Where(f => f.FollowerId == userId)
-            .Select(f => f.FollowingId);
+            .Select(f => f.FollowingId)
+            .ToListAsync(cancellationToken);
 
-        var userGroupsQuery = _context.GroupMembers
+        // Get user's groups
+        var userGroups = await _context.GroupMembers
             .Where(m => m.UserId == userId)
-            .Select(m => m.GroupId);
+            .Select(m => m.GroupId)
+            .ToListAsync(cancellationToken);
 
+        // Combine all user IDs for newsfeed
+        var relevantUserIds = friendIds.Union(followingIds).Distinct().ToList();
+        relevantUserIds.Add(userId); // Include own posts
+
+        // Query posts from friends, followed users, and user's groups
         var query = _context.Posts
             .Include(p => p.Author)
             .Include(p => p.Group)
-            .Where(p =>
-                (p.GroupId == null && (
-                    p.AuthorId == userId ||
-                    friendIdsQuery.Contains(p.AuthorId) ||
-                    followingIdsQuery.Contains(p.AuthorId))) ||
-                (p.GroupId != null && userGroupsQuery.Contains(p.GroupId.Value)));
+            .Where(p => 
+                // Public posts from friends and followed users
+                (p.GroupId == null && relevantUserIds.Contains(p.AuthorId)) ||
+                // Group posts from user's groups
+                (p.GroupId != null && userGroups.Contains(p.GroupId.Value)));
 
         var totalCount = await query.CountAsync(cancellationToken);
 

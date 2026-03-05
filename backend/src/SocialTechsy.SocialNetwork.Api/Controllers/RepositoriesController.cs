@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Repositories;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Repositories;
+using SocialTechsy.SocialNetwork.Infrastructure.External.Gitea;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
@@ -20,6 +21,7 @@ public class RepositoriesController : ControllerBase
     private readonly CreateRepositoryCommandHandler _createHandler;
     private readonly UpdateRepositoryCommandHandler _updateHandler;
     private readonly DeleteRepositoryCommandHandler _deleteHandler;
+    private readonly IGiteaService _giteaService;
 
     public RepositoriesController(
         ILogger<RepositoriesController> logger,
@@ -27,7 +29,8 @@ public class RepositoriesController : ControllerBase
         GetRepositoryByIdQueryHandler getRepositoryByIdHandler,
         CreateRepositoryCommandHandler createHandler,
         UpdateRepositoryCommandHandler updateHandler,
-        DeleteRepositoryCommandHandler deleteHandler)
+        DeleteRepositoryCommandHandler deleteHandler,
+        IGiteaService giteaService)
     {
         _logger = logger;
         _getRepositoriesHandler = getRepositoriesHandler;
@@ -35,6 +38,7 @@ public class RepositoriesController : ControllerBase
         _createHandler = createHandler;
         _updateHandler = updateHandler;
         _deleteHandler = deleteHandler;
+        _giteaService = giteaService;
     }
 
     private int GetCurrentUserId()
@@ -78,59 +82,197 @@ public class RepositoriesController : ControllerBase
     }
 
     /// <summary>
-    /// Get repository files/tree (placeholder - requires Gitea integration)
+    /// Get repository files/tree from Gitea
     /// </summary>
     [HttpGet("{id:int}/files")]
     [ProducesResponseType(typeof(IEnumerable<RepositoryFileDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<IEnumerable<RepositoryFileDto>>> GetRepositoryFiles(
         int id,
         [FromQuery] string? path = null,
-        [FromQuery] string? branch = "main",
+        [FromQuery] string branch = "main",
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Getting files for repository {RepositoryId}, path: {Path}", id, path);
+        _logger.LogInformation("Getting files for repository {RepositoryId}, path: {Path}, branch: {Branch}", id, path, branch);
 
-        // TODO: Integrate with Gitea API to fetch file tree
-        return Ok(new List<RepositoryFileDto>());
+        // Check if Gitea is configured
+        if (!_giteaService.IsConfigured)
+        {
+            _logger.LogWarning("Gitea service is not configured");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, 
+                new { message = "Git integration is not configured" });
+        }
+
+        // Get repository from database to get Gitea info
+        var repository = await _getRepositoryByIdHandler.HandleAsync(id, cancellationToken);
+        if (repository == null)
+            return NotFound(new { message = $"Repository with ID {id} not found" });
+
+        // If path is specified, get directory contents
+        if (!string.IsNullOrEmpty(path))
+        {
+            var contents = await _giteaService.GetDirectoryContentsAsync(
+                repository.OwnerUsername, 
+                repository.Name, 
+                path, 
+                branch, 
+                cancellationToken);
+
+            var files = contents.Select(c => new RepositoryFileDto
+            {
+                Name = c.Name,
+                Path = c.Path,
+                Type = c.Type == "dir" ? "tree" : "blob",
+                Size = c.Size,
+                Sha = c.Sha
+            }).ToList();
+
+            return Ok(files);
+        }
+
+        // Get root contents
+        var rootContents = await _giteaService.GetDirectoryContentsAsync(
+            repository.OwnerUsername, 
+            repository.Name, 
+            null, 
+            branch, 
+            cancellationToken);
+
+        var rootFiles = rootContents.Select(c => new RepositoryFileDto
+        {
+            Name = c.Name,
+            Path = c.Path,
+            Type = c.Type == "dir" ? "tree" : "blob",
+            Size = c.Size,
+            Sha = c.Sha
+        }).ToList();
+
+        return Ok(rootFiles);
     }
 
     /// <summary>
-    /// Get file content (placeholder - requires Gitea integration)
+    /// Get file content from Gitea
     /// </summary>
     [HttpGet("{id:int}/files/content")]
     [ProducesResponseType(typeof(FileContentDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<FileContentDto>> GetFileContent(
         int id,
         [FromQuery] string path,
-        [FromQuery] string? branch = "main",
+        [FromQuery] string branch = "main",
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Getting file content for repository {RepositoryId}, path: {Path}", id, path);
+        _logger.LogInformation("Getting file content for repository {RepositoryId}, path: {Path}, branch: {Branch}", id, path, branch);
 
-        // TODO: Integrate with Gitea API to fetch file content
-        return Ok(new FileContentDto { Path = path, Content = "", Encoding = "utf-8" });
+        if (string.IsNullOrEmpty(path))
+            return BadRequest(new { message = "Path is required" });
+
+        if (!_giteaService.IsConfigured)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, 
+                new { message = "Git integration is not configured" });
+        }
+
+        // Get repository info
+        var repository = await _getRepositoryByIdHandler.HandleAsync(id, cancellationToken);
+        if (repository == null)
+            return NotFound(new { message = $"Repository with ID {id} not found" });
+
+        // Get file content from Gitea
+        var content = await _giteaService.GetFileContentAsync(
+            repository.OwnerUsername, 
+            repository.Name, 
+            path, 
+            branch, 
+            cancellationToken);
+
+        if (content == null)
+            return NotFound(new { message = $"File not found: {path}" });
+
+        // Decode base64 content if present
+        var decodedContent = "";
+        if (!string.IsNullOrEmpty(content.Content) && content.Encoding == "base64")
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(content.Content);
+                decodedContent = System.Text.Encoding.UTF8.GetString(bytes);
+            }
+            catch
+            {
+                decodedContent = content.Content; // Return as-is if decoding fails
+            }
+        }
+        else
+        {
+            decodedContent = content.Content ?? "";
+        }
+
+        return Ok(new FileContentDto 
+        { 
+            Path = content.Path, 
+            Content = decodedContent, 
+            Encoding = "utf-8",
+            Size = content.Size,
+            Sha = content.Sha
+        });
     }
 
     /// <summary>
-    /// Get repository commits (placeholder - requires Gitea integration)
+    /// Get repository commits from Gitea
     /// </summary>
     [HttpGet("{id:int}/commits")]
     [ProducesResponseType(typeof(PaginatedResponse<CommitDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<PaginatedResponse<CommitDto>>> GetCommits(
         int id,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string? branch = null,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Getting commits for repository {RepositoryId}", id);
+        _logger.LogInformation("Getting commits for repository {RepositoryId}, page: {Page}", id, page);
 
-        // TODO: Integrate with Gitea API to fetch commits
+        if (!_giteaService.IsConfigured)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, 
+                new { message = "Git integration is not configured" });
+        }
+
+        // Get repository info
+        var repository = await _getRepositoryByIdHandler.HandleAsync(id, cancellationToken);
+        if (repository == null)
+            return NotFound(new { message = $"Repository with ID {id} not found" });
+
+        // Get commits from Gitea
+        var giteaCommits = await _giteaService.GetCommitsAsync(
+            repository.OwnerUsername, 
+            repository.Name, 
+            page, 
+            pageSize, 
+            branch, 
+            cancellationToken);
+
+        var commits = giteaCommits.Select(c => new CommitDto
+        {
+            Sha = c.Sha,
+            Message = c.Commit.Message,
+            AuthorName = c.Commit.Author.Name,
+            AuthorEmail = c.Commit.Author.Email,
+            AuthorAvatar = c.Author?.AvatarUrl,
+            CommittedAt = c.Commit.Author.Date,
+            Url = c.HtmlUrl
+        }).ToList();
+
         return Ok(new PaginatedResponse<CommitDto>
         {
-            Items = new List<CommitDto>(),
+            Items = commits,
             Page = page,
             PageSize = pageSize,
-            TotalCount = 0
+            TotalCount = commits.Count // Note: Gitea doesn't return total count in list endpoint
         });
     }
 
@@ -138,6 +280,7 @@ public class RepositoriesController : ControllerBase
     /// Create a new repository
     /// </summary>
     [HttpPost]
+
     [Authorize]
     [ProducesResponseType(typeof(RepositoryDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<RepositoryDto>> CreateRepository(
