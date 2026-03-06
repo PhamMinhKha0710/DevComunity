@@ -54,6 +54,8 @@ public static class DependencyInjection
         services.AddScoped<LoginCommandHandler>();
         services.AddScoped<ForgotPasswordCommandHandler>();
         services.AddScoped<ResetPasswordCommandHandler>();
+        services.AddScoped<RefreshTokenCommandHandler>();
+        services.AddScoped<LogoutCommandHandler>();
 
 
         // Answer Command Handlers

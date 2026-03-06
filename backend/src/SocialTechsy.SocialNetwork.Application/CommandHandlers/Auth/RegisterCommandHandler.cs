@@ -6,28 +6,27 @@ using SocialTechsy.SocialNetwork.Domain.Entities;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 
-/// <summary>
-/// Handler for RegisterCommand
-/// </summary>
 public class RegisterCommandHandler
 {
     private readonly IUserRepository _userRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _tokenService;
 
     public RegisterCommandHandler(
         IUserRepository userRepository,
+        IRefreshTokenRepository refreshTokenRepository,
         IPasswordHasher passwordHasher,
         IJwtTokenService tokenService)
     {
         _userRepository = userRepository;
+        _refreshTokenRepository = refreshTokenRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
     }
 
     public async Task<AuthResponse> HandleAsync(RegisterCommand command, CancellationToken cancellationToken = default)
     {
-        // Check if email already exists
         if (await _userRepository.EmailExistsAsync(command.Email, cancellationToken))
         {
             return new AuthResponse
@@ -37,7 +36,6 @@ public class RegisterCommandHandler
             };
         }
 
-        // Check if username already exists
         if (await _userRepository.UsernameExistsAsync(command.Username, cancellationToken))
         {
             return new AuthResponse
@@ -47,7 +45,6 @@ public class RegisterCommandHandler
             };
         }
 
-        // Create user
         var user = new User
         {
             Username = command.Username,
@@ -61,16 +58,24 @@ public class RegisterCommandHandler
 
         var createdUser = await _userRepository.AddAsync(user, cancellationToken);
 
-        // Generate tokens
         var accessToken = _tokenService.GenerateAccessToken(createdUser.UserId, createdUser.Email, createdUser.Username);
-        var refreshToken = _tokenService.GenerateRefreshToken();
+        var refreshTokenString = _tokenService.GenerateRefreshToken();
+
+        var refreshToken = new RefreshToken
+        {
+            Token = refreshTokenString,
+            UserId = createdUser.UserId,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow
+        };
+        await _refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
 
         return new AuthResponse
         {
             Success = true,
             Message = "Registration successful",
             AccessToken = accessToken,
-            RefreshToken = refreshToken,
+            RefreshToken = refreshTokenString,
             ExpiresAt = DateTime.UtcNow.AddHours(1),
             User = new UserDto
             {

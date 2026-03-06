@@ -17,8 +17,9 @@ public class AuthController : ControllerBase
     private readonly LoginCommandHandler _loginHandler;
     private readonly ForgotPasswordCommandHandler _forgotPasswordHandler;
     private readonly ResetPasswordCommandHandler _resetPasswordHandler;
+    private readonly RefreshTokenCommandHandler _refreshTokenHandler;
+    private readonly LogoutCommandHandler _logoutHandler;
     private readonly GetCurrentUserQueryHandler _getCurrentUserHandler;
-    private readonly ForgotPasswordCommandHandler _forgotPasswordHandler;
 
     public AuthController(
         ILogger<AuthController> logger,
@@ -26,6 +27,8 @@ public class AuthController : ControllerBase
         LoginCommandHandler loginHandler,
         ForgotPasswordCommandHandler forgotPasswordHandler,
         ResetPasswordCommandHandler resetPasswordHandler,
+        RefreshTokenCommandHandler refreshTokenHandler,
+        LogoutCommandHandler logoutHandler,
         GetCurrentUserQueryHandler getCurrentUserHandler)
     {
         _logger = logger;
@@ -33,8 +36,9 @@ public class AuthController : ControllerBase
         _loginHandler = loginHandler;
         _forgotPasswordHandler = forgotPasswordHandler;
         _resetPasswordHandler = resetPasswordHandler;
+        _refreshTokenHandler = refreshTokenHandler;
+        _logoutHandler = logoutHandler;
         _getCurrentUserHandler = getCurrentUserHandler;
-        _forgotPasswordHandler = forgotPasswordHandler;
     }
 
     [HttpPost("register")]
@@ -98,50 +102,8 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Refresh access token using refresh token
+    /// Reset password with token
     /// </summary>
-    [HttpPost("refresh")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<AuthResponse>> RefreshToken(
-        [FromBody] RefreshTokenCommand command,
-        CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("Refreshing token");
-
-        // TODO: Implement RefreshTokenCommandHandler
-        return Ok(new AuthResponse
-        {
-            Success = true,
-            AccessToken = "new-jwt-token",
-            ExpiresAt = DateTime.UtcNow.AddHours(1)
-        });
-    }
-
-    [HttpPost("logout")]
-    [Authorize]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Logout()
-    {
-        _logger.LogInformation("User logout");
-        return Ok(new { message = "Logged out successfully" });
-    }
-
-    [HttpPost("forgot-password")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ForgotPassword(
-        [FromBody] ForgotPasswordCommand command,
-        CancellationToken cancellationToken)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(new { success = false, message = "Validation failed" });
-
-        _logger.LogInformation("Password reset requested for: {Email}", command.Email);
-        var result = await _forgotPasswordHandler.HandleAsync(command, cancellationToken);
-
-        return Ok(result);
-    }
-
     [HttpPost("reset-password")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -159,6 +121,42 @@ public class AuthController : ControllerBase
             return BadRequest(result);
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Refresh access token using refresh token
+    /// </summary>
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<AuthResponse>> RefreshToken(
+        [FromBody] RefreshTokenCommand command,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Refreshing token");
+
+        var result = await _refreshTokenHandler.HandleAsync(command, cancellationToken);
+
+        if (!result.Success)
+            return Unauthorized(result);
+
+        return Ok(result);
+    }
+
+    [HttpPost("logout")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+            return Unauthorized();
+
+        _logger.LogInformation("User {UserId} logging out", userId);
+
+        await _logoutHandler.HandleAsync(userId, cancellationToken);
+
+        return Ok(new { message = "Logged out successfully" });
     }
 
     [HttpGet("me")]
