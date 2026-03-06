@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<DataSeeder>();
+        services.AddSingleton<ICacheService, CacheService>();
 
         // Gitea integration
         services.Configure<GiteaConfiguration>(
