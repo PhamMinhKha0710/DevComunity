@@ -1,7 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+<<<<<<< HEAD
 using Microsoft.AspNetCore.RateLimiting;
+=======
+using Microsoft.AspNetCore.ResponseCompression;
+>>>>>>> optimize/response-compression
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.IO.Compression;
 using System.Text;
 using System.Threading.RateLimiting;
 using SocialTechsy.SocialNetwork.Application;
@@ -77,6 +82,7 @@ builder.Services.AddCors(options =>
 });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // Configure rate limiting
 builder.Services.AddRateLimiter(options =>
 {
@@ -97,6 +103,18 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
 });
+=======
+// Configure response compression
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "application/json" });
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.SmallestSize);
+>>>>>>> optimize/response-compression
 
 // Configure SignalR
 builder.Services.AddSignalR(options =>
@@ -167,6 +185,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseResponseCompression();
 app.UseHttpsRedirection();
 app.UseCors("ReactApp");
 app.UseRateLimiter();
