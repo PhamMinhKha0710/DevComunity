@@ -65,12 +65,9 @@ public class NotificationRepository : INotificationRepository
 
     public async Task MarkAsReadAsync(int id, CancellationToken cancellationToken = default)
     {
-        var notification = await _context.Notifications.FindAsync(new object[] { id }, cancellationToken);
-        if (notification != null)
-        {
-            notification.IsRead = true;
-            await _context.SaveChangesAsync(cancellationToken);
-        }
+        await _context.Notifications
+            .Where(n => n.NotificationId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true), cancellationToken);
     }
 
     public async Task MarkAllAsReadAsync(int userId, CancellationToken cancellationToken = default)
@@ -82,11 +79,8 @@ public class NotificationRepository : INotificationRepository
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        var notification = await _context.Notifications.FindAsync(new object[] { id }, cancellationToken);
-        if (notification != null)
-        {
-            _context.Notifications.Remove(notification);
-            await _context.SaveChangesAsync(cancellationToken);
-        }
+        await _context.Notifications
+            .Where(n => n.NotificationId == id)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 }
