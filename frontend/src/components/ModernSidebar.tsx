@@ -72,7 +72,7 @@ export default function ModernSidebar() {
 
             {/* User Profile at Bottom */}
             {isAuthenticated && user && (
-                <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800">
                     <Link
                         href="/profile"
                         className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
@@ -90,11 +90,13 @@ export default function ModernSidebar() {
                             </p>
                             <p className="text-xs text-slate-500 truncate">@{user.username}</p>
                         </div>
-                        <Link href="/settings" className="text-slate-400 hover:text-[var(--primary)] transition-colors">
-                            <span className="material-symbols-outlined text-sm">settings</span>
-                        </Link>
+                    </Link>
+                    <Link href="/settings" className="text-slate-400 hover:text-[var(--primary)] transition-colors mt-2 inline-flex items-center gap-1 text-xs">
+                        <span className="material-symbols-outlined text-sm">settings</span>
+                        Settings
                     </Link>
                 </div>
+
             )}
         </aside>
     );

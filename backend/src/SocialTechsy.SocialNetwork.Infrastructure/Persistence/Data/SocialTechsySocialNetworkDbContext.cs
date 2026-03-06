@@ -53,6 +53,10 @@ public class SocialTechsySocialNetworkDbContext : DbContext
     // Tag Preferences
     public DbSet<TagPreference> TagPreferences => Set<TagPreference>();
 
+    // Auth Tokens
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
