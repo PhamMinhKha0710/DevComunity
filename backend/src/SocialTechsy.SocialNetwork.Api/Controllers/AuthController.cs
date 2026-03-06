@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
@@ -10,6 +11,7 @@ namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;
