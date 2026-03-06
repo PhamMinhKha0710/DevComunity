@@ -76,6 +76,7 @@ public class AnswerRepository : IAnswerRepository
         var answer = await _context.Answers
             .FirstOrDefaultAsync(a => a.AnswerId == answerId && a.QuestionId == questionId, cancellationToken);
 
+
         if (answer == null)
             return false;
 
