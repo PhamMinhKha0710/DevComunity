@@ -47,7 +47,6 @@ public class QuestionRepository : IQuestionRepository
     {
         var query = _context.Questions
             .Include(q => q.User)
-            .Include(q => q.Answers)
             .Include(q => q.QuestionTags)
                 .ThenInclude(qt => qt.Tag)
             .AsQueryable();
