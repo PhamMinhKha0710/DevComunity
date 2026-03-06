@@ -76,6 +76,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+<<<<<<< HEAD
 // Configure rate limiting
 builder.Services.AddRateLimiter(options =>
 {
@@ -99,9 +100,23 @@ builder.Services.AddRateLimiter(options =>
 
 // Configure SignalR
 builder.Services.AddSignalR(options =>
+=======
+// Configure SignalR (with optional Redis backplane for multi-instance scaling)
+var signalRBuilder = builder.Services.AddSignalR(options =>
+>>>>>>> optimize/redis-signalr-backplane
 {
     options.EnableDetailedErrors = builder.Environment.IsDevelopment();
 });
+
+var redisEnabled = builder.Configuration.GetValue<bool>("Redis:Enabled");
+if (redisEnabled)
+{
+    var redisConnectionString = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
+    signalRBuilder.AddStackExchangeRedis(redisConnectionString, options =>
+    {
+        options.Configuration.ChannelPrefix = new StackExchange.Redis.RedisChannel("SocialTechsy", StackExchange.Redis.RedisChannel.PatternMode.Literal);
+    });
+}
 
 // Configure Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
