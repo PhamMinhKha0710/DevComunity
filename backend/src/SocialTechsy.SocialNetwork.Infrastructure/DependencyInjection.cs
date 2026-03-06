@@ -22,8 +22,10 @@ public static class DependencyInjection
         // Database context
         services.AddDbContext<SocialTechsySocialNetworkDbContext>(options =>
             options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection"),
-                b => b.MigrationsAssembly(typeof(SocialTechsySocialNetworkDbContext).Assembly.FullName)));
+                    configuration.GetConnectionString("DefaultConnection"),
+                    b => b.MigrationsAssembly(typeof(SocialTechsySocialNetworkDbContext).Assembly.FullName)
+                          .EnableRetryOnFailure(3))
+                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
         // Register repositories
         services.AddScoped<IQuestionRepository, QuestionRepository>();
