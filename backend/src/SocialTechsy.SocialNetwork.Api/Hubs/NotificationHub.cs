@@ -1,19 +1,19 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
 namespace SocialTechsy.SocialNetwork.Api.Hubs;
 
-/// <summary>
-/// SignalR Hub for real-time notifications
-/// </summary>
 [Authorize]
 public class NotificationHub : Hub
 {
     private readonly ILogger<NotificationHub> _logger;
+    private readonly INotificationRepository _notificationRepository;
 
-    public NotificationHub(ILogger<NotificationHub> logger)
+    public NotificationHub(ILogger<NotificationHub> logger, INotificationRepository notificationRepository)
     {
         _logger = logger;
+        _notificationRepository = notificationRepository;
     }
 
     public override async Task OnConnectedAsync()
@@ -38,23 +38,29 @@ public class NotificationHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    /// <summary>
-    /// Send notification to a specific user
-    /// </summary>
     public async Task SendNotification(string userId, object notification)
     {
         await Clients.Group($"user_{userId}").SendAsync("ReceiveNotification", notification);
     }
 
-    /// <summary>
-    /// Mark notification as read
-    /// </summary>
     public async Task MarkAsRead(int notificationId)
     {
         var userId = Context.UserIdentifier;
         _logger.LogInformation("User {UserId} marked notification {NotificationId} as read", userId, notificationId);
 
-        // TODO: Update in database
+        await _notificationRepository.MarkAsReadAsync(notificationId);
         await Clients.Caller.SendAsync("NotificationRead", notificationId);
+    }
+
+    public async Task MarkAllAsRead()
+    {
+        var userId = Context.UserIdentifier;
+        if (userId != null && int.TryParse(userId, out var uid))
+        {
+            _logger.LogInformation("User {UserId} marked all notifications as read", userId);
+
+            await _notificationRepository.MarkAllAsReadAsync(uid);
+            await Clients.Caller.SendAsync("AllNotificationsRead");
+        }
     }
 }
