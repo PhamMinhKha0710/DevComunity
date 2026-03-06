@@ -55,33 +55,31 @@ public class GroupsController : ControllerBase
         var currentUserId = GetCurrentUserId();
         var (items, totalCount) = await _groupRepository.GetPaginatedAsync(page, pageSize, search, cancellationToken);
 
-        var groups = new List<GroupDto>();
-        foreach (var g in items)
-        {
-            var memberCount = await _groupRepository.GetMemberCountAsync(g.GroupId, cancellationToken);
-            var isMember = currentUserId > 0 && await _groupRepository.IsMemberAsync(g.GroupId, currentUserId, cancellationToken);
-            var currentMember = currentUserId > 0 ? await _groupRepository.GetMemberAsync(g.GroupId, currentUserId, cancellationToken) : null;
+        var groupIds = items.Select(g => g.GroupId).ToList();
+        var memberCounts = await _groupRepository.GetMemberCountsBatchAsync(groupIds, cancellationToken);
+        var memberships = currentUserId > 0
+            ? await _groupRepository.GetUserMembershipsBatchAsync(groupIds, currentUserId, cancellationToken)
+            : new Dictionary<int, GroupMember?>();
 
-            groups.Add(new GroupDto
+        var groups = items.Select(g => new GroupDto
+        {
+            GroupId = g.GroupId,
+            Name = g.Name,
+            Description = g.Description,
+            CoverImage = g.CoverImage,
+            Creator = new UserSummaryDto
             {
-                GroupId = g.GroupId,
-                Name = g.Name,
-                Description = g.Description,
-                CoverImage = g.CoverImage,
-                Creator = new UserSummaryDto
-                {
-                    UserId = g.Creator.UserId,
-                    Username = g.Creator.Username,
-                    DisplayName = g.Creator.DisplayName,
-                    ProfilePicture = g.Creator.ProfilePicture
-                },
-                IsPrivate = g.IsPrivate,
-                CreatedAt = g.CreatedAt,
-                MemberCount = memberCount,
-                IsMember = isMember,
-                CurrentUserRole = currentMember?.Role.ToString()
-            });
-        }
+                UserId = g.Creator.UserId,
+                Username = g.Creator.Username,
+                DisplayName = g.Creator.DisplayName,
+                ProfilePicture = g.Creator.ProfilePicture
+            },
+            IsPrivate = g.IsPrivate,
+            CreatedAt = g.CreatedAt,
+            MemberCount = memberCounts.GetValueOrDefault(g.GroupId, 0),
+            IsMember = memberships.ContainsKey(g.GroupId) && memberships[g.GroupId] != null,
+            CurrentUserRole = memberships.GetValueOrDefault(g.GroupId)?.Role.ToString()
+        }).ToList();
 
         return Ok(new PaginatedResponse<GroupDto>
         {
@@ -104,33 +102,31 @@ public class GroupsController : ControllerBase
         if (userId == 0) return Unauthorized();
 
         var groups = await _groupRepository.GetUserGroupsAsync(userId, cancellationToken);
-        
-        var result = new List<GroupDto>();
-        foreach (var g in groups)
-        {
-            var memberCount = await _groupRepository.GetMemberCountAsync(g.GroupId, cancellationToken);
-            var currentMember = await _groupRepository.GetMemberAsync(g.GroupId, userId, cancellationToken);
+        var groupList = groups.ToList();
 
-            result.Add(new GroupDto
+        var groupIds = groupList.Select(g => g.GroupId).ToList();
+        var memberCounts = await _groupRepository.GetMemberCountsBatchAsync(groupIds, cancellationToken);
+        var memberships = await _groupRepository.GetUserMembershipsBatchAsync(groupIds, userId, cancellationToken);
+
+        var result = groupList.Select(g => new GroupDto
+        {
+            GroupId = g.GroupId,
+            Name = g.Name,
+            Description = g.Description,
+            CoverImage = g.CoverImage,
+            Creator = new UserSummaryDto
             {
-                GroupId = g.GroupId,
-                Name = g.Name,
-                Description = g.Description,
-                CoverImage = g.CoverImage,
-                Creator = new UserSummaryDto
-                {
-                    UserId = g.Creator.UserId,
-                    Username = g.Creator.Username,
-                    DisplayName = g.Creator.DisplayName,
-                    ProfilePicture = g.Creator.ProfilePicture
-                },
-                IsPrivate = g.IsPrivate,
-                CreatedAt = g.CreatedAt,
-                MemberCount = memberCount,
-                IsMember = true,
-                CurrentUserRole = currentMember?.Role.ToString()
-            });
-        }
+                UserId = g.Creator.UserId,
+                Username = g.Creator.Username,
+                DisplayName = g.Creator.DisplayName,
+                ProfilePicture = g.Creator.ProfilePicture
+            },
+            IsPrivate = g.IsPrivate,
+            CreatedAt = g.CreatedAt,
+            MemberCount = memberCounts.GetValueOrDefault(g.GroupId, 0),
+            IsMember = true,
+            CurrentUserRole = memberships.GetValueOrDefault(g.GroupId)?.Role.ToString()
+        }).ToList();
 
         return Ok(result);
     }
