@@ -136,11 +136,12 @@ public class ChatHub : Hub
             {
                 messageId = savedMessage.MessageId,
                 conversationId = savedMessage.ConversationId,
-                senderId = savedMessage.SenderId, // int, not string
-                senderName = sender?.DisplayName ?? sender?.Username ?? "Unknown",
-                senderAvatar = sender?.ProfilePicture,
+                senderId = savedMessage.SenderId,
+                senderUsername = sender?.Username ?? "Unknown",
+                senderProfilePicture = sender?.ProfilePicture,
                 content = savedMessage.Content,
-                sentAt = savedMessage.SentDate.ToString("o"), // ISO 8601 format
+                messageType = savedMessage.MessageType ?? "text",
+                sentDate = savedMessage.SentDate.ToString("o"),
                 isRead = savedMessage.IsRead,
                 replyToMessageId = savedMessage.ReplyToMessageId,
                 replyToMessage = replyToDto
@@ -241,20 +242,20 @@ public class ChatHub : Hub
                 }
             }
 
-            // Prepare message DTO for broadcast
+            // Prepare message DTO for broadcast (matching frontend ChatMessage interface)
             var messageDto = new
             {
                 messageId = savedMessage.MessageId,
                 conversationId = savedMessage.ConversationId,
                 senderId = savedMessage.SenderId,
-                senderName = sender?.DisplayName ?? sender?.Username ?? "Unknown",
-                senderAvatar = sender?.ProfilePicture,
+                senderUsername = sender?.Username ?? "Unknown",
+                senderProfilePicture = sender?.ProfilePicture,
                 content = savedMessage.Content,
                 messageType = savedMessage.MessageType,
                 attachmentUrl = savedMessage.AttachmentUrl,
                 attachmentFileName = savedMessage.AttachmentFileName,
                 attachmentSize = savedMessage.AttachmentSize,
-                sentAt = savedMessage.SentDate.ToString("o"),
+                sentDate = savedMessage.SentDate.ToString("o"),
                 isRead = savedMessage.IsRead,
                 replyToMessageId = savedMessage.ReplyToMessageId,
                 replyToMessage = replyToDto

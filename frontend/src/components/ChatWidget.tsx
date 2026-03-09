@@ -32,8 +32,8 @@ interface Conversation {
     conversationId: number;
     title?: string;
     participants: Participant[];
-    lastMessage?: string;
-    lastActivityAt: string;
+    lastMessagePreview?: string;
+    lastMessageDate?: string;
     unreadCount: number;
 }
 
@@ -41,10 +41,10 @@ interface ChatMessage {
     messageId: number | string;
     conversationId: number;
     senderId: number;
-    senderName?: string;
-    senderAvatar?: string;
+    senderUsername?: string;
+    senderProfilePicture?: string;
     content: string;
-    sentAt: string;
+    sentDate: string;
     isRead: boolean;
     status?: 'sending' | 'sent' | 'delivered' | 'read';
 }
@@ -385,9 +385,11 @@ export default function ChatWidget() {
         try {
             setIsLoading(true);
             const response = await apiClient.get('/chat/conversations');
-            const convs = response.data || [];
-            setConversations(Array.isArray(convs) ? convs : []);
-            const unread = convs.reduce((acc: number, c: Conversation) => acc + (c.unreadCount || 0), 0);
+            // API returns paginated response: { items: [...], totalCount, page, pageSize }
+            const convs = response.data?.items || response.data || [];
+            const convList = Array.isArray(convs) ? convs : [];
+            setConversations(convList);
+            const unread = convList.reduce((acc: number, c: Conversation) => acc + (c.unreadCount || 0), 0);
             setTotalUnread(unread);
         } catch (error) {
             console.error('Failed to fetch conversations:', error);
@@ -430,7 +432,7 @@ export default function ChatWidget() {
             conversationId: selectedConversation.conversationId,
             senderId: user!.userId,
             content,
-            sentAt: new Date().toISOString(),
+            sentDate: new Date().toISOString(),
             isRead: false,
             status: 'sending'
         };
@@ -633,8 +635,8 @@ export default function ChatWidget() {
         
         // Check time gap (5 minutes)
         const TIME_GAP = 5 * 60 * 1000;
-        const prevTimeDiff = prevMsg ? new Date(msg.sentAt).getTime() - new Date(prevMsg.sentAt).getTime() : Infinity;
-        const nextTimeDiff = nextMsg ? new Date(nextMsg.sentAt).getTime() - new Date(msg.sentAt).getTime() : Infinity;
+        const prevTimeDiff = prevMsg ? new Date(msg.sentDate).getTime() - new Date(prevMsg.sentDate).getTime() : Infinity;
+        const nextTimeDiff = nextMsg ? new Date(nextMsg.sentDate).getTime() - new Date(msg.sentDate).getTime() : Infinity;
         
         const groupWithPrev = sameSenderAsPrev && prevTimeDiff < TIME_GAP;
         const groupWithNext = sameSenderAsNext && nextTimeDiff < TIME_GAP;
@@ -736,10 +738,10 @@ export default function ChatWidget() {
                                                 <div className="chat-widget-conv-info">
                                                     <div className="d-flex justify-content-between align-items-center">
                                                         <span className="fw-semibold small">{getParticipantName(conv)}</span>
-                                                        <span className="text-muted" style={{ fontSize: '10px' }}>{formatTime(conv.lastActivityAt)}</span>
+                                                        <span className="text-muted" style={{ fontSize: '10px' }}>{formatTime(conv.lastMessageDate || '')}</span>
                                                     </div>
                                                     <div className="d-flex align-items-center">
-                                                        <p className="text-muted small mb-0 text-truncate flex-grow-1">{conv.lastMessage || 'Start chatting...'}</p>
+                                                        <p className="text-muted small mb-0 text-truncate flex-grow-1">{conv.lastMessagePreview || 'Start chatting...'}</p>
                                                         {isParticipantOnline(conv) && (
                                                             <span className="online-text ms-1">Online</span>
                                                         )}
@@ -777,7 +779,7 @@ export default function ChatWidget() {
                                                         {!isSent && (
                                                             <div style={{ width: '28px', height: '28px', visibility: showAvatar ? 'visible' : 'hidden' }}>
                                                                 <img 
-                                                                    src={msg.senderAvatar || '/images/default-avatar.png'} 
+                                                                    src={msg.senderProfilePicture || '/images/default-avatar.png'} 
                                                                     alt="" 
                                                                     className="chat-widget-msg-avatar" 
                                                                 />
@@ -787,7 +789,7 @@ export default function ChatWidget() {
                                                             <p className="mb-0">{msg.content}</p>
                                                             {showTime && (
                                                                 <span className="chat-widget-time">
-                                                                    {formatTime(msg.sentAt)}
+                                                                    {formatTime(msg.sentDate)}
                                                                     {isSent && (
                                                                         <span className={`ms-1 status-icon ${msg.status === 'read' ? 'read' : ''}`}>
                                                                             {getMessageStatusIcon(msg.status)}
