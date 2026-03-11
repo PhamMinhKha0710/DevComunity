@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Votes;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Entities;
@@ -21,7 +22,7 @@ public static class ReputationPoints
 /// <summary>
 /// Handler for voting on a question
 /// </summary>
-public class VoteQuestionCommandHandler
+public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, VoteResult>
 {
     private readonly IVoteRepository _voteRepository;
     private readonly IQuestionRepository _questionRepository;
@@ -40,20 +41,20 @@ public class VoteQuestionCommandHandler
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<VoteResult> HandleAsync(VoteQuestionCommand command, CancellationToken cancellationToken)
+    public async Task<VoteResult> Handle(VoteQuestionCommand request, CancellationToken cancellationToken)
     {
-        var question = await _questionRepository.GetByIdAsync(command.QuestionId, cancellationToken);
+        var question = await _questionRepository.GetByIdAsync(request.QuestionId, cancellationToken);
         if (question == null)
             return new VoteResult { Success = false, Message = "Question not found" };
 
         // Prevent self-voting
-        if (question.UserId == command.UserId)
+        if (question.UserId == request.UserId)
             return new VoteResult { Success = false, Message = "Cannot vote on your own question" };
 
         var existingVote = await _voteRepository.GetUserVoteOnQuestionAsync(
-            command.UserId, command.QuestionId, cancellationToken);
+            request.UserId, request.QuestionId, cancellationToken);
 
-        var isUpvote = command.VoteType.ToLower() == "up";
+        var isUpvote = request.VoteType.ToLower() == "up";
 
         if (existingVote != null)
         {
@@ -68,9 +69,9 @@ public class VoteQuestionCommandHandler
                 
                 // Adjust voter's downvote penalty
                 if (!existingVote.IsUpvote) // Was downvote, now upvote - refund penalty
-                    await _userRepository.UpdateReputationAsync(command.UserId, -ReputationPoints.DownvoteCost, cancellationToken);
+                    await _userRepository.UpdateReputationAsync(request.UserId, -ReputationPoints.DownvoteCost, cancellationToken);
                 else if (!isUpvote) // Was upvote, now downvote - apply penalty
-                    await _userRepository.UpdateReputationAsync(command.UserId, ReputationPoints.DownvoteCost, cancellationToken);
+                    await _userRepository.UpdateReputationAsync(request.UserId, ReputationPoints.DownvoteCost, cancellationToken);
             }
             
             existingVote.IsUpvote = isUpvote;
@@ -84,23 +85,23 @@ public class VoteQuestionCommandHandler
             
             // Downvote costs the voter
             if (!isUpvote)
-                await _userRepository.UpdateReputationAsync(command.UserId, ReputationPoints.DownvoteCost, cancellationToken);
+                await _userRepository.UpdateReputationAsync(request.UserId, ReputationPoints.DownvoteCost, cancellationToken);
 
             var vote = new Vote
             {
-                UserId = command.UserId,
-                QuestionId = command.QuestionId,
+                UserId = request.UserId,
+                QuestionId = request.QuestionId,
                 IsUpvote = isUpvote,
                 CreatedDate = DateTime.UtcNow
             };
             await _voteRepository.AddAsync(vote, cancellationToken);
         }
 
-        var score = await _voteRepository.GetQuestionScoreAsync(command.QuestionId, cancellationToken);
+        var score = await _voteRepository.GetQuestionScoreAsync(request.QuestionId, cancellationToken);
 
         // Check if we need to send notification (Only on Upvote and not self-vote)
         Notification? notification = null;
-        if (isUpvote && command.UserId != question.UserId)
+        if (isUpvote && request.UserId != question.UserId)
         {
              // Check if already notified recently? For now, just simplest logic: Notify on every new upvote.
              // But usually we should avoid duplicate notifications.
@@ -110,11 +111,11 @@ public class VoteQuestionCommandHandler
              
              if (shouldNotify)
              {
-                 var voter = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+                 var voter = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
                  notification = new Notification
                  {
                      UserId = question.UserId,
-                     FromUserId = command.UserId,
+                     FromUserId = request.UserId,
                      Type = "Upvote",
                      Message = $"{voter?.DisplayName ?? voter?.Username ?? "Someone"} upvoted your question: {question.Title}",
                      Link = $"/questions/{question.QuestionId}",
@@ -129,7 +130,7 @@ public class VoteQuestionCommandHandler
         {
             Success = true,
             Score = score,
-            UserVote = command.VoteType,
+            UserVote = request.VoteType,
             CreatedNotification = notification
         };
     }
@@ -138,7 +139,7 @@ public class VoteQuestionCommandHandler
 /// <summary>
 /// Handler for voting on an answer
 /// </summary>
-public class VoteAnswerCommandHandler
+public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteResult>
 {
     private readonly IVoteRepository _voteRepository;
     private readonly IAnswerRepository _answerRepository;
@@ -157,20 +158,20 @@ public class VoteAnswerCommandHandler
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<VoteResult> HandleAsync(VoteAnswerCommand command, CancellationToken cancellationToken)
+    public async Task<VoteResult> Handle(VoteAnswerCommand request, CancellationToken cancellationToken)
     {
-        var answer = await _answerRepository.GetByIdAsync(command.AnswerId, cancellationToken);
+        var answer = await _answerRepository.GetByIdAsync(request.AnswerId, cancellationToken);
         if (answer == null)
             return new VoteResult { Success = false, Message = "Answer not found" };
 
         // Prevent self-voting
-        if (answer.UserId == command.UserId)
+        if (answer.UserId == request.UserId)
             return new VoteResult { Success = false, Message = "Cannot vote on your own answer" };
 
         var existingVote = await _voteRepository.GetUserVoteOnAnswerAsync(
-            command.UserId, command.AnswerId, cancellationToken);
+            request.UserId, request.AnswerId, cancellationToken);
 
-        var isUpvote = command.VoteType.ToLower() == "up";
+        var isUpvote = request.VoteType.ToLower() == "up";
 
         if (existingVote != null)
         {
@@ -183,9 +184,9 @@ public class VoteAnswerCommandHandler
                 await _userRepository.UpdateReputationAsync(answer.UserId, -oldRepChange + newRepChange, cancellationToken);
                 
                 if (!existingVote.IsUpvote)
-                    await _userRepository.UpdateReputationAsync(command.UserId, -ReputationPoints.DownvoteCost, cancellationToken);
+                    await _userRepository.UpdateReputationAsync(request.UserId, -ReputationPoints.DownvoteCost, cancellationToken);
                 else if (!isUpvote)
-                    await _userRepository.UpdateReputationAsync(command.UserId, ReputationPoints.DownvoteCost, cancellationToken);
+                    await _userRepository.UpdateReputationAsync(request.UserId, ReputationPoints.DownvoteCost, cancellationToken);
             }
             
             existingVote.IsUpvote = isUpvote;
@@ -197,33 +198,33 @@ public class VoteAnswerCommandHandler
             await _userRepository.UpdateReputationAsync(answer.UserId, repChange, cancellationToken);
             
             if (!isUpvote)
-                await _userRepository.UpdateReputationAsync(command.UserId, ReputationPoints.DownvoteCost, cancellationToken);
+                await _userRepository.UpdateReputationAsync(request.UserId, ReputationPoints.DownvoteCost, cancellationToken);
 
             var vote = new Vote
             {
-                UserId = command.UserId,
-                AnswerId = command.AnswerId,
+                UserId = request.UserId,
+                AnswerId = request.AnswerId,
                 IsUpvote = isUpvote,
                 CreatedDate = DateTime.UtcNow
             };
             await _voteRepository.AddAsync(vote, cancellationToken);
         }
 
-        var score = await _voteRepository.GetAnswerScoreAsync(command.AnswerId, cancellationToken);
+        var score = await _voteRepository.GetAnswerScoreAsync(request.AnswerId, cancellationToken);
 
          // Notification Logic for Answer Upvote
         Notification? notification = null;
-        if (isUpvote && command.UserId != answer.UserId)
+        if (isUpvote && request.UserId != answer.UserId)
         {
              bool shouldNotify = (existingVote == null) || (existingVote != null && !existingVote.IsUpvote);
              
              if (shouldNotify)
              {
-                 var voter = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+                 var voter = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
                  notification = new Notification
                  {
                      UserId = answer.UserId,
-                     FromUserId = command.UserId,
+                     FromUserId = request.UserId,
                      Type = "Upvote",
                      Message = $"{voter?.DisplayName ?? voter?.Username ?? "Someone"} upvoted your answer",
                      Link = $"/questions/{answer.QuestionId}", // Link to question, maybe anchor to answer?
@@ -238,7 +239,7 @@ public class VoteAnswerCommandHandler
         {
             Success = true,
             Score = score,
-            UserVote = command.VoteType,
+            UserVote = request.VoteType,
             CreatedNotification = notification
         };
     }
@@ -247,7 +248,7 @@ public class VoteAnswerCommandHandler
 /// <summary>
 /// Handler for removing a vote
 /// </summary>
-public class RemoveVoteCommandHandler
+public class RemoveVoteCommandHandler : IRequestHandler<RemoveVoteCommand, VoteResult>
 {
     private readonly IVoteRepository _voteRepository;
 
@@ -256,28 +257,28 @@ public class RemoveVoteCommandHandler
         _voteRepository = voteRepository;
     }
 
-    public async Task<VoteResult> HandleAsync(RemoveVoteCommand command, CancellationToken cancellationToken)
+    public async Task<VoteResult> Handle(RemoveVoteCommand request, CancellationToken cancellationToken)
     {
-        if (command.QuestionId.HasValue)
+        if (request.QuestionId.HasValue)
         {
             var vote = await _voteRepository.GetUserVoteOnQuestionAsync(
-                command.UserId, command.QuestionId.Value, cancellationToken);
+                request.UserId, request.QuestionId.Value, cancellationToken);
             if (vote != null)
             {
                 await _voteRepository.DeleteAsync(vote.VoteId, cancellationToken);
             }
-            var score = await _voteRepository.GetQuestionScoreAsync(command.QuestionId.Value, cancellationToken);
+            var score = await _voteRepository.GetQuestionScoreAsync(request.QuestionId.Value, cancellationToken);
             return new VoteResult { Success = true, Score = score };
         }
-        else if (command.AnswerId.HasValue)
+        else if (request.AnswerId.HasValue)
         {
             var vote = await _voteRepository.GetUserVoteOnAnswerAsync(
-                command.UserId, command.AnswerId.Value, cancellationToken);
+                request.UserId, request.AnswerId.Value, cancellationToken);
             if (vote != null)
             {
                 await _voteRepository.DeleteAsync(vote.VoteId, cancellationToken);
             }
-            var score = await _voteRepository.GetAnswerScoreAsync(command.AnswerId.Value, cancellationToken);
+            var score = await _voteRepository.GetAnswerScoreAsync(request.AnswerId.Value, cancellationToken);
             return new VoteResult { Success = true, Score = score };
         }
 
@@ -296,4 +297,3 @@ public class VoteResult
     public string? Message { get; set; }
     public Notification? CreatedNotification { get; set; }
 }
-

@@ -1,43 +1,25 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Commands.SavedItems;
 using SocialTechsy.SocialNetwork.Application.Queries.SavedItems;
-using SocialTechsy.SocialNetwork.Application.CommandHandlers.SavedItems;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.SavedItems;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
-/// <summary>
-/// API Controller for Saved Items (bookmarks)
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
 public class SavedItemsController : ControllerBase
 {
     private readonly ILogger<SavedItemsController> _logger;
-    private readonly GetSavedItemsQueryHandler _getSavedItemsHandler;
-    private readonly SaveQuestionCommandHandler _saveQuestionHandler;
-    private readonly UnsaveQuestionCommandHandler _unsaveQuestionHandler;
-    private readonly SaveAnswerCommandHandler _saveAnswerHandler;
-    private readonly UnsaveAnswerCommandHandler _unsaveAnswerHandler;
+    private readonly IMediator _mediator;
 
-    public SavedItemsController(
-        ILogger<SavedItemsController> logger,
-        GetSavedItemsQueryHandler getSavedItemsHandler,
-        SaveQuestionCommandHandler saveQuestionHandler,
-        UnsaveQuestionCommandHandler unsaveQuestionHandler,
-        SaveAnswerCommandHandler saveAnswerHandler,
-        UnsaveAnswerCommandHandler unsaveAnswerHandler)
+    public SavedItemsController(ILogger<SavedItemsController> logger, IMediator mediator)
     {
         _logger = logger;
-        _getSavedItemsHandler = getSavedItemsHandler;
-        _saveQuestionHandler = saveQuestionHandler;
-        _unsaveQuestionHandler = unsaveQuestionHandler;
-        _saveAnswerHandler = saveAnswerHandler;
-        _unsaveAnswerHandler = unsaveAnswerHandler;
+        _mediator = mediator;
     }
 
     private int GetCurrentUserId()
@@ -46,9 +28,6 @@ public class SavedItemsController : ControllerBase
         return userIdClaim != null ? int.Parse(userIdClaim.Value) : 0;
     }
 
-    /// <summary>
-    /// Get user's saved items
-    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSavedItems(
@@ -59,22 +38,17 @@ public class SavedItemsController : ControllerBase
     {
         _logger.LogInformation("Getting saved items, type: {Type}", type);
 
-        var query = new GetSavedItemsQuery
+        var result = await _mediator.Send(new GetSavedItemsQuery
         {
             UserId = GetCurrentUserId(),
             Type = type,
             Page = page,
             PageSize = pageSize
-        };
+        }, cancellationToken);
 
-        var (items, totalCount) = await _getSavedItemsHandler.HandleAsync(query, cancellationToken);
-        
-        return Ok(new { items, page, pageSize, totalCount });
+        return Ok(new { items = result.Items, page, pageSize, totalCount = result.TotalCount });
     }
 
-    /// <summary>
-    /// Save a question
-    /// </summary>
     [HttpPost("questions/{questionId:int}")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -82,43 +56,33 @@ public class SavedItemsController : ControllerBase
     {
         _logger.LogInformation("Saving question {QuestionId}", questionId);
 
-        var command = new SaveQuestionCommand
+        var success = await _mediator.Send(new SaveQuestionCommand
         {
             UserId = GetCurrentUserId(),
             QuestionId = questionId
-        };
+        }, cancellationToken);
 
-        var success = await _saveQuestionHandler.HandleAsync(command, cancellationToken);
-        
         if (!success)
             return NotFound(new { message = "Question not found" });
 
         return Created("", new { message = "Question saved" });
     }
 
-    /// <summary>
-    /// Remove saved question
-    /// </summary>
     [HttpDelete("questions/{questionId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnsaveQuestion(int questionId, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Unsaving question {QuestionId}", questionId);
 
-        var command = new UnsaveQuestionCommand
+        await _mediator.Send(new UnsaveQuestionCommand
         {
             UserId = GetCurrentUserId(),
             QuestionId = questionId
-        };
+        }, cancellationToken);
 
-        await _unsaveQuestionHandler.HandleAsync(command, cancellationToken);
-        
         return NoContent();
     }
 
-    /// <summary>
-    /// Save an answer
-    /// </summary>
     [HttpPost("answers/{answerId:int}")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -126,37 +90,30 @@ public class SavedItemsController : ControllerBase
     {
         _logger.LogInformation("Saving answer {AnswerId}", answerId);
 
-        var command = new SaveAnswerCommand
+        var success = await _mediator.Send(new SaveAnswerCommand
         {
             UserId = GetCurrentUserId(),
             AnswerId = answerId
-        };
+        }, cancellationToken);
 
-        var success = await _saveAnswerHandler.HandleAsync(command, cancellationToken);
-        
         if (!success)
             return NotFound(new { message = "Answer not found" });
 
         return Created("", new { message = "Answer saved" });
     }
 
-    /// <summary>
-    /// Remove saved answer
-    /// </summary>
     [HttpDelete("answers/{answerId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnsaveAnswer(int answerId, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Unsaving answer {AnswerId}", answerId);
 
-        var command = new UnsaveAnswerCommand
+        await _mediator.Send(new UnsaveAnswerCommand
         {
             UserId = GetCurrentUserId(),
             AnswerId = answerId
-        };
+        }, cancellationToken);
 
-        await _unsaveAnswerHandler.HandleAsync(command, cancellationToken);
-        
         return NoContent();
     }
 }

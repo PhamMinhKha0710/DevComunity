@@ -88,6 +88,11 @@ Thumbs.db
 mono_crash.*
 
 # Build results
+bin/
+obj/
+*.dll
+*.pdb
+*.exe
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/

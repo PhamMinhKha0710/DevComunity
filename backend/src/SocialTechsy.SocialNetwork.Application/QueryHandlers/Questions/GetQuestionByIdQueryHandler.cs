@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Queries.Questions;
@@ -7,7 +8,7 @@ namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Questions;
 /// <summary>
 /// Handler for GetQuestionByIdQuery
 /// </summary>
-public class GetQuestionByIdQueryHandler
+public class GetQuestionByIdQueryHandler : IRequestHandler<GetQuestionByIdQuery, QuestionDto?>
 {
     private readonly IQuestionRepository _questionRepository;
 
@@ -16,9 +17,9 @@ public class GetQuestionByIdQueryHandler
         _questionRepository = questionRepository;
     }
 
-    public async Task<QuestionDto?> HandleAsync(GetQuestionByIdQuery query, CancellationToken cancellationToken = default)
+    public async Task<QuestionDto?> Handle(GetQuestionByIdQuery request, CancellationToken cancellationToken = default)
     {
-        var question = await _questionRepository.GetByIdAsync(query.QuestionId, cancellationToken);
+        var question = await _questionRepository.GetByIdAsync(request.QuestionId, cancellationToken);
         
         if (question == null)
             return null;

@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.SavedItems;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Entities;
@@ -7,7 +8,7 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.SavedItems;
 /// <summary>
 /// Handler for saving a question
 /// </summary>
-public class SaveQuestionCommandHandler
+public class SaveQuestionCommandHandler : IRequestHandler<SaveQuestionCommand, bool>
 {
     private readonly ISavedItemRepository _savedItemRepository;
     private readonly IQuestionRepository _questionRepository;
@@ -20,20 +21,20 @@ public class SaveQuestionCommandHandler
         _questionRepository = questionRepository;
     }
 
-    public async Task<bool> HandleAsync(SaveQuestionCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(SaveQuestionCommand request, CancellationToken cancellationToken)
     {
         // Check if question exists
-        if (!await _questionRepository.ExistsAsync(command.QuestionId, cancellationToken))
+        if (!await _questionRepository.ExistsAsync(request.QuestionId, cancellationToken))
             return false;
 
         // Check if already saved
-        if (await _savedItemRepository.IsSavedAsync(command.UserId, command.QuestionId, null, cancellationToken))
+        if (await _savedItemRepository.IsSavedAsync(request.UserId, request.QuestionId, null, cancellationToken))
             return true; // Already saved
 
         var savedItem = new SavedItem
         {
-            UserId = command.UserId,
-            QuestionId = command.QuestionId,
+            UserId = request.UserId,
+            QuestionId = request.QuestionId,
             CreatedDate = DateTime.UtcNow
         };
 
@@ -45,7 +46,7 @@ public class SaveQuestionCommandHandler
 /// <summary>
 /// Handler for unsaving a question
 /// </summary>
-public class UnsaveQuestionCommandHandler
+public class UnsaveQuestionCommandHandler : IRequestHandler<UnsaveQuestionCommand>
 {
     private readonly ISavedItemRepository _savedItemRepository;
 
@@ -54,16 +55,16 @@ public class UnsaveQuestionCommandHandler
         _savedItemRepository = savedItemRepository;
     }
 
-    public async Task HandleAsync(UnsaveQuestionCommand command, CancellationToken cancellationToken)
+    public async Task Handle(UnsaveQuestionCommand request, CancellationToken cancellationToken)
     {
-        await _savedItemRepository.DeleteByQuestionAsync(command.UserId, command.QuestionId, cancellationToken);
+        await _savedItemRepository.DeleteByQuestionAsync(request.UserId, request.QuestionId, cancellationToken);
     }
 }
 
 /// <summary>
 /// Handler for saving an answer
 /// </summary>
-public class SaveAnswerCommandHandler
+public class SaveAnswerCommandHandler : IRequestHandler<SaveAnswerCommand, bool>
 {
     private readonly ISavedItemRepository _savedItemRepository;
     private readonly IAnswerRepository _answerRepository;
@@ -76,21 +77,21 @@ public class SaveAnswerCommandHandler
         _answerRepository = answerRepository;
     }
 
-    public async Task<bool> HandleAsync(SaveAnswerCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(SaveAnswerCommand request, CancellationToken cancellationToken)
     {
         // Check if answer exists
-        var answer = await _answerRepository.GetByIdAsync(command.AnswerId, cancellationToken);
+        var answer = await _answerRepository.GetByIdAsync(request.AnswerId, cancellationToken);
         if (answer == null)
             return false;
 
         // Check if already saved
-        if (await _savedItemRepository.IsSavedAsync(command.UserId, null, command.AnswerId, cancellationToken))
+        if (await _savedItemRepository.IsSavedAsync(request.UserId, null, request.AnswerId, cancellationToken))
             return true; // Already saved
 
         var savedItem = new SavedItem
         {
-            UserId = command.UserId,
-            AnswerId = command.AnswerId,
+            UserId = request.UserId,
+            AnswerId = request.AnswerId,
             CreatedDate = DateTime.UtcNow
         };
 
@@ -102,7 +103,7 @@ public class SaveAnswerCommandHandler
 /// <summary>
 /// Handler for unsaving an answer
 /// </summary>
-public class UnsaveAnswerCommandHandler
+public class UnsaveAnswerCommandHandler : IRequestHandler<UnsaveAnswerCommand>
 {
     private readonly ISavedItemRepository _savedItemRepository;
 
@@ -111,8 +112,8 @@ public class UnsaveAnswerCommandHandler
         _savedItemRepository = savedItemRepository;
     }
 
-    public async Task HandleAsync(UnsaveAnswerCommand command, CancellationToken cancellationToken)
+    public async Task Handle(UnsaveAnswerCommand request, CancellationToken cancellationToken)
     {
-        await _savedItemRepository.DeleteByAnswerAsync(command.UserId, command.AnswerId, cancellationToken);
+        await _savedItemRepository.DeleteByAnswerAsync(request.UserId, request.AnswerId, cancellationToken);
     }
 }

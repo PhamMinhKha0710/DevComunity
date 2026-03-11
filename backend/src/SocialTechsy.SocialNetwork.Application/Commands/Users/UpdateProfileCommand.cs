@@ -1,12 +1,15 @@
 using System.ComponentModel.DataAnnotations;
+using MediatR;
 
 namespace SocialTechsy.SocialNetwork.Application.Commands.Users;
 
 /// <summary>
 /// Command for updating user profile
 /// </summary>
-public class UpdateProfileCommand
+public class UpdateProfileCommand : IRequest<bool>
 {
+    public int UserId { get; set; }
+
     [StringLength(100)]
     public string? DisplayName { get; set; }
 

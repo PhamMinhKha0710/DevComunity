@@ -1,11 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using MediatR;
+using SocialTechsy.SocialNetwork.Application.CommandHandlers.Answers;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 
 namespace SocialTechsy.SocialNetwork.Application.Commands.Answers;
 
 /// <summary>
 /// Command to create a new answer
 /// </summary>
-public class CreateAnswerCommand
+public class CreateAnswerCommand : IRequest<AnswerDto?>
 {
     public int QuestionId { get; set; }
     
@@ -21,7 +24,7 @@ public class CreateAnswerCommand
 /// <summary>
 /// Command to update an existing answer
 /// </summary>
-public class UpdateAnswerCommand
+public class UpdateAnswerCommand : IRequest<bool>
 {
     public int AnswerId { get; set; }
     
@@ -35,7 +38,7 @@ public class UpdateAnswerCommand
 /// <summary>
 /// Command to delete an answer
 /// </summary>
-public class DeleteAnswerCommand
+public class DeleteAnswerCommand : IRequest<bool>
 {
     public int AnswerId { get; set; }
     public int UserId { get; set; }
@@ -44,7 +47,7 @@ public class DeleteAnswerCommand
 /// <summary>
 /// Command to accept an answer
 /// </summary>
-public class AcceptAnswerCommand
+public class AcceptAnswerCommand : IRequest<AcceptAnswerResult>
 {
     public int AnswerId { get; set; }
     public int QuestionId { get; set; }

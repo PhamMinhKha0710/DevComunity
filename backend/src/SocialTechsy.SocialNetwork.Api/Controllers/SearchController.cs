@@ -1,31 +1,23 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Queries.Search;
-using SocialTechsy.SocialNetwork.Application.QueryHandlers.Search;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
-/// <summary>
-/// API Controller for unified search across the platform
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class SearchController : ControllerBase
 {
     private readonly ILogger<SearchController> _logger;
-    private readonly SearchQueryHandler _searchHandler;
+    private readonly IMediator _mediator;
 
-    public SearchController(
-        ILogger<SearchController> logger,
-        SearchQueryHandler searchHandler)
+    public SearchController(ILogger<SearchController> logger, IMediator mediator)
     {
         _logger = logger;
-        _searchHandler = searchHandler;
+        _mediator = mediator;
     }
 
-    /// <summary>
-    /// Search across questions, users, and tags
-    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(SearchResultDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<SearchResultDto>> Search(
@@ -38,13 +30,7 @@ public class SearchController : ControllerBase
 
         _logger.LogInformation("Searching for: {Query}", q);
 
-        var query = new SearchQuery
-        {
-            Query = q,
-            MaxResults = maxResults
-        };
-
-        var result = await _searchHandler.HandleAsync(query, cancellationToken);
+        var result = await _mediator.Send(new SearchQuery { Query = q, MaxResults = maxResults }, cancellationToken);
         return Ok(result);
     }
 }

@@ -1,37 +1,28 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Commands.Votes;
-using SocialTechsy.SocialNetwork.Application.CommandHandlers.Votes;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using SocialTechsy.SocialNetwork.Api.Hubs;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
-/// <summary>
-/// API Controller for Voting on Questions and Answers
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class VotesController : ControllerBase
 {
     private readonly ILogger<VotesController> _logger;
-    private readonly VoteQuestionCommandHandler _voteQuestionHandler;
-    private readonly VoteAnswerCommandHandler _voteAnswerHandler;
-    private readonly RemoveVoteCommandHandler _removeVoteHandler;
+    private readonly IMediator _mediator;
     private readonly IHubContext<NotificationHub> _hubContext;
 
     public VotesController(
         ILogger<VotesController> logger,
-        VoteQuestionCommandHandler voteQuestionHandler,
-        VoteAnswerCommandHandler voteAnswerHandler,
-        RemoveVoteCommandHandler removeVoteHandler,
+        IMediator mediator,
         IHubContext<NotificationHub> hubContext)
     {
         _logger = logger;
-        _voteQuestionHandler = voteQuestionHandler;
-        _voteAnswerHandler = voteAnswerHandler;
-        _removeVoteHandler = removeVoteHandler;
+        _mediator = mediator;
         _hubContext = hubContext;
     }
 
@@ -41,9 +32,6 @@ public class VotesController : ControllerBase
         return int.TryParse(userIdClaim, out var userId) ? userId : 0;
     }
 
-    /// <summary>
-    /// Vote on a question
-    /// </summary>
     [HttpPost("question/{questionId:int}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -60,14 +48,12 @@ public class VotesController : ControllerBase
 
         _logger.LogInformation("User {UserId} voting on question {QuestionId}: {VoteType}", userId, questionId, request.VoteType);
 
-        var command = new VoteQuestionCommand
+        var result = await _mediator.Send(new VoteQuestionCommand
         {
             UserId = userId,
             QuestionId = questionId,
             VoteType = request.VoteType
-        };
-
-        var result = await _voteQuestionHandler.HandleAsync(command, cancellationToken);
+        }, cancellationToken);
 
         if (!result.Success)
             return BadRequest(new { message = result.Message });
@@ -88,9 +74,6 @@ public class VotesController : ControllerBase
         return Ok(new { score = result.Score, userVote = result.UserVote });
     }
 
-    /// <summary>
-    /// Vote on an answer
-    /// </summary>
     [HttpPost("answer/{answerId:int}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -107,14 +90,12 @@ public class VotesController : ControllerBase
 
         _logger.LogInformation("User {UserId} voting on answer {AnswerId}: {VoteType}", userId, answerId, request.VoteType);
 
-        var command = new VoteAnswerCommand
+        var result = await _mediator.Send(new VoteAnswerCommand
         {
             UserId = userId,
             AnswerId = answerId,
             VoteType = request.VoteType
-        };
-
-        var result = await _voteAnswerHandler.HandleAsync(command, cancellationToken);
+        }, cancellationToken);
 
         if (!result.Success)
             return BadRequest(new { message = result.Message });
@@ -135,9 +116,6 @@ public class VotesController : ControllerBase
         return Ok(new { score = result.Score, userVote = result.UserVote });
     }
 
-    /// <summary>
-    /// Remove vote from a question
-    /// </summary>
     [HttpDelete("question/{questionId:int}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -149,19 +127,10 @@ public class VotesController : ControllerBase
 
         _logger.LogInformation("User {UserId} removing vote from question {QuestionId}", userId, questionId);
 
-        var command = new RemoveVoteCommand
-        {
-            UserId = userId,
-            QuestionId = questionId
-        };
-
-        var result = await _removeVoteHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(new RemoveVoteCommand { UserId = userId, QuestionId = questionId }, cancellationToken);
         return Ok(new { score = result.Score });
     }
 
-    /// <summary>
-    /// Remove vote from an answer
-    /// </summary>
     [HttpDelete("answer/{answerId:int}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -173,18 +142,12 @@ public class VotesController : ControllerBase
 
         _logger.LogInformation("User {UserId} removing vote from answer {AnswerId}", userId, answerId);
 
-        var command = new RemoveVoteCommand
-        {
-            UserId = userId,
-            AnswerId = answerId
-        };
-
-        var result = await _removeVoteHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(new RemoveVoteCommand { UserId = userId, AnswerId = answerId }, cancellationToken);
         return Ok(new { score = result.Score });
     }
 }
 
 public class VoteRequest
 {
-    public string VoteType { get; set; } = null!; // "up" or "down"
+    public string VoteType { get; set; } = null!;
 }

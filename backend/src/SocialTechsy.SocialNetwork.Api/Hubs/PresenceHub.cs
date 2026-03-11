@@ -1,21 +1,19 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using System.Collections.Concurrent;
+using SocialTechsy.SocialNetwork.Infrastructure.Redis;
 
 namespace SocialTechsy.SocialNetwork.Api.Hubs;
 
-/// <summary>
-/// SignalR Hub for user presence/online status
-/// </summary>
 [Authorize]
 public class PresenceHub : Hub
 {
-    private static readonly ConcurrentDictionary<string, HashSet<string>> OnlineUsers = new();
     private readonly ILogger<PresenceHub> _logger;
+    private readonly RedisPresenceService? _presence;
 
-    public PresenceHub(ILogger<PresenceHub> logger)
+    public PresenceHub(ILogger<PresenceHub> logger, RedisPresenceService? presence = null)
     {
         _logger = logger;
+        _presence = presence;
     }
 
     public override async Task OnConnectedAsync()
@@ -23,16 +21,19 @@ public class PresenceHub : Hub
         var userId = Context.UserIdentifier;
         if (!string.IsNullOrEmpty(userId))
         {
-            OnlineUsers.AddOrUpdate(
-                userId,
-                _ => new HashSet<string> { Context.ConnectionId },
-                (_, connections) =>
+            if (_presence != null)
+            {
+                var wasOffline = !await _presence.IsOnlineAsync(userId);
+                await _presence.SetOnlineAsync(userId, Context.ConnectionId);
+                if (wasOffline)
                 {
-                    connections.Add(Context.ConnectionId);
-                    return connections;
-                });
-
-            await Clients.Others.SendAsync("UserOnline", userId);
+                    await Clients.Others.SendAsync("UserOnline", userId);
+                }
+            }
+            else
+            {
+                await Clients.Others.SendAsync("UserOnline", userId);
+            }
             _logger.LogInformation("User {UserId} is now online", userId);
         }
 
@@ -44,34 +45,50 @@ public class PresenceHub : Hub
         var userId = Context.UserIdentifier;
         if (!string.IsNullOrEmpty(userId))
         {
-            if (OnlineUsers.TryGetValue(userId, out var connections))
+            if (_presence != null)
             {
-                connections.Remove(Context.ConnectionId);
-                if (connections.Count == 0)
+                await _presence.SetOfflineAsync(userId, Context.ConnectionId);
+                var stillOnline = await _presence.HasConnectionsAsync(userId);
+                if (!stillOnline)
                 {
-                    OnlineUsers.TryRemove(userId, out _);
                     await Clients.Others.SendAsync("UserOffline", userId);
                     _logger.LogInformation("User {UserId} is now offline", userId);
                 }
+            }
+            else
+            {
+                await Clients.Others.SendAsync("UserOffline", userId);
+                _logger.LogInformation("User {UserId} is now offline", userId);
             }
         }
 
         await base.OnDisconnectedAsync(exception);
     }
 
-    /// <summary>
-    /// Get list of online users
-    /// </summary>
-    public Task<string[]> GetOnlineUsers()
+    public async Task Heartbeat()
     {
-        return Task.FromResult(OnlineUsers.Keys.ToArray());
+        var userId = Context.UserIdentifier;
+        if (!string.IsNullOrEmpty(userId) && _presence != null)
+        {
+            await _presence.HeartbeatAsync(userId);
+        }
     }
 
-    /// <summary>
-    /// Check if a user is online
-    /// </summary>
-    public Task<bool> IsUserOnline(string userId)
+    public async Task<string[]> GetOnlineUsers()
     {
-        return Task.FromResult(OnlineUsers.ContainsKey(userId));
+        if (_presence != null)
+        {
+            return await _presence.GetOnlineUserIdsAsync();
+        }
+        return Array.Empty<string>();
+    }
+
+    public async Task<bool> IsUserOnline(string userId)
+    {
+        if (_presence != null)
+        {
+            return await _presence.IsOnlineAsync(userId);
+        }
+        return false;
     }
 }

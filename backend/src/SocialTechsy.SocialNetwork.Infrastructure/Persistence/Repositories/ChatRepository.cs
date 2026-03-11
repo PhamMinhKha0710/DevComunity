@@ -30,6 +30,7 @@ public class ChatRepository : IChatRepository
         var query = _context.Conversations
             .Include(c => c.Participants)
                 .ThenInclude(p => p.User)
+            .Include(c => c.Messages.OrderByDescending(m => m.SentDate).Take(1))
             .Where(c => c.Participants.Any(p => p.UserId == userId))
             .OrderByDescending(c => c.LastMessageDate ?? c.CreatedDate);
 
@@ -96,6 +97,12 @@ public class ChatRepository : IChatRepository
         return (items, totalCount);
     }
 
+    public Task<IEnumerable<Message>> GetMessagesCursorAsync(
+        int conversationId, int? afterMessageId, int limit, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("Cursor pagination only supported with MongoDB");
+    }
+
     public async Task<Message> AddMessageAsync(Message message, CancellationToken cancellationToken = default)
     {
         await _context.Messages.AddAsync(message, cancellationToken);
@@ -116,6 +123,25 @@ public class ChatRepository : IChatRepository
         await _context.Messages
             .Where(m => m.ConversationId == conversationId && m.SenderId != userId && !m.IsRead)
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.IsRead, true), cancellationToken);
+    }
+
+    public async Task UpdateDeliveryStatusAsync(int messageId, DeliveryStatus status, CancellationToken cancellationToken = default)
+    {
+        await _context.Messages
+            .Where(m => m.MessageId == messageId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.DeliveryStatus, status), cancellationToken);
+    }
+
+    public async Task<IEnumerable<Message>> GetMessagesSinceAsync(int conversationId, int sinceMessageId, int limit = 200, CancellationToken cancellationToken = default)
+    {
+        return await _context.Messages
+            .Include(m => m.Sender)
+            .Include(m => m.Reactions).ThenInclude(r => r.User)
+            .Include(m => m.ReplyToMessage).ThenInclude(r => r!.Sender)
+            .Where(m => m.ConversationId == conversationId && m.MessageId > sinceMessageId)
+            .OrderBy(m => m.MessageId)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
     }
 
     // ========== REACTIONS ==========

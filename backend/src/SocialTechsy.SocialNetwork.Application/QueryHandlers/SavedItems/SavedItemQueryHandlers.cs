@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Queries.SavedItems;
@@ -7,7 +8,7 @@ namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.SavedItems;
 /// <summary>
 /// Handler for getting saved items
 /// </summary>
-public class GetSavedItemsQueryHandler
+public class GetSavedItemsQueryHandler : IRequestHandler<GetSavedItemsQuery, SavedItemsResponse>
 {
     private readonly ISavedItemRepository _savedItemRepository;
 
@@ -16,18 +17,18 @@ public class GetSavedItemsQueryHandler
         _savedItemRepository = savedItemRepository;
     }
 
-    public async Task<(IEnumerable<SavedItemDto> Items, int TotalCount)> HandleAsync(GetSavedItemsQuery query, CancellationToken cancellationToken)
+    public async Task<SavedItemsResponse> Handle(GetSavedItemsQuery request, CancellationToken cancellationToken)
     {
         var items = await _savedItemRepository.GetByUserIdAsync(
-            query.UserId, 
-            query.Type, 
-            query.Page, 
-            query.PageSize, 
+            request.UserId, 
+            request.Type, 
+            request.Page, 
+            request.PageSize, 
             cancellationToken);
             
         var totalCount = await _savedItemRepository.GetCountByUserIdAsync(
-            query.UserId, 
-            query.Type, 
+            request.UserId, 
+            request.Type, 
             cancellationToken);
 
         var dtos = items.Select(s => new SavedItemDto
@@ -48,6 +49,6 @@ public class GetSavedItemsQueryHandler
             RelatedQuestionTitle = s.Answer?.Question?.Title
         });
 
-        return (dtos, totalCount);
+        return new SavedItemsResponse { Items = dtos, TotalCount = totalCount };
     }
 }

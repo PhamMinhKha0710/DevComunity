@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Queries.Questions;
@@ -7,7 +8,7 @@ namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Questions;
 /// <summary>
 /// Handler for GetQuestionsQuery
 /// </summary>
-public class GetQuestionsQueryHandler
+public class GetQuestionsQueryHandler : IRequestHandler<GetQuestionsQuery, PaginatedResponse<QuestionDto>>
 {
     private readonly IQuestionRepository _questionRepository;
 
@@ -16,14 +17,14 @@ public class GetQuestionsQueryHandler
         _questionRepository = questionRepository;
     }
 
-    public async Task<PaginatedResponse<QuestionDto>> HandleAsync(GetQuestionsQuery query, CancellationToken cancellationToken = default)
+    public async Task<PaginatedResponse<QuestionDto>> Handle(GetQuestionsQuery request, CancellationToken cancellationToken = default)
     {
         var (questions, totalCount) = await _questionRepository.GetPaginatedAsync(
-            query.Page,
-            query.PageSize,
-            query.SearchTerm,
-            query.Tag,
-            query.Sort,
+            request.Page,
+            request.PageSize,
+            request.SearchTerm,
+            request.Tag,
+            request.Sort,
             cancellationToken);
 
         var items = questions.Select(q => new QuestionDto
@@ -54,8 +55,8 @@ public class GetQuestionsQueryHandler
         {
             Items = items,
             TotalCount = totalCount,
-            Page = query.Page,
-            PageSize = query.PageSize
+            Page = request.Page,
+            PageSize = request.PageSize
         };
     }
 }

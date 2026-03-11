@@ -8,7 +8,6 @@ namespace SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 public interface IQuestionRepository
 {
     Task<Question?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-    Task<IEnumerable<Question>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<(IEnumerable<Question> Items, int TotalCount)> GetPaginatedAsync(
         int page, 
         int pageSize, 

@@ -1,25 +1,29 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
+using RabbitMQ.Client;
+using StackExchange.Redis;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Infrastructure.External.Gitea;
+using SocialTechsy.SocialNetwork.Infrastructure.MongoDB;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Repositories;
+using SocialTechsy.SocialNetwork.Infrastructure.RabbitMQ;
+using SocialTechsy.SocialNetwork.Infrastructure.Redis;
 using SocialTechsy.SocialNetwork.Infrastructure.Services;
 
 namespace SocialTechsy.SocialNetwork.Infrastructure;
 
-/// <summary>
-/// Extension methods for registering Infrastructure services
-/// </summary>
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Database context
+        // Database context (SQL Server - used for all non-chat entities)
         services.AddDbContext<SocialTechsySocialNetworkDbContext>(options =>
             options.UseSqlServer(
                     configuration.GetConnectionString("DefaultConnection"),
@@ -35,10 +39,77 @@ public static class DependencyInjection
         services.AddScoped<ICommentRepository, CommentRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
-        services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<ISavedItemRepository, SavedItemRepository>();
         services.AddScoped<IBadgeRepository, BadgeRepository>();
         services.AddScoped<ICodeRepository, CodeRepository>();
+
+        // ========== REDIS CACHE ==========
+        var redisEnabled = configuration.GetValue<bool>("Redis:Enabled");
+        if (redisEnabled)
+        {
+            var redisConnStr = configuration["Redis:ConnectionString"] ?? "localhost:6379";
+            services.AddSingleton<IConnectionMultiplexer>(
+                ConnectionMultiplexer.Connect(redisConnStr));
+            services.AddSingleton<RedisChatCacheService>();
+            services.AddSingleton<RedisPresenceService>();
+            services.AddSingleton<RedisChatRateLimiter>();
+        }
+
+        // ========== CHAT REPOSITORY (MongoDB + Redis cache) ==========
+        var mongoSection = configuration.GetSection(MongoDbSettings.SectionName);
+        if (mongoSection.Exists() && !string.IsNullOrEmpty(mongoSection["ConnectionString"]))
+        {
+            services.Configure<MongoDbSettings>(mongoSection);
+            services.AddSingleton<MongoClient>(sp =>
+            {
+                var connStr = configuration[$"{MongoDbSettings.SectionName}:ConnectionString"]!;
+                return new MongoClient(connStr);
+            });
+            services.AddSingleton<IMongoDatabase>(sp =>
+            {
+                var client = sp.GetRequiredService<MongoClient>();
+                var dbName = configuration[$"{MongoDbSettings.SectionName}:DatabaseName"] ?? "SocialTechsyChatDb";
+                return client.GetDatabase(dbName);
+            });
+            services.AddScoped<IChatRepository>(sp =>
+            {
+                var database = sp.GetRequiredService<IMongoDatabase>();
+                var userRepo = sp.GetRequiredService<IUserRepository>();
+                var cache = sp.GetService<RedisChatCacheService>();
+                return new MongoChatRepository(database, userRepo, cache);
+            });
+        }
+        else
+        {
+            services.AddScoped<IChatRepository, ChatRepository>();
+        }
+
+        // ========== RABBITMQ MESSAGE BROKER ==========
+        var rabbitSection = configuration.GetSection(RabbitMqSettings.SectionName);
+        var rabbitEnabled = rabbitSection.GetValue<bool>("Enabled");
+        if (rabbitEnabled)
+        {
+            services.Configure<RabbitMqSettings>(rabbitSection);
+            services.AddSingleton<IConnection>(sp =>
+            {
+                var factory = new ConnectionFactory
+                {
+                    HostName = configuration[$"{RabbitMqSettings.SectionName}:HostName"] ?? "localhost",
+                    Port = configuration.GetValue($"{RabbitMqSettings.SectionName}:Port", 5672),
+                    UserName = configuration[$"{RabbitMqSettings.SectionName}:UserName"] ?? "guest",
+                    Password = configuration[$"{RabbitMqSettings.SectionName}:Password"] ?? "guest",
+                    VirtualHost = configuration[$"{RabbitMqSettings.SectionName}:VirtualHost"] ?? "/"
+                };
+                return factory.CreateConnectionAsync().GetAwaiter().GetResult();
+            });
+            services.AddSingleton<IChatMessageBroker, RabbitMqChatMessageBroker>();
+            services.AddHostedService(sp => new ChatMessageConsumerService(
+                sp.GetRequiredService<IConnection>(),
+                sp,
+                sp.GetRequiredService<ILogger<ChatMessageConsumerService>>(),
+                sp.GetService<IConnectionMultiplexer>()));
+            services.AddHostedService<SocialTechsy.SocialNetwork.Infrastructure.MongoDB.OutboxProcessor>();
+        }
 
         // Social Networking repositories
         services.AddScoped<IFriendshipRepository, FriendshipRepository>();
@@ -46,8 +117,6 @@ public static class DependencyInjection
         services.AddScoped<IGroupRepository, GroupRepository>();
         services.AddScoped<IPostRepository, PostRepository>();
         services.AddScoped<ITagPreferenceRepository, TagPreferenceRepository>();
-        services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
-
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
 
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -66,4 +135,3 @@ public static class DependencyInjection
         return services;
     }
 }
-

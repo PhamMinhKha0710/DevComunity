@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Comments;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -8,7 +9,7 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Comments;
 /// <summary>
 /// Handler for creating a comment on a question
 /// </summary>
-public class CreateQuestionCommentCommandHandler
+public class CreateQuestionCommentCommandHandler : IRequestHandler<CreateQuestionCommentCommand, CommentDto?>
 {
     private readonly ICommentRepository _commentRepository;
     private readonly IQuestionRepository _questionRepository;
@@ -21,16 +22,16 @@ public class CreateQuestionCommentCommandHandler
         _questionRepository = questionRepository;
     }
 
-    public async Task<CommentDto?> HandleAsync(CreateQuestionCommentCommand command, CancellationToken cancellationToken)
+    public async Task<CommentDto?> Handle(CreateQuestionCommentCommand request, CancellationToken cancellationToken)
     {
-        var questionExists = await _questionRepository.ExistsAsync(command.QuestionId, cancellationToken);
+        var questionExists = await _questionRepository.ExistsAsync(request.QuestionId, cancellationToken);
         if (!questionExists) return null;
 
         var comment = new Comment
         {
-            QuestionId = command.QuestionId,
-            UserId = command.UserId,
-            Body = command.Body,
+            QuestionId = request.QuestionId,
+            UserId = request.UserId,
+            Body = request.Body,
             CreatedDate = DateTime.UtcNow
         };
 
@@ -49,7 +50,7 @@ public class CreateQuestionCommentCommandHandler
 /// <summary>
 /// Handler for creating a comment on an answer
 /// </summary>
-public class CreateAnswerCommentCommandHandler
+public class CreateAnswerCommentCommandHandler : IRequestHandler<CreateAnswerCommentCommand, CommentDto?>
 {
     private readonly ICommentRepository _commentRepository;
     private readonly IAnswerRepository _answerRepository;
@@ -62,16 +63,16 @@ public class CreateAnswerCommentCommandHandler
         _answerRepository = answerRepository;
     }
 
-    public async Task<CommentDto?> HandleAsync(CreateAnswerCommentCommand command, CancellationToken cancellationToken)
+    public async Task<CommentDto?> Handle(CreateAnswerCommentCommand request, CancellationToken cancellationToken)
     {
-        var answer = await _answerRepository.GetByIdAsync(command.AnswerId, cancellationToken);
+        var answer = await _answerRepository.GetByIdAsync(request.AnswerId, cancellationToken);
         if (answer == null) return null;
 
         var comment = new Comment
         {
-            AnswerId = command.AnswerId,
-            UserId = command.UserId,
-            Body = command.Body,
+            AnswerId = request.AnswerId,
+            UserId = request.UserId,
+            Body = request.Body,
             CreatedDate = DateTime.UtcNow
         };
 
@@ -90,7 +91,7 @@ public class CreateAnswerCommentCommandHandler
 /// <summary>
 /// Handler for updating a comment
 /// </summary>
-public class UpdateCommentCommandHandler
+public class UpdateCommentCommandHandler : IRequestHandler<UpdateCommentCommand, bool>
 {
     private readonly ICommentRepository _commentRepository;
 
@@ -99,13 +100,13 @@ public class UpdateCommentCommandHandler
         _commentRepository = commentRepository;
     }
 
-    public async Task<bool> HandleAsync(UpdateCommentCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(UpdateCommentCommand request, CancellationToken cancellationToken)
     {
-        var comment = await _commentRepository.GetByIdAsync(command.CommentId, cancellationToken);
-        if (comment == null || comment.UserId != command.UserId)
+        var comment = await _commentRepository.GetByIdAsync(request.CommentId, cancellationToken);
+        if (comment == null || comment.UserId != request.UserId)
             return false;
 
-        comment.Body = command.Body;
+        comment.Body = request.Body;
         await _commentRepository.UpdateAsync(comment, cancellationToken);
         return true;
     }
@@ -114,7 +115,7 @@ public class UpdateCommentCommandHandler
 /// <summary>
 /// Handler for deleting a comment
 /// </summary>
-public class DeleteCommentCommandHandler
+public class DeleteCommentCommandHandler : IRequestHandler<DeleteCommentCommand, bool>
 {
     private readonly ICommentRepository _commentRepository;
 
@@ -123,13 +124,13 @@ public class DeleteCommentCommandHandler
         _commentRepository = commentRepository;
     }
 
-    public async Task<bool> HandleAsync(DeleteCommentCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(DeleteCommentCommand request, CancellationToken cancellationToken)
     {
-        var comment = await _commentRepository.GetByIdAsync(command.CommentId, cancellationToken);
-        if (comment == null || comment.UserId != command.UserId)
+        var comment = await _commentRepository.GetByIdAsync(request.CommentId, cancellationToken);
+        if (comment == null || comment.UserId != request.UserId)
             return false;
 
-        await _commentRepository.DeleteAsync(command.CommentId, cancellationToken);
+        await _commentRepository.DeleteAsync(request.CommentId, cancellationToken);
         return true;
     }
 }

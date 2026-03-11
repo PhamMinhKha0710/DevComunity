@@ -11,125 +11,90 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "AttachmentFileName",
-                table: "Messages",
-                type: "nvarchar(255)",
-                maxLength: 255,
-                nullable: true);
+            // Use raw SQL to avoid errors if columns already exist
+            migrationBuilder.Sql(@"
+                IF COL_LENGTH('Messages', 'AttachmentFileName') IS NULL
+                    ALTER TABLE [Messages] ADD [AttachmentFileName] nvarchar(255) NULL;
+            ");
+            migrationBuilder.Sql(@"
+                IF COL_LENGTH('Messages', 'AttachmentSize') IS NULL
+                    ALTER TABLE [Messages] ADD [AttachmentSize] bigint NULL;
+            ");
+            migrationBuilder.Sql(@"
+                IF COL_LENGTH('Messages', 'AttachmentUrl') IS NULL
+                    ALTER TABLE [Messages] ADD [AttachmentUrl] nvarchar(500) NULL;
+            ");
+            migrationBuilder.Sql(@"
+                IF COL_LENGTH('Messages', 'MessageType') IS NULL
+                    ALTER TABLE [Messages] ADD [MessageType] nvarchar(20) NOT NULL DEFAULT 'text';
+            ");
+            migrationBuilder.Sql(@"
+                IF COL_LENGTH('Messages', 'ReplyToMessageId') IS NULL
+                    ALTER TABLE [Messages] ADD [ReplyToMessageId] int NULL;
+            ");
 
-            migrationBuilder.AddColumn<long>(
-                name: "AttachmentSize",
-                table: "Messages",
-                type: "bigint",
-                nullable: true);
+            // Create MessageReactions table if not exists
+            migrationBuilder.Sql(@"
+                IF OBJECT_ID(N'MessageReactions', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [MessageReactions] (
+                        [MessageReactionId] int NOT NULL IDENTITY,
+                        [ReactionType] nvarchar(20) NOT NULL,
+                        [CreatedAt] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
+                        [MessageId] int NOT NULL,
+                        [UserId] int NOT NULL,
+                        CONSTRAINT [PK_MessageReactions] PRIMARY KEY ([MessageReactionId]),
+                        CONSTRAINT [FK_MessageReactions_Messages_MessageId] FOREIGN KEY ([MessageId]) REFERENCES [Messages] ([MessageId]) ON DELETE CASCADE,
+                        CONSTRAINT [FK_MessageReactions_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([UserId]) ON DELETE NO ACTION
+                    );
+                END
+            ");
 
-            migrationBuilder.AddColumn<string>(
-                name: "AttachmentUrl",
-                table: "Messages",
-                type: "nvarchar(500)",
-                maxLength: 500,
-                nullable: true);
+            // Create PasswordResetTokens table if not exists
+            migrationBuilder.Sql(@"
+                IF OBJECT_ID(N'PasswordResetTokens', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [PasswordResetTokens] (
+                        [PasswordResetTokenId] int NOT NULL IDENTITY,
+                        [Token] nvarchar(500) NOT NULL,
+                        [UserId] int NOT NULL,
+                        [ExpiresAt] datetime2 NOT NULL,
+                        [CreatedAt] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
+                        [IsUsed] bit NOT NULL,
+                        CONSTRAINT [PK_PasswordResetTokens] PRIMARY KEY ([PasswordResetTokenId]),
+                        CONSTRAINT [FK_PasswordResetTokens_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([UserId]) ON DELETE CASCADE
+                    );
+                END
+            ");
 
-            migrationBuilder.AddColumn<string>(
-                name: "MessageType",
-                table: "Messages",
-                type: "nvarchar(20)",
-                maxLength: 20,
-                nullable: false,
-                defaultValue: "text");
+            // Create indexes if not exist
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Messages_ReplyToMessageId')
+                    CREATE INDEX [IX_Messages_ReplyToMessageId] ON [Messages] ([ReplyToMessageId]);
+            ");
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessageReactions_MessageId_UserId')
+                    CREATE UNIQUE INDEX [IX_MessageReactions_MessageId_UserId] ON [MessageReactions] ([MessageId], [UserId]);
+            ");
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessageReactions_UserId')
+                    CREATE INDEX [IX_MessageReactions_UserId] ON [MessageReactions] ([UserId]);
+            ");
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_PasswordResetTokens_Token')
+                    CREATE UNIQUE INDEX [IX_PasswordResetTokens_Token] ON [PasswordResetTokens] ([Token]);
+            ");
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_PasswordResetTokens_UserId')
+                    CREATE INDEX [IX_PasswordResetTokens_UserId] ON [PasswordResetTokens] ([UserId]);
+            ");
 
-            migrationBuilder.AddColumn<int>(
-                name: "ReplyToMessageId",
-                table: "Messages",
-                type: "int",
-                nullable: true);
-
-            migrationBuilder.CreateTable(
-                name: "MessageReactions",
-                columns: table => new
-                {
-                    MessageReactionId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    ReactionType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    MessageId = table.Column<int>(type: "int", nullable: false),
-                    UserId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_MessageReactions", x => x.MessageReactionId);
-                    table.ForeignKey(
-                        name: "FK_MessageReactions_Messages_MessageId",
-                        column: x => x.MessageId,
-                        principalTable: "Messages",
-                        principalColumn: "MessageId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_MessageReactions_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "UserId",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "PasswordResetTokens",
-                columns: table => new
-                {
-                    PasswordResetTokenId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Token = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
-                    UserId = table.Column<int>(type: "int", nullable: false),
-                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    IsUsed = table.Column<bool>(type: "bit", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PasswordResetTokens", x => x.PasswordResetTokenId);
-                    table.ForeignKey(
-                        name: "FK_PasswordResetTokens_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "UserId",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Messages_ReplyToMessageId",
-                table: "Messages",
-                column: "ReplyToMessageId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_MessageReactions_MessageId_UserId",
-                table: "MessageReactions",
-                columns: new[] { "MessageId", "UserId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_MessageReactions_UserId",
-                table: "MessageReactions",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PasswordResetTokens_Token",
-                table: "PasswordResetTokens",
-                column: "Token",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PasswordResetTokens_UserId",
-                table: "PasswordResetTokens",
-                column: "UserId");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Messages_Messages_ReplyToMessageId",
-                table: "Messages",
-                column: "ReplyToMessageId",
-                principalTable: "Messages",
-                principalColumn: "MessageId",
-                onDelete: ReferentialAction.SetNull);
+            // Add FK for ReplyToMessageId if not exists
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Messages_Messages_ReplyToMessageId')
+                    ALTER TABLE [Messages] ADD CONSTRAINT [FK_Messages_Messages_ReplyToMessageId]
+                        FOREIGN KEY ([ReplyToMessageId]) REFERENCES [Messages] ([MessageId]) ON DELETE SET NULL;
+            ");
         }
 
         /// <inheritdoc />
