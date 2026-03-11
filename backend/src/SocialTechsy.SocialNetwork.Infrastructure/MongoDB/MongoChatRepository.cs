@@ -41,9 +41,6 @@ public class MongoChatRepository : IChatRepository
             _messages.Indexes.CreateMany(new[]
             {
                 new CreateIndexModel<MessageDocument>(
-                    Builders<MessageDocument>.IndexKeys.Ascending(m => m.MessageId),
-                    new CreateIndexOptions { Unique = true }),
-                new CreateIndexModel<MessageDocument>(
                     Builders<MessageDocument>.IndexKeys
                         .Ascending(m => m.ConversationId)
                         .Ascending(m => m.SentDate)),
