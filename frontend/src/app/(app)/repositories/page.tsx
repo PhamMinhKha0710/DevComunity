@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { Repository } from '@/types';
 import { repositoriesApi } from '@/lib/api/repositories.api';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 function RepositoriesContent() {
     const searchParams = useSearchParams();
@@ -132,9 +133,11 @@ function RepositoriesContent() {
                                             {repo.forksCount || 0}
                                         </span>
                                     </div>
-                                    <span className="text-xs text-[#94a3b8]">
-                                        Updated {new Date(repo.updatedDate || repo.createdDate).toLocaleDateString()}
-                                    </span>
+                                    <RelativeTime
+                                        value={repo.updatedDate || repo.createdDate}
+                                        prefix="Updated "
+                                        className="text-xs text-[#94a3b8]"
+                                    />
                                 </div>
                             </div>
                         </div>

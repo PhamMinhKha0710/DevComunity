@@ -244,6 +244,22 @@ function ChatContent() {
         fetchConversations();
     };
 
+    const handleDeleteConversation = async (convId: number) => {
+        if (!window.confirm('Xóa đoạn chat này khỏi hộp thoại của bạn? Đoạn chat vẫn còn ở phía người kia.')) {
+            return;
+        }
+        try {
+            await chatApi.deleteConversation(convId);
+            setConversations(prev => prev.filter(c => c.conversationId !== convId));
+            if (selectedConversation === convId) {
+                setSelectedConversation(null);
+                setMessages([]);
+            }
+        } catch (err) {
+            console.error('Failed to delete conversation:', err);
+        }
+    };
+
     // ── Derived ──
 
     const connectionStatus: ConnectionStatus =
@@ -278,6 +294,7 @@ function ChatContent() {
                     connectionStatus={connectionStatus}
                     onSelectConversation={selectConversation}
                     onNewChat={() => { setShowNewChat(true); setSelectedConversation(null); }}
+                    onDeleteConversation={handleDeleteConversation}
                 />
                 <div className="flex-1 flex flex-col">
                     {showNewChat ? (

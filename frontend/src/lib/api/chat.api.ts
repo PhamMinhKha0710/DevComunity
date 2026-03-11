@@ -15,4 +15,7 @@ export const chatApi = {
 
     createConversation: (data: { participantIds: number[] }) =>
         apiClient.post('/chat/conversations', data).then(r => r.data),
+
+    deleteConversation: (conversationId: number) =>
+        apiClient.delete(`/chat/conversations/${conversationId}`).then(r => r.data),
 };

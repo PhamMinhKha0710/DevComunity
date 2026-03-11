@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 export default function NotificationsPage() {
     const { user, isLoading } = useAuth();
@@ -39,22 +40,6 @@ export default function NotificationsPage() {
             case 'follow': return { icon: 'person_add', color: 'text-pink-500', bg: 'bg-pink-500/20' };
             default: return { icon: 'notifications', color: 'text-[var(--text-muted)]', bg: 'bg-[var(--bg-tertiary)]' };
         }
-    };
-
-    const formatDate = (dateString: string) => {
-        // Ensure UTC dates from backend are parsed correctly
-        const normalized = dateString.endsWith('Z') || dateString.includes('+') ? dateString : dateString + 'Z';
-        const date = new Date(normalized);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-        return date.toLocaleDateString();
     };
 
     return (
@@ -102,9 +87,10 @@ export default function NotificationsPage() {
                                     <p className={`text-[var(--text-primary)] ${!notification.isRead ? 'font-medium' : ''}`}>
                                         {notification.message}
                                     </p>
-                                    <span className="text-sm text-[var(--text-muted)]">
-                                        {formatDate(notification.createdDate)}
-                                    </span>
+                                    <RelativeTime
+                                        value={notification.createdDate}
+                                        className="text-sm text-[var(--text-muted)]"
+                                    />
                                 </div>
                                 {!notification.isRead && (
                                     <span className="px-2 py-1 text-xs font-medium bg-[var(--primary)] text-white rounded-lg">

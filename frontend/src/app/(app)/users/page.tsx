@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { usersApi } from '@/lib/api/users.api';
 import { followApi } from '@/lib/api/social.api';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 interface User {
     userId: number;
@@ -215,7 +216,11 @@ export default function UsersPage() {
                                     {user.displayName || user.username}
                                 </h4>
                                 <p className="text-slate-500 text-sm mb-4 line-clamp-2">
-                                    @{user.username} • Joined {new Date(user.createdDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                    @{user.username} •{' '}
+                                    <RelativeTime
+                                        value={user.createdDate}
+                                        prefix="Joined "
+                                    />
                                 </p>
 
                                 {/* Follow Button (stop propagation to prevent link navigation) */}

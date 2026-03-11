@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import type { SavedItem } from '@/types';
 import { savedItemsApi } from '@/lib/api/savedItems.api';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 // Strip HTML helper
 const stripHtml = (html: string): string => {
@@ -162,7 +163,7 @@ export default function SavedItemsPage() {
                                     </p>
                                     <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
                                         <span className="material-symbols-outlined">schedule</span>
-                                        Saved on {new Date(item.createdDate).toLocaleDateString()}
+                                        <RelativeTime value={item.createdDate} prefix="Saved on " />
                                     </div>
                                 </div>
                             </div>

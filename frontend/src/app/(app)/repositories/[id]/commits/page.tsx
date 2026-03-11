@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { RepositoryCommit } from '@/types';
 import { repositoriesApi } from '@/lib/api/repositories.api';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 export default function CommitsPage() {
     const params = useParams();
@@ -17,14 +18,6 @@ export default function CommitsPage() {
     });
 
     const commits: RepositoryCommit[] = commitsData?.items || [];
-
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    };
 
     if (isLoading) {
         return (
@@ -77,7 +70,7 @@ export default function CommitsPage() {
                                 <p className="font-bold text-[#0f172a] dark:text-white text-sm truncate">{commit.message}</p>
                                 <div className="flex items-center gap-2 text-[#64748b] text-xs mt-1">
                                     <span className="font-medium">{commit.authorName}</span>
-                                    <span>committed {formatDate(commit.committedDate)}</span>
+                                    <RelativeTime value={commit.committedDate} prefix="committed " />
                                 </div>
                             </div>
                             <div className="flex gap-2 items-center shrink-0">

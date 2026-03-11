@@ -6,6 +6,7 @@ import Link from 'next/link';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import apiClient from '@/lib/api/client';
+import RelativeTime from '@/components/RelativeTime';
 
 interface Group {
     groupId: number;
@@ -120,14 +121,6 @@ export default function GroupDetailPage() {
         }
     };
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
-
     if (loading) {
         return (
             <AppLayout>
@@ -181,7 +174,7 @@ export default function GroupDetailPage() {
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <span className="material-symbols-outlined">calendar_today</span>
-                                    Created {formatDate(group.createdAt)}
+                                    <RelativeTime value={group.createdAt} prefix="Created " />
                                 </span>
                             </div>
                         </div>
@@ -249,7 +242,10 @@ export default function GroupDetailPage() {
                                             <Link href={`/users/${post.author.userId}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--primary)]">
                                                 {post.author.displayName || post.author.username}
                                             </Link>
-                                            <p className="text-xs text-[var(--text-muted)]">{new Date(post.createdAt).toLocaleDateString()}</p>
+                                            <RelativeTime
+                                                value={post.createdAt}
+                                                className="text-xs text-[var(--text-muted)]"
+                                            />
                                         </div>
                                     </div>
                                     <p className="text-[var(--text-secondary)] whitespace-pre-wrap mb-4">

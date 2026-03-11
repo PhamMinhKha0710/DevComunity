@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { newsfeedApi } from '@/lib/api/newsfeed.api';
+import RelativeTime from '@/components/RelativeTime';
 
 interface Post {
     postId: number;
@@ -49,22 +50,6 @@ export default function NewsfeedPage() {
         e.preventDefault();
         if (!newPostContent.trim()) return;
         createPostMutation.mutate(newPostContent);
-    };
-
-    const formatDate = (dateString: string) => {
-        // Ensure UTC parsing: backend returns UTC dates without 'Z' suffix
-        const utcDateString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
-        const date = new Date(utcDateString);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-        return date.toLocaleDateString();
     };
 
     if (!isAuthenticated) {
@@ -196,7 +181,7 @@ export default function NewsfeedPage() {
                                                     </Link>
                                                 </h4>
                                                 <p className="text-xs text-slate-500">
-                                                    {formatDate(post.createdAt)}
+                                                    <RelativeTime value={post.createdAt} />
                                                     {post.groupName && (
                                                         <> • in <Link href={`/groups/${post.groupId}`} className="text-[var(--primary)] font-medium">{post.groupName}</Link></>
                                                     )}

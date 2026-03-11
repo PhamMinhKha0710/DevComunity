@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import type { Repository } from '@/types';
 import { repositoriesApi } from '@/lib/api/repositories.api';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 export default function MyRepositoriesPage() {
     const { user, isLoading: authLoading } = useAuth();
@@ -99,7 +100,10 @@ export default function MyRepositoriesPage() {
                                         <span className="material-symbols-outlined text-sm">fork_right</span>
                                         {repo.forksCount || 0}
                                     </span>
-                                    <span>Updated {new Date(repo.updatedDate || repo.createdDate).toLocaleDateString()}</span>
+                                    <RelativeTime
+                                        value={repo.updatedDate || repo.createdDate}
+                                        prefix="Updated "
+                                    />
                                 </div>
                             </div>
 

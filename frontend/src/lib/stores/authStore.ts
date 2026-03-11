@@ -2,6 +2,14 @@ import { create } from 'zustand';
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types';
 import apiClient from '@/lib/api/client';
 
+function setTokenCookie(token: string) {
+    document.cookie = `accessToken=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+}
+
+function removeTokenCookie() {
+    document.cookie = 'accessToken=; path=/; max-age=0';
+}
+
 interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
@@ -23,15 +31,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     initialize: async () => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
         if (!token) {
+            removeTokenCookie();
             set({ isLoading: false });
             return;
         }
         try {
             const response = await apiClient.get<User>('/auth/me');
+            setTokenCookie(token);
             set({ user: response.data, isAuthenticated: true, isLoading: false });
         } catch {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
+            removeTokenCookie();
             set({ user: null, isAuthenticated: false, isLoading: false });
         }
     },
@@ -40,6 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         const response = await apiClient.post<AuthResponse>('/auth/login', data);
         if (response.data.success && response.data.accessToken) {
             localStorage.setItem('accessToken', response.data.accessToken);
+            setTokenCookie(response.data.accessToken);
             if (response.data.refreshToken) {
                 localStorage.setItem('refreshToken', response.data.refreshToken);
             }
@@ -54,6 +66,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         const response = await apiClient.post<AuthResponse>('/auth/register', data);
         if (response.data.success && response.data.accessToken) {
             localStorage.setItem('accessToken', response.data.accessToken);
+            setTokenCookie(response.data.accessToken);
             if (response.data.refreshToken) {
                 localStorage.setItem('refreshToken', response.data.refreshToken);
             }
@@ -67,6 +80,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     logout: () => {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        removeTokenCookie();
         set({ user: null, isAuthenticated: false });
         apiClient.post('/auth/logout').catch(() => {});
     },

@@ -10,6 +10,7 @@ import { questionsApi } from "@/lib/api/questions.api";
 import { answersApi } from "@/lib/api/answers.api";
 import { votesApi } from "@/lib/api/votes.api";
 import AppLayout from "@/components/AppLayout";
+import RelativeTime from "@/components/RelativeTime";
 import type { Question, Answer } from "@/types";
 
 const MarkdownContent = dynamic(() => import("@/components/MarkdownContent"), {
@@ -50,14 +51,16 @@ export default function QuestionDetailPage() {
       targetType: "question" | "answer";
       targetId: number;
     }) => {
-      const voteType = type === "up" ? 1 : -1;
+      const voteType = type; // 'up' | 'down'
       return targetType === "question"
         ? votesApi.voteQuestion(targetId, { voteType })
         : votesApi.voteAnswer(targetId, { voteType });
     },
     onSuccess: () => {
+      // Cập nhật lại chi tiết + danh sách liên quan
       queryClient.invalidateQueries({ queryKey: ["question", id] });
       queryClient.invalidateQueries({ queryKey: ["answers", id] });
+      queryClient.invalidateQueries({ queryKey: ["questions"] });
     },
   });
 
@@ -67,6 +70,17 @@ export default function QuestionDetailPage() {
     targetId: number,
   ) => {
     if (!user) return;
+
+    // Không cho self-vote để tránh 400 từ backend
+    if (targetType === "question" && user.userId === question?.authorId) {
+      return;
+    }
+    if (targetType === "answer") {
+      const targetAnswer = answers.find(a => a.answerId === targetId);
+      if (targetAnswer && targetAnswer.authorId === user.userId) {
+        return;
+      }
+    }
     voteMutation.mutate({ type, targetType, targetId });
   };
 
@@ -131,19 +145,32 @@ export default function QuestionDetailPage() {
           {/* Header */}
           <div className="mb-6 border-b border-[var(--border-color)] pb-4">
             <div className="flex items-start justify-between gap-4 mb-4">
-              <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] leading-tight">
-                {question.title}
-              </h1>
-              {question.status === "Solved" && (
-                <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-sm font-medium whitespace-nowrap">
-                  <i className="bi bi-check-circle-fill mr-1"></i> Solved
-                </span>
-              )}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] leading-tight">
+                  {question.title}
+                </h1>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                {question.status === "Solved" && (
+                  <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-sm font-medium whitespace-nowrap">
+                    <i className="bi bi-check-circle-fill mr-1"></i> Solved
+                  </span>
+                )}
+                {user && user.userId === question.authorId && (
+                  <Link
+                    href={`/questions/${question.questionId}/edit`}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:text-[var(--primary-dark)]"
+                  >
+                    <span className="material-symbols-outlined text-sm">edit</span>
+                    Edit question
+                  </Link>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--text-muted)]">
               <span className="flex items-center gap-1">
                 <i className="bi bi-clock"></i>
-                {formatDate(question.createdDate)}
+              <RelativeTime value={question.createdDate} fallback={formatDate(question.createdDate)} />
               </span>
               <span className="flex items-center gap-1">
                 <i className="bi bi-eye"></i>
@@ -159,6 +186,7 @@ export default function QuestionDetailPage() {
                 onClick={() =>
                   handleVote("up", "question", question.questionId)
                 }
+                disabled={!!user && user.userId === question.authorId}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
                   question.userVoteType === "up"
                     ? "bg-[var(--primary)] text-white"
@@ -166,7 +194,9 @@ export default function QuestionDetailPage() {
                 }`}
                 title="Upvote"
               >
-                <i className="bi bi-caret-up-fill text-xl"></i>
+                <span className="material-symbols-outlined text-xl">
+                  expand_less
+                </span>
               </button>
               <span className="text-xl font-bold text-[var(--text-primary)]">
                 {question.score}
@@ -175,6 +205,7 @@ export default function QuestionDetailPage() {
                 onClick={() =>
                   handleVote("down", "question", question.questionId)
                 }
+                disabled={!!user && user.userId === question.authorId}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
                   question.userVoteType === "down"
                     ? "bg-red-500 text-white"
@@ -182,7 +213,9 @@ export default function QuestionDetailPage() {
                 }`}
                 title="Downvote"
               >
-                <i className="bi bi-caret-down-fill text-xl"></i>
+                <span className="material-symbols-outlined text-xl">
+                  expand_more
+                </span>
               </button>
               <button
                 className="mt-2 w-8 h-8 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--primary)] flex items-center justify-center transition"
@@ -268,7 +301,9 @@ export default function QuestionDetailPage() {
                           : "bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"
                       }`}
                     >
-                      <i className="bi bi-caret-up-fill text-xl"></i>
+                      <span className="material-symbols-outlined text-xl">
+                        expand_less
+                      </span>
                     </button>
                     <span className="text-xl font-bold text-[var(--text-primary)]">
                       {answer.score}
@@ -283,7 +318,9 @@ export default function QuestionDetailPage() {
                           : "bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"
                       }`}
                     >
-                      <i className="bi bi-caret-down-fill text-xl"></i>
+                      <span className="material-symbols-outlined text-xl">
+                        expand_more
+                      </span>
                     </button>
                     {answer.isAccepted && (
                       <div
@@ -302,9 +339,11 @@ export default function QuestionDetailPage() {
                     />
 
                     <div className="flex items-center justify-between pt-4 border-t border-[var(--border-color)]">
-                      <div className="text-xs text-[var(--text-muted)]">
-                        Answered {formatDate(answer.createdDate)}
-                      </div>
+                      <RelativeTime
+                        value={answer.createdDate}
+                        prefix="Trả lời "
+                        className="text-xs text-[var(--text-muted)]"
+                      />
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
                           {answer.authorUsername?.charAt(0).toUpperCase()}

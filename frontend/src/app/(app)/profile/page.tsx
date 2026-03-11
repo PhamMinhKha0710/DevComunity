@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 export default function ProfilePage() {
     const { user, isLoading } = useAuth();
@@ -34,11 +35,6 @@ export default function ProfilePage() {
         { key: 'answers', label: 'Answers' },
         { key: 'saved', label: 'Saved' },
     ];
-
-    const createdDate = (user as any).createdDate;
-    const joinDate = createdDate
-        ? new Date(createdDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-        : 'Member';
 
     return (
         <AppLayout showRightSidebar={false}>
@@ -80,7 +76,11 @@ export default function ProfilePage() {
                             </span>
                             <span className="flex items-center gap-1">
                                 <span className="material-symbols-outlined text-sm">calendar_today</span>
-                                Joined {joinDate}
+                                <RelativeTime
+                                    value={(user as any).createdDate}
+                                    prefix="Joined "
+                                    fallback="Member"
+                                />
                             </span>
                         </div>
                     </div>

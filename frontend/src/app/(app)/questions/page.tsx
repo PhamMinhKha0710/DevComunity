@@ -7,25 +7,11 @@ import { useQuery } from '@tanstack/react-query';
 import type { Question, Tag } from '@/types';
 import { questionsApi } from '@/lib/api/questions.api';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 const stripHtml = (html: string): string => {
     if (!html) return '';
     return html.replace(/<[^>]*>/g, '').substring(0, 200);
-};
-
-const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    if (diffDays < 30) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
 };
 
 const formatViews = (count: number) => {
@@ -180,7 +166,11 @@ function QuestionsContent() {
                                         <span className="text-xs font-bold text-[var(--primary)] hover:underline cursor-pointer">
                                             {question.authorUsername || 'Anonymous'}
                                         </span>
-                                        <span className="text-xs text-slate-500">asked {formatDate(question.createdDate)}</span>
+                                        <RelativeTime
+                                            value={question.createdDate}
+                                            prefix="asked "
+                                            className="text-xs text-slate-500"
+                                        />
                                     </div>
                                 </div>
                             </div>

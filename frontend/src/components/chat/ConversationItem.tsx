@@ -9,20 +9,28 @@ interface ConversationItemProps {
     currentUserId: number;
     onlineUsers: Set<string>;
     onSelect: (id: number) => void;
+    onDelete: (id: number) => void;
 }
 
-export default function ConversationItem({ conversation: conv, isActive, currentUserId, onlineUsers, onSelect }: ConversationItemProps) {
+export default function ConversationItem({
+    conversation: conv,
+    isActive,
+    currentUserId,
+    onlineUsers,
+    onSelect,
+    onDelete,
+}: ConversationItemProps) {
     const isOnline = isParticipantOnline(conv, currentUserId, onlineUsers);
     const hasUnread = conv.unreadCount > 0;
     const name = getParticipantName(conv, currentUserId);
     const avatar = getParticipantAvatar(conv, currentUserId);
 
     return (
-        <button
-            onClick={() => onSelect(conv.conversationId)}
+        <div
             className={`flex items-center gap-3 px-4 py-4 cursor-pointer transition-colors ${
                 isActive ? 'bg-[var(--primary)]/5 border-l-4 border-[var(--primary)]' : 'hover:bg-slate-50 dark:hover:bg-slate-800 border-l-4 border-transparent'
             }`}
+            onClick={() => onSelect(conv.conversationId)}
         >
             <div className="relative shrink-0">
                 <div className="size-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold">
@@ -56,6 +64,17 @@ export default function ConversationItem({ conversation: conv, isActive, current
                     )}
                 </div>
             </div>
-        </button>
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(conv.conversationId);
+                }}
+                className="ml-2 text-slate-400 hover:text-red-500 transition-colors"
+                title="Xóa đoạn chat này khỏi hộp thoại của bạn"
+            >
+                <span className="material-symbols-outlined text-[18px]">delete</span>
+            </button>
+        </div>
     );
 }
