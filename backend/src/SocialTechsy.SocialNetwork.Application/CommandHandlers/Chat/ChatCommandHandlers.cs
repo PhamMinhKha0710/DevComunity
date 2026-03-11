@@ -293,6 +293,31 @@ public class MarkConversationReadCommandHandler : IRequestHandler<MarkConversati
 
 #endregion
 
+#region Leave Conversation
+
+public class LeaveConversationCommand : IRequest<bool>
+{
+    public int ConversationId { get; set; }
+    public int UserId { get; set; }
+}
+
+public class LeaveConversationCommandHandler : IRequestHandler<LeaveConversationCommand, bool>
+{
+    private readonly IChatRepository _chatRepository;
+
+    public LeaveConversationCommandHandler(IChatRepository chatRepository)
+    {
+        _chatRepository = chatRepository;
+    }
+
+    public async Task<bool> Handle(LeaveConversationCommand request, CancellationToken cancellationToken)
+    {
+        return await _chatRepository.RemoveParticipantAsync(request.ConversationId, request.UserId, cancellationToken);
+    }
+}
+
+#endregion
+
 #region Add Reaction
 
 public class AddReactionCommand : IRequest<MessageReactionDto?>

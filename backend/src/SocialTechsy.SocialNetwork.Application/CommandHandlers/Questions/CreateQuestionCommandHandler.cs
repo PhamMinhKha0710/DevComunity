@@ -43,12 +43,14 @@ public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionComman
             CommandHandlers.Votes.ReputationPoints.AskQuestion, 
             cancellationToken);
 
+        var createdUtc = DateTime.SpecifyKind(createdQuestion.CreatedDate, DateTimeKind.Utc);
+
         return new QuestionDto
         {
             QuestionId = createdQuestion.QuestionId,
             Title = createdQuestion.Title,
             Body = createdQuestion.Body,
-            CreatedDate = createdQuestion.CreatedDate,
+            CreatedDate = createdUtc,
             Status = createdQuestion.Status,
             ViewCount = createdQuestion.ViewCount,
             Score = createdQuestion.Score

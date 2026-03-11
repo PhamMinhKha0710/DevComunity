@@ -161,6 +161,30 @@ public class ChatController : ControllerBase
         return Ok(new { message = "Messages marked as read" });
     }
 
+    [HttpDelete("conversations/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteConversationForCurrentUser(int id, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        _logger.LogInformation("User {UserId} leaving conversation {ConversationId}", userId, id);
+
+        var success = await _mediator.Send(new LeaveConversationCommand
+        {
+            ConversationId = id,
+            UserId = userId
+        }, cancellationToken);
+
+        if (!success)
+        {
+            return NotFound(new { message = "Conversation not found or user is not a participant" });
+        }
+
+        return NoContent();
+    }
+
     [HttpPost("messages/{messageId:int}/reactions")]
     [ProducesResponseType(typeof(MessageReactionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

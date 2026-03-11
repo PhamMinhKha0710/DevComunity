@@ -50,15 +50,41 @@ public class RedisChatCacheService
                     "Synced Redis sequence {Name} to {Value}", counter.Id, counter.SequenceValue);
             }
 
-            if (allCounters.Count == 0)
-            {
-                _logger.LogInformation("No MongoDB counters found; Redis sequences start fresh");
-            }
+            var knownSequences = allCounters.Select(c => c.Id).ToHashSet();
+            await SeedSequenceFromCollection<MessageDocument>(
+                mongoDatabase, counters, knownSequences, "messages", d => d.MessageId);
+            await SeedSequenceFromCollection<ConversationDocument>(
+                mongoDatabase, counters, knownSequences, "conversations", d => d.ConversationId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to sync Redis sequences from MongoDB counters");
         }
+    }
+
+    private async Task SeedSequenceFromCollection<T>(
+        IMongoDatabase db,
+        IMongoCollection<CounterDocument> counters,
+        HashSet<string> knownSequences,
+        string collectionName,
+        Func<T, int> idSelector)
+    {
+        if (knownSequences.Contains(collectionName)) return;
+
+        var collection = db.GetCollection<T>(collectionName);
+        var sort = Builders<T>.Sort.Descending("_id");
+        var docs = await collection.Find(_ => true)
+            .Sort(sort)
+            .Limit(1)
+            .ToListAsync();
+
+        if (docs.Count == 0) return;
+
+        var maxId = (long)idSelector(docs[0]);
+        await counters.InsertOneAsync(new CounterDocument { Id = collectionName, SequenceValue = maxId });
+        await SyncSequenceAsync(collectionName, maxId);
+        _logger.LogInformation(
+            "Seeded sequence {Name} from existing data, max _id = {Value}", collectionName, maxId);
     }
 
     // ========== UNREAD BATCH OPERATIONS ==========

@@ -118,6 +118,21 @@ public class ChatRepository : IChatRepository
         return message;
     }
 
+    public async Task<bool> RemoveParticipantAsync(int conversationId, int userId, CancellationToken cancellationToken = default)
+    {
+        var participant = await _context.ConversationParticipants
+            .FirstOrDefaultAsync(p => p.ConversationId == conversationId && p.UserId == userId, cancellationToken);
+
+        if (participant == null)
+        {
+            return false;
+        }
+
+        _context.ConversationParticipants.Remove(participant);
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task MarkMessagesAsReadAsync(int conversationId, int userId, CancellationToken cancellationToken = default)
     {
         await _context.Messages

@@ -26,6 +26,7 @@ public interface IChatRepository
         int limit,
         CancellationToken cancellationToken = default);
     Task<Message> AddMessageAsync(Message message, CancellationToken cancellationToken = default);
+    Task<bool> RemoveParticipantAsync(int conversationId, int userId, CancellationToken cancellationToken = default);
     Task MarkMessagesAsReadAsync(int conversationId, int userId, CancellationToken cancellationToken = default);
     Task UpdateDeliveryStatusAsync(int messageId, DeliveryStatus status, CancellationToken cancellationToken = default);
     Task<IEnumerable<Message>> GetMessagesSinceAsync(int conversationId, int sinceMessageId, int limit = 200, CancellationToken cancellationToken = default);
