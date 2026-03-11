@@ -5,6 +5,9 @@ export interface User {
     email: string;
     displayName?: string;
     profilePicture?: string;
+    bio?: string;
+    location?: string;
+    website?: string;
     reputationPoints: number;
     isEmailVerified: boolean;
 }
