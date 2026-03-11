@@ -1,24 +1,15 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import * as signalR from '@microsoft/signalr';
+import { createContext, useContext, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5122';
-
-interface Notification {
-    notificationId: number;
-    message: string;
-    type: string;
-    isRead: boolean;
-    createdDate: string;
-    link?: string;
-    fromUserId?: number;
-    fromUserName?: string;
-}
+import { useNotificationStore } from '@/lib/stores/notificationStore';
+import { useHub } from '@/lib/signalr/useHub';
+import { HubConnectionState } from '@microsoft/signalr';
+import apiClient from '@/lib/api/client';
+import toast from 'react-hot-toast';
 
 interface NotificationContextType {
-    notifications: Notification[];
+    notifications: any[];
     unreadCount: number;
     isConnected: boolean;
     markAsRead: (notificationId: number) => Promise<void>;
@@ -30,36 +21,21 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
     const { user } = useAuth();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
-    const [isConnected, setIsConnected] = useState(false);
+    const store = useNotificationStore();
+    const hub = useHub('notifications');
 
-    // Fetch initial notifications
     useEffect(() => {
         if (!user) {
-            setNotifications([]);
-            setUnreadCount(0);
+            store.setNotifications([]);
             return;
         }
 
         const fetchNotifications = async () => {
             try {
-                const token = localStorage.getItem('accessToken');
-                if (!token) return;
-
-                const response = await fetch(`${API_BASE_URL}/api/Notifications`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    const notifs = Array.isArray(data) ? data : (data.items || []);
-                    setNotifications(notifs);
-                    setUnreadCount(notifs.filter((n: Notification) => !n.isRead).length);
-                }
+                const response = await apiClient.get('/Notifications');
+                const data = response.data;
+                const notifs = Array.isArray(data) ? data : (data.items || []);
+                store.setNotifications(notifs);
             } catch (error) {
                 console.error('Failed to fetch notifications:', error);
             }
@@ -71,130 +47,77 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (!user) return;
 
-        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        const handleReceive = (notification: any) => {
+            store.addNotification(notification);
 
-        const newConnection = new signalR.HubConnectionBuilder()
-            .withUrl(`${API_BASE_URL}/hubs/notifications`, {
-                accessTokenFactory: () => token || '',
-                skipNegotiation: true,
-                transport: signalR.HttpTransportType.WebSockets,
-            })
-            .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-            .configureLogging(signalR.LogLevel.Warning)
-            .build();
+            toast(notification.message, {
+                icon: notification.type === 'message' ? '💬'
+                    : notification.type === 'friend_request' ? '👥'
+                    : notification.type === 'like' ? '❤️'
+                    : '🔔',
+                duration: 4000,
+                style: { borderRadius: '10px', background: '#333', color: '#fff' },
+            });
 
-        // Event handlers
-        newConnection.on('ReceiveNotification', (notification: Notification) => {
-            setNotifications(prev => [notification, ...prev]);
-            setUnreadCount(prev => prev + 1);
-
-            // Show browser notification if permitted
-            if (Notification.permission === 'granted') {
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
                 new Notification('SocialTechsy', {
                     body: notification.message,
                     icon: '/images/favicon.ico',
                 });
             }
-        });
+        };
 
-        newConnection.on('NotificationRead', (notificationId: number) => {
-            setNotifications(prev =>
-                prev.map(n => n.notificationId === notificationId ? { ...n, isRead: true } : n)
-            );
-            setUnreadCount(prev => Math.max(0, prev - 1));
-        });
+        const handleRead = (notificationId: number) => {
+            store.markAsRead(notificationId);
+        };
 
-        newConnection.on('AllNotificationsRead', () => {
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-            setUnreadCount(0);
-        });
+        const handleAllRead = () => {
+            store.markAllAsRead();
+        };
 
-        newConnection.onreconnected(() => {
-            console.log('Notification hub reconnected');
-            setIsConnected(true);
-        });
-
-        newConnection.onclose(() => {
-            console.log('Notification hub disconnected');
-            setIsConnected(false);
-        });
-
-        let isMounted = true;
-
-        // Start connection
-        newConnection.start()
-            .then(() => {
-                if (!isMounted) {
-                    newConnection.stop();
-                    console.log('Notification hub connection stopped immediately due to unmount');
-                    return;
-                }
-                console.log('Notification hub connected');
-                setIsConnected(true);
-                setConnection(newConnection);
-            })
-            .catch(err => {
-                console.error('Notification hub connection error:', err);
-            });
+        hub.on('ReceiveNotification', handleReceive);
+        hub.on('NotificationRead', handleRead);
+        hub.on('AllNotificationsRead', handleAllRead);
 
         return () => {
-            isMounted = false;
-            if (newConnection.state === signalR.HubConnectionState.Connected) {
-                newConnection.stop().catch(console.error);
-            }
+            hub.off('ReceiveNotification', handleReceive);
+            hub.off('NotificationRead', handleRead);
+            hub.off('AllNotificationsRead', handleAllRead);
         };
-    }, [user]);
+    }, [user, hub]);
 
     const markAsRead = useCallback(async (notificationId: number) => {
-        if (connection && connection.state === signalR.HubConnectionState.Connected) {
+        try {
+            await hub.invoke('MarkAsRead', notificationId);
+        } catch {
             try {
-                await connection.invoke('MarkAsRead', notificationId);
-            } catch (err) {
-                console.error('Failed to mark notification as read:', err);
-            }
-        } else {
-            // Fallback to API if SignalR is not connected
-            try {
-                const token = localStorage.getItem('accessToken');
-                await fetch(`${API_BASE_URL}/api/Notifications/${notificationId}/read`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                // Update local state
-                setNotifications(prev =>
-                    prev.map(n => n.notificationId === notificationId ? { ...n, isRead: true } : n)
-                );
-                setUnreadCount(prev => Math.max(0, prev - 1));
+                await apiClient.put(`/Notifications/${notificationId}/read`);
+                store.markAsRead(notificationId);
             } catch (err) {
                 console.error('Failed to mark read via API:', err);
             }
         }
-    }, [connection]);
+    }, [hub]);
 
     const markAllAsRead = useCallback(async () => {
-        if (connection && connection.state === signalR.HubConnectionState.Connected) {
-            try {
-                await connection.invoke('MarkAllAsRead');
-            } catch (err) {
-                console.error('Failed to mark all notifications as read:', err);
-            }
+        try {
+            await hub.invoke('MarkAllAsRead');
+        } catch (err) {
+            console.error('Failed to mark all notifications as read:', err);
         }
-    }, [connection]);
+    }, [hub]);
 
-    const clearNotification = useCallback((notificationId: number) => {
-        setNotifications(prev => prev.filter(n => n.notificationId !== notificationId));
-    }, []);
+    const isConnected = hub.connectionState === HubConnectionState.Connected;
 
     return (
         <NotificationContext.Provider
             value={{
-                notifications,
-                unreadCount,
+                notifications: store.notifications,
+                unreadCount: store.unreadCount,
                 isConnected,
                 markAsRead,
                 markAllAsRead,
-                clearNotification,
+                clearNotification: store.clearNotification,
             }}
         >
             {children}
