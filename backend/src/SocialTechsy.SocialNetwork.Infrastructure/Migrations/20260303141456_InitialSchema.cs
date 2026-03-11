@@ -11,6 +11,16 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Skip entire migration if database already has tables (created by previous migrations)
+            // This handles the case where InitialSchema runs after partial migrations
+            migrationBuilder.Sql(@"
+                IF OBJECT_ID(N'Users', N'U') IS NOT NULL
+                BEGIN
+                    -- Database already initialized, skip this migration
+                    RETURN;
+                END
+            ");
+
             migrationBuilder.CreateTable(
                 name: "Badges",
                 columns: table => new

@@ -10,6 +10,9 @@ public class UserDto
     public string Email { get; set; } = null!;
     public string? DisplayName { get; set; }
     public string? ProfilePicture { get; set; }
+    public string? Bio { get; set; }
+    public string? Location { get; set; }
+    public string? Website { get; set; }
     public int ReputationPoints { get; set; }
     public bool IsEmailVerified { get; set; }
     public int QuestionCount { get; set; }

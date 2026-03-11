@@ -1,12 +1,28 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Queries.Users;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Users;
+
+public class GetUserQuestionsQuery : IRequest<PaginatedResponse<QuestionDto>>
+{
+    public int UserId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 15;
+}
+
+public class GetUserAnswersQuery : IRequest<PaginatedResponse<AnswerDto>>
+{
+    public int UserId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 15;
+}
 
 /// <summary>
 /// Handler for getting a user's questions
 /// </summary>
-public class GetUserQuestionsQueryHandler
+public class GetUserQuestionsQueryHandler : IRequestHandler<GetUserQuestionsQuery, PaginatedResponse<QuestionDto>>
 {
     private readonly IQuestionRepository _questionRepository;
 
@@ -15,11 +31,11 @@ public class GetUserQuestionsQueryHandler
         _questionRepository = questionRepository;
     }
 
-    public async Task<PaginatedResponse<QuestionDto>> HandleAsync(
-        int userId, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<PaginatedResponse<QuestionDto>> Handle(
+        GetUserQuestionsQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _questionRepository.GetByUserIdAsync(
-            userId, page, pageSize, cancellationToken);
+            request.UserId, request.Page, request.PageSize, cancellationToken);
 
         return new PaginatedResponse<QuestionDto>
         {
@@ -45,8 +61,8 @@ public class GetUserQuestionsQueryHandler
                     Description = qt.Tag?.Description
                 }).ToList() ?? new List<TagDto>()
             }).ToList(),
-            Page = page,
-            PageSize = pageSize,
+            Page = request.Page,
+            PageSize = request.PageSize,
             TotalCount = totalCount
         };
     }
@@ -55,7 +71,7 @@ public class GetUserQuestionsQueryHandler
 /// <summary>
 /// Handler for getting a user's answers
 /// </summary>
-public class GetUserAnswersQueryHandler
+public class GetUserAnswersQueryHandler : IRequestHandler<GetUserAnswersQuery, PaginatedResponse<AnswerDto>>
 {
     private readonly IAnswerRepository _answerRepository;
 
@@ -64,11 +80,11 @@ public class GetUserAnswersQueryHandler
         _answerRepository = answerRepository;
     }
 
-    public async Task<PaginatedResponse<AnswerDto>> HandleAsync(
-        int userId, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<PaginatedResponse<AnswerDto>> Handle(
+        GetUserAnswersQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _answerRepository.GetByUserIdAsync(
-            userId, page, pageSize, cancellationToken);
+            request.UserId, request.Page, request.PageSize, cancellationToken);
 
         return new PaginatedResponse<AnswerDto>
         {
@@ -85,8 +101,8 @@ public class GetUserAnswersQueryHandler
                 AuthorProfilePicture = a.User?.ProfilePicture,
                 AuthorReputation = a.User?.ReputationPoints
             }).ToList(),
-            Page = page,
-            PageSize = pageSize,
+            Page = request.Page,
+            PageSize = request.PageSize,
             TotalCount = totalCount
         };
     }

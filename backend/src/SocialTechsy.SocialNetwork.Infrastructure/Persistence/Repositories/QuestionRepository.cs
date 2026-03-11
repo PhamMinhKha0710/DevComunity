@@ -28,15 +28,6 @@ public class QuestionRepository : IQuestionRepository
             .FirstOrDefaultAsync(q => q.QuestionId == id, cancellationToken);
     }
 
-    public async Task<IEnumerable<Question>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        return await _context.Questions
-            .Include(q => q.User)
-            .Include(q => q.QuestionTags)
-                .ThenInclude(qt => qt.Tag)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<(IEnumerable<Question> Items, int TotalCount)> GetPaginatedAsync(
         int page,
         int pageSize,
@@ -55,8 +46,8 @@ public class QuestionRepository : IQuestionRepository
         {
             var term = searchTerm.Trim();
             query = query.Where(q =>
-                EF.Functions.Like(q.Title, $"%{term}%") ||
-                EF.Functions.Like(q.Body, $"%{term}%"));
+                q.Title.Contains(term) ||
+                q.Body.Contains(term));
         }
 
         // Filter by tag

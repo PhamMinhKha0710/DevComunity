@@ -1,11 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using MediatR;
 
 namespace SocialTechsy.SocialNetwork.Application.Commands.Questions;
 
 /// <summary>
 /// Command to update an existing question
 /// </summary>
-public class UpdateQuestionCommand
+public class UpdateQuestionCommand : IRequest<bool>
 {
     public int QuestionId { get; set; }
     

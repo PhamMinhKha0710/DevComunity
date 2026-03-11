@@ -1,55 +1,101 @@
 namespace SocialTechsy.SocialNetwork.Domain.Entities;
 
-/// <summary>
-/// Message entity - represents a chat message
-/// </summary>
+public enum DeliveryStatus
+{
+    Sent = 0,
+    Delivered = 1,
+    Seen = 2
+}
+
 public class Message
 {
+    public static readonly string[] ValidMessageTypes = { "text", "image", "video", "audio", "file" };
+    public static readonly int MaxContentLength = 10_000;
+
     public int MessageId { get; set; }
     public string Content { get; set; } = null!;
     public bool IsRead { get; set; }
     public DateTime SentDate { get; set; }
-    
-    /// <summary>
-    /// Message type: text, image, video, audio, file
-    /// </summary>
     public string MessageType { get; set; } = "text";
-    
-    /// <summary>
-    /// URL to the attachment (for media messages)
-    /// </summary>
+    public DeliveryStatus DeliveryStatus { get; set; } = DeliveryStatus.Sent;
     public string? AttachmentUrl { get; set; }
-    
-    /// <summary>
-    /// Original filename of the attachment
-    /// </summary>
     public string? AttachmentFileName { get; set; }
-    
-    /// <summary>
-    /// Size of the attachment in bytes
-    /// </summary>
     public long? AttachmentSize { get; set; }
 
-    // Foreign keys
     public int ConversationId { get; set; }
     public int SenderId { get; set; }
-    
-    /// <summary>
-    /// Optional: ID of the message this is replying to (for Reply/Quote feature)
-    /// </summary>
     public int? ReplyToMessageId { get; set; }
 
-    // Navigation properties
     public virtual Conversation Conversation { get; set; } = null!;
     public virtual User Sender { get; set; } = null!;
-    
-    /// <summary>
-    /// The message this is a reply to - like Instagram/Facebook reply feature
-    /// </summary>
     public virtual Message? ReplyToMessage { get; set; }
-    
-    /// <summary>
-    /// Reactions (emoji) on this message - like Facebook/Instagram
-    /// </summary>
     public virtual ICollection<MessageReaction> Reactions { get; set; } = new List<MessageReaction>();
+
+    public bool IsMediaMessage => MessageType != "text";
+
+    public static Message CreateText(int conversationId, int senderId, string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            throw new ArgumentException("Message content cannot be empty.", nameof(content));
+        if (content.Length > MaxContentLength)
+            throw new ArgumentException($"Message exceeds maximum length of {MaxContentLength} characters.", nameof(content));
+
+        return new Message
+        {
+            ConversationId = conversationId,
+            SenderId = senderId,
+            Content = content,
+            MessageType = "text",
+            SentDate = DateTime.UtcNow,
+            IsRead = false
+        };
+    }
+
+    public static Message CreateMedia(int conversationId, int senderId, string messageType,
+        string attachmentUrl, string? attachmentFileName, long attachmentSize, string? caption = null)
+    {
+        if (!ValidMessageTypes.Contains(messageType))
+            throw new ArgumentException($"Invalid message type: {messageType}.", nameof(messageType));
+        if (string.IsNullOrWhiteSpace(attachmentUrl))
+            throw new ArgumentException("Attachment URL is required for media messages.", nameof(attachmentUrl));
+
+        return new Message
+        {
+            ConversationId = conversationId,
+            SenderId = senderId,
+            Content = caption ?? "",
+            MessageType = messageType,
+            AttachmentUrl = attachmentUrl,
+            AttachmentFileName = attachmentFileName,
+            AttachmentSize = attachmentSize,
+            SentDate = DateTime.UtcNow,
+            IsRead = false
+        };
+    }
+
+    public void MarkAsRead()
+    {
+        IsRead = true;
+    }
+
+    public string GetPreview(int maxLength = 50)
+    {
+        if (IsMediaMessage)
+        {
+            return MessageType switch
+            {
+                "image" => "Photo",
+                "video" => "Video",
+                "audio" => "Audio",
+                _ => AttachmentFileName ?? "File"
+            };
+        }
+
+        return Content.Length > maxLength ? Content[..maxLength] + "..." : Content;
+    }
+
+    public string GetReplyPreview(int maxLength = 100)
+    {
+        return Content.Length > maxLength ? Content[..maxLength] + "..." : Content;
+    }
 }

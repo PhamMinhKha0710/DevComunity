@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Queries.Notifications;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -7,7 +8,7 @@ namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Notifications;
 /// <summary>
 /// Handler for getting user notifications
 /// </summary>
-public class GetNotificationsQueryHandler
+public class GetNotificationsQueryHandler : IRequestHandler<GetNotificationsQuery, NotificationsResponse>
 {
     private readonly INotificationRepository _notificationRepository;
 
@@ -16,16 +17,16 @@ public class GetNotificationsQueryHandler
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<NotificationsResponse> HandleAsync(GetNotificationsQuery query, CancellationToken cancellationToken)
+    public async Task<NotificationsResponse> Handle(GetNotificationsQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _notificationRepository.GetByUserIdAsync(
-            query.UserId,
-            query.Page,
-            query.PageSize,
-            query.UnreadOnly,
+            request.UserId,
+            request.Page,
+            request.PageSize,
+            request.UnreadOnly,
             cancellationToken);
 
-        var unreadCount = await _notificationRepository.GetUnreadCountAsync(query.UserId, cancellationToken);
+        var unreadCount = await _notificationRepository.GetUnreadCountAsync(request.UserId, cancellationToken);
 
         return new NotificationsResponse
         {
@@ -39,8 +40,8 @@ public class GetNotificationsQueryHandler
                 Link = n.Link
             }).ToList(),
             UnreadCount = unreadCount,
-            Page = query.Page,
-            PageSize = query.PageSize,
+            Page = request.Page,
+            PageSize = request.PageSize,
             TotalCount = totalCount
         };
     }
@@ -49,7 +50,7 @@ public class GetNotificationsQueryHandler
 /// <summary>
 /// Handler for getting unread notification count
 /// </summary>
-public class GetUnreadCountQueryHandler
+public class GetUnreadCountQueryHandler : IRequestHandler<GetUnreadCountQuery, int>
 {
     private readonly INotificationRepository _notificationRepository;
 
@@ -58,8 +59,8 @@ public class GetUnreadCountQueryHandler
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<int> HandleAsync(GetUnreadCountQuery query, CancellationToken cancellationToken)
+    public async Task<int> Handle(GetUnreadCountQuery request, CancellationToken cancellationToken)
     {
-        return await _notificationRepository.GetUnreadCountAsync(query.UserId, cancellationToken);
+        return await _notificationRepository.GetUnreadCountAsync(request.UserId, cancellationToken);
     }
 }

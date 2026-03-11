@@ -1,12 +1,32 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Badges;
 
+public class GetBadgesQuery : IRequest<IEnumerable<BadgeDto>> { }
+
+public class GetBadgeByIdQuery : IRequest<BadgeDto?>
+{
+    public int BadgeId { get; set; }
+}
+
+public class GetBadgeUsersQuery : IRequest<PaginatedResponse<UserDto>>
+{
+    public int BadgeId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+public class GetUserBadgesQuery : IRequest<IEnumerable<UserBadgeDto>>
+{
+    public int UserId { get; set; }
+}
+
 /// <summary>
 /// Handler for getting all badges
 /// </summary>
-public class GetBadgesQueryHandler
+public class GetBadgesQueryHandler : IRequestHandler<GetBadgesQuery, IEnumerable<BadgeDto>>
 {
     private readonly IBadgeRepository _badgeRepository;
 
@@ -15,7 +35,7 @@ public class GetBadgesQueryHandler
         _badgeRepository = badgeRepository;
     }
 
-    public async Task<IEnumerable<BadgeDto>> HandleAsync(CancellationToken cancellationToken)
+    public async Task<IEnumerable<BadgeDto>> Handle(GetBadgesQuery request, CancellationToken cancellationToken)
     {
         var badges = await _badgeRepository.GetAllWithCountAsync(cancellationToken);
         return badges;
@@ -25,7 +45,7 @@ public class GetBadgesQueryHandler
 /// <summary>
 /// Handler for getting a badge by ID
 /// </summary>
-public class GetBadgeByIdQueryHandler
+public class GetBadgeByIdQueryHandler : IRequestHandler<GetBadgeByIdQuery, BadgeDto?>
 {
     private readonly IBadgeRepository _badgeRepository;
 
@@ -34,16 +54,16 @@ public class GetBadgeByIdQueryHandler
         _badgeRepository = badgeRepository;
     }
 
-    public async Task<BadgeDto?> HandleAsync(int badgeId, CancellationToken cancellationToken)
+    public async Task<BadgeDto?> Handle(GetBadgeByIdQuery request, CancellationToken cancellationToken)
     {
-        return await _badgeRepository.GetByIdWithCountAsync(badgeId, cancellationToken);
+        return await _badgeRepository.GetByIdWithCountAsync(request.BadgeId, cancellationToken);
     }
 }
 
 /// <summary>
 /// Handler for getting users who earned a badge
 /// </summary>
-public class GetBadgeUsersQueryHandler
+public class GetBadgeUsersQueryHandler : IRequestHandler<GetBadgeUsersQuery, PaginatedResponse<UserDto>>
 {
     private readonly IBadgeRepository _badgeRepository;
 
@@ -52,9 +72,9 @@ public class GetBadgeUsersQueryHandler
         _badgeRepository = badgeRepository;
     }
 
-    public async Task<PaginatedResponse<UserDto>> HandleAsync(int badgeId, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<PaginatedResponse<UserDto>> Handle(GetBadgeUsersQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _badgeRepository.GetBadgeUsersAsync(badgeId, page, pageSize, cancellationToken);
+        var (items, totalCount) = await _badgeRepository.GetBadgeUsersAsync(request.BadgeId, request.Page, request.PageSize, cancellationToken);
 
         return new PaginatedResponse<UserDto>
         {
@@ -66,8 +86,8 @@ public class GetBadgeUsersQueryHandler
                 ProfilePicture = ub.User?.ProfilePicture,
                 ReputationPoints = ub.User?.ReputationPoints ?? 0
             }).ToList(),
-            Page = page,
-            PageSize = pageSize,
+            Page = request.Page,
+            PageSize = request.PageSize,
             TotalCount = totalCount
         };
     }
@@ -76,7 +96,7 @@ public class GetBadgeUsersQueryHandler
 /// <summary>
 /// Handler for getting a user's badges
 /// </summary>
-public class GetUserBadgesQueryHandler
+public class GetUserBadgesQueryHandler : IRequestHandler<GetUserBadgesQuery, IEnumerable<UserBadgeDto>>
 {
     private readonly IBadgeRepository _badgeRepository;
 
@@ -85,9 +105,9 @@ public class GetUserBadgesQueryHandler
         _badgeRepository = badgeRepository;
     }
 
-    public async Task<IEnumerable<UserBadgeDto>> HandleAsync(int userId, CancellationToken cancellationToken)
+    public async Task<IEnumerable<UserBadgeDto>> Handle(GetUserBadgesQuery request, CancellationToken cancellationToken)
     {
-        var userBadges = await _badgeRepository.GetUserBadgesAsync(userId, cancellationToken);
+        var userBadges = await _badgeRepository.GetUserBadgesAsync(request.UserId, cancellationToken);
 
         return userBadges.Select(ub => new UserBadgeDto
         {

@@ -1,8 +1,10 @@
+using MediatR;
+using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 
-public class LogoutCommandHandler
+public class LogoutCommandHandler : IRequestHandler<LogoutCommand>
 {
     private readonly IRefreshTokenRepository _refreshTokenRepository;
 
@@ -11,8 +13,8 @@ public class LogoutCommandHandler
         _refreshTokenRepository = refreshTokenRepository;
     }
 
-    public async Task HandleAsync(int userId, CancellationToken cancellationToken = default)
+    public async Task Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
-        await _refreshTokenRepository.RevokeAllByUserIdAsync(userId, cancellationToken);
+        await _refreshTokenRepository.RevokeAllByUserIdAsync(request.UserId, cancellationToken);
     }
 }

@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
@@ -6,7 +7,7 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
 /// <summary>
 /// Handler for DeleteQuestionCommand
 /// </summary>
-public class DeleteQuestionCommandHandler
+public class DeleteQuestionCommandHandler : IRequestHandler<DeleteQuestionCommand, bool>
 {
     private readonly IQuestionRepository _questionRepository;
 
@@ -15,14 +16,14 @@ public class DeleteQuestionCommandHandler
         _questionRepository = questionRepository;
     }
 
-    public async Task<bool> HandleAsync(DeleteQuestionCommand command, CancellationToken cancellationToken = default)
+    public async Task<bool> Handle(DeleteQuestionCommand request, CancellationToken cancellationToken)
     {
-        var question = await _questionRepository.GetByIdAsync(command.QuestionId, cancellationToken);
+        var question = await _questionRepository.GetByIdAsync(request.QuestionId, cancellationToken);
         
-        if (question == null || question.UserId != command.UserId)
+        if (question == null || question.UserId != request.UserId)
             return false;
 
-        await _questionRepository.DeleteAsync(command.QuestionId, cancellationToken);
+        await _questionRepository.DeleteAsync(request.QuestionId, cancellationToken);
         return true;
     }
 }

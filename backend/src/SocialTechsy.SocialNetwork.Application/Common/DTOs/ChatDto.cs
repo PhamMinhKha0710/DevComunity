@@ -39,11 +39,8 @@ public class MessageDto
     public string Content { get; set; } = null!;
     public DateTime SentDate { get; set; }
     public bool IsRead { get; set; }
-    
-    /// <summary>
-    /// Message type: text, image, video, audio, file
-    /// </summary>
     public string MessageType { get; set; } = "text";
+    public string DeliveryStatus { get; set; } = "sent";
     
     /// <summary>
     /// URL to the attachment (for media messages)

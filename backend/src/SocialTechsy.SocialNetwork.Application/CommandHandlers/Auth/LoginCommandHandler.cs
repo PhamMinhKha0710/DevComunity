@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -6,7 +7,7 @@ using SocialTechsy.SocialNetwork.Domain.Entities;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 
-public class LoginCommandHandler
+public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponse>
 {
     private readonly IUserRepository _userRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
@@ -25,9 +26,9 @@ public class LoginCommandHandler
         _tokenService = tokenService;
     }
 
-    public async Task<AuthResponse> HandleAsync(LoginCommand command, CancellationToken cancellationToken = default)
+    public async Task<AuthResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByEmailAsync(command.Email, cancellationToken);
+        var user = await _userRepository.GetByEmailAsync(request.Email, cancellationToken);
 
         if (user == null)
         {
@@ -38,7 +39,7 @@ public class LoginCommandHandler
             };
         }
 
-        if (!_passwordHasher.VerifyPassword(command.Password, user.PasswordHash))
+        if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
             return new AuthResponse
             {
@@ -57,7 +58,7 @@ public class LoginCommandHandler
         {
             Token = refreshTokenString,
             UserId = user.UserId,
-            ExpiresAt = DateTime.UtcNow.AddDays(command.RememberMe ? 30 : 7),
+            ExpiresAt = DateTime.UtcNow.AddDays(request.RememberMe ? 30 : 7),
             CreatedAt = DateTime.UtcNow
         };
         await _refreshTokenRepository.AddAsync(refreshToken, cancellationToken);

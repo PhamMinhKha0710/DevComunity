@@ -1,9 +1,12 @@
+using MediatR;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+
 namespace SocialTechsy.SocialNetwork.Application.Queries.Answers;
 
 /// <summary>
 /// Query to get answers for a question
 /// </summary>
-public class GetAnswersByQuestionQuery
+public class GetAnswersByQuestionQuery : IRequest<PaginatedResponse<AnswerDto>>
 {
     public int QuestionId { get; set; }
     public int? CurrentUserId { get; set; }
@@ -15,7 +18,7 @@ public class GetAnswersByQuestionQuery
 /// <summary>
 /// Query to get a single answer by ID
 /// </summary>
-public class GetAnswerByIdQuery
+public class GetAnswerByIdQuery : IRequest<AnswerDto?>
 {
     public int AnswerId { get; set; }
     public int? CurrentUserId { get; set; }

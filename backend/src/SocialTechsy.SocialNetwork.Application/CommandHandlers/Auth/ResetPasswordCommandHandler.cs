@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -5,7 +6,7 @@ using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 
-public class ResetPasswordCommandHandler
+public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand, AuthResponse>
 {
     private readonly IPasswordResetTokenRepository _resetTokenRepository;
     private readonly IUserRepository _userRepository;
@@ -21,9 +22,9 @@ public class ResetPasswordCommandHandler
         _passwordHasher = passwordHasher;
     }
 
-    public async Task<AuthResponse> HandleAsync(ResetPasswordCommand command, CancellationToken cancellationToken = default)
+    public async Task<AuthResponse> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
-        var storedToken = await _resetTokenRepository.GetByTokenAsync(command.Token, cancellationToken);
+        var storedToken = await _resetTokenRepository.GetByTokenAsync(request.Token, cancellationToken);
 
         if (storedToken == null)
         {
@@ -41,12 +42,12 @@ public class ResetPasswordCommandHandler
         }
 
         var user = storedToken.User;
-        if (user == null || !user.Email.Equals(command.Email, StringComparison.OrdinalIgnoreCase))
+        if (user == null || !user.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase))
         {
             return new AuthResponse { Success = false, Message = "Invalid reset token" };
         }
 
-        user.PasswordHash = _passwordHasher.HashPassword(command.NewPassword);
+        user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
         await _userRepository.UpdateAsync(user, cancellationToken);
 
         storedToken.IsUsed = true;
