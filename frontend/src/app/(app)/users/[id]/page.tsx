@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { User, Question } from '@/types';
 import { usersApi } from '@/lib/api/users.api';
 import AppLayout from '@/components/AppLayout';
+import RelativeTime from '@/components/RelativeTime';
 
 interface UserProfile extends User {
     bio?: string;
@@ -139,7 +140,7 @@ export default function UserProfilePage() {
                                         <div className="flex gap-4 text-[#94a3b8] text-xs mt-2">
                                             <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">thumb_up</span>{q.score}</span>
                                             <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">visibility</span>{q.viewCount}</span>
-                                            <span>{new Date(q.createdDate).toLocaleDateString()}</span>
+                                            <RelativeTime value={q.createdDate} />
                                         </div>
                                     </Link>
                                 ))
@@ -168,7 +169,7 @@ export default function UserProfilePage() {
                             <div className="border-t border-[#e2e8f0] dark:border-[var(--border-color)] mt-4 pt-4 grid sm:grid-cols-2 gap-3">
                                 <div className="flex items-center gap-2 text-[#64748b] text-sm">
                                     <span className="material-symbols-outlined text-base">calendar_today</span>
-                                    Joined {user.memberSince ? new Date(user.memberSince).toLocaleDateString() : 'Recently'}
+                                    <RelativeTime value={user.memberSince || user.createdDate} prefix="Joined " fallback="Recently" />
                                 </div>
                                 {user.website && (
                                     <div className="flex items-center gap-2 text-sm">

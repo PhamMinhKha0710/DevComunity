@@ -13,11 +13,18 @@ interface ConversationListProps {
     connectionStatus: ConnectionStatus;
     onSelectConversation: (id: number) => void;
     onNewChat: () => void;
+    onDeleteConversation: (id: number) => void;
 }
 
 export default function ConversationList({
-    conversations, selectedConversationId, currentUser, onlineUsers,
-    connectionStatus, onSelectConversation, onNewChat,
+    conversations,
+    selectedConversationId,
+    currentUser,
+    onlineUsers,
+    connectionStatus,
+    onSelectConversation,
+    onNewChat,
+    onDeleteConversation,
 }: ConversationListProps) {
     const [searchFilter, setSearchFilter] = useState('');
 
@@ -87,6 +94,7 @@ export default function ConversationList({
                                 currentUserId={currentUser.userId}
                                 onlineUsers={onlineUsers}
                                 onSelect={onSelectConversation}
+                                onDelete={onDeleteConversation}
                             />
                         ))
                     ) : (

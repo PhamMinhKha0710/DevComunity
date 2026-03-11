@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { friendshipApi } from '@/lib/api/social.api';
+import RelativeTime from '@/components/RelativeTime';
 
 interface Friend {
     userId: number;
@@ -80,19 +81,6 @@ export default function FriendsPage() {
 
     const handleDecline = (requestId: number) => {
         declineMutation.mutate(requestId);
-    };
-
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-        if (diffMins < 60) return `Active ${diffMins}m ago`;
-        if (diffHours < 24) return `Active ${diffHours}h ago`;
-        if (diffDays < 7) return `Active ${diffDays}d ago`;
-        return `Active ${date.toLocaleDateString()}`;
     };
 
     const filteredFriends = friends.filter(f =>
@@ -226,7 +214,7 @@ export default function FriendsPage() {
                                                 <p className="text-sm text-slate-500">@{friend.username}</p>
                                                 <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
                                                     <span className="material-symbols-outlined text-xs">history</span>
-                                                    {formatDate(friend.friendshipDate)}
+                                                    <RelativeTime value={friend.friendshipDate} prefix="Active " />
                                                 </p>
                                             </div>
                                         </div>

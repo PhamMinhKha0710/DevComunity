@@ -30,6 +30,12 @@ export default function EditQuestionPage() {
 
     useEffect(() => {
         if (questionData) {
+            // Nếu không phải chủ câu hỏi thì quay lại trang detail
+            if (user && questionData.authorId && user.userId !== questionData.authorId) {
+                router.replace(`/questions/${questionId}`);
+                return;
+            }
+
             setFormData({
                 title: questionData.title,
                 body: questionData.body,
@@ -38,7 +44,7 @@ export default function EditQuestionPage() {
         } else if (queryError) {
             setError('Failed to load question');
         }
-    }, [questionData, queryError]);
+    }, [questionData, queryError, user, router, questionId]);
 
     const updateMutation = useMutation({
         mutationFn: (data: { title: string; body: string; tags: string[] }) =>
