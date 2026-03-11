@@ -394,6 +394,24 @@ public class MongoChatRepository : IChatRepository
         return message;
     }
 
+    public async Task<bool> RemoveParticipantAsync(int conversationId, int userId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<ConversationDocument>.Filter.Eq(c => c.ConversationId, conversationId);
+        var update = Builders<ConversationDocument>.Update.PullFilter(
+            c => c.Participants,
+            p => p.UserId == userId);
+
+        var result = await _conversations.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
+
+        if (_cache != null && result.ModifiedCount > 0)
+        {
+            await _cache.ResetUnreadAsync(userId, conversationId);
+            await _cache.InvalidateConversationAsync(conversationId);
+        }
+
+        return result.ModifiedCount > 0;
+    }
+
     public async Task MarkMessagesAsReadAsync(int conversationId, int userId, CancellationToken cancellationToken = default)
     {
         var filter = Builders<MessageDocument>.Filter.And(

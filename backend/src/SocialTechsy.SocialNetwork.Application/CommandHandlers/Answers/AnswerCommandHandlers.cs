@@ -41,6 +41,9 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
 
         var createdAnswer = await _answerRepository.AddAsync(answer, cancellationToken);
 
+        // Ensure CreatedDate is marked as UTC when serialized
+        var createdUtc = DateTime.SpecifyKind(createdAnswer.CreatedDate, DateTimeKind.Utc);
+
         return new AnswerDto
         {
             AnswerId = createdAnswer.AnswerId,
@@ -48,7 +51,7 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
             Body = createdAnswer.Body,
             Score = createdAnswer.Score,
             IsAccepted = createdAnswer.IsAccepted,
-            CreatedDate = createdAnswer.CreatedDate,
+            CreatedDate = createdUtc,
             AuthorId = createdAnswer.UserId,
             ParentAnswerId = createdAnswer.ParentAnswerId
         };
