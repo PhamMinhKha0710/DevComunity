@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Application.Queries.Questions;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using System.Security.Claims;
@@ -14,13 +15,19 @@ public class QuestionsController : ControllerBase
 {
     private readonly ILogger<QuestionsController> _logger;
     private readonly IMediator _mediator;
+    private readonly IViewService? _viewService;
+    private readonly IActivityLogService? _activityLog;
 
     public QuestionsController(
         ILogger<QuestionsController> logger,
-        IMediator mediator)
+        IMediator mediator,
+        IViewService? viewService = null,
+        IActivityLogService? activityLog = null)
     {
         _logger = logger;
         _mediator = mediator;
+        _viewService = viewService;
+        _activityLog = activityLog;
     }
 
     private int GetCurrentUserId()
@@ -47,12 +54,28 @@ public class QuestionsController : ControllerBase
     {
         _logger.LogInformation("Getting question with ID: {QuestionId}", id);
 
-        var result = await _mediator.Send(new GetQuestionByIdQuery { QuestionId = id }, cancellationToken);
+        var result = await _mediator.Send(new GetQuestionByIdQuery { QuestionId = id, CurrentUserId = GetCurrentUserId() }, cancellationToken);
 
         if (result == null)
             return NotFound(new { message = $"Question with ID {id} not found" });
 
-        _ = _mediator.Send(new IncrementViewCountCommand { QuestionId = id }, cancellationToken);
+        var userId = GetCurrentUserId();
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        if (_viewService != null)
+        {
+            _ = _viewService.IncrementViewAsync(id, userId > 0 ? userId.ToString() : null, ip);
+        }
+        else
+        {
+            _ = _mediator.Send(new IncrementViewCountCommand { QuestionId = id }, cancellationToken);
+        }
+
+        if (_activityLog != null)
+        {
+            var ua = Request.Headers.UserAgent.ToString();
+            _ = _activityLog.LogViewAsync(id, userId > 0 ? userId : null, ip, ua);
+        }
 
         return Ok(result);
     }

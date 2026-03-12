@@ -105,8 +105,11 @@ function QuestionsContent() {
                             {/* Stats */}
                             <div className="hidden sm:flex flex-col items-end gap-3 min-w-[80px]">
                                 <div className="text-center">
-                                    <p className="text-lg font-bold text-[var(--text-primary)]">{question.score}</p>
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">votes</p>
+                                    <div className="flex items-center justify-center gap-1">
+                                        <span className="material-symbols-outlined text-sm text-[var(--primary)]">thumb_up</span>
+                                        <p className="text-lg font-bold text-[var(--text-primary)]">{question.score}</p>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">likes</p>
                                 </div>
                                 <div className={`text-center px-2 py-1 rounded-md w-full ${
                                     question.hasAcceptedAnswer

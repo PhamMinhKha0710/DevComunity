@@ -34,6 +34,7 @@ public class AnswersController : ControllerBase
         var result = await _mediator.Send(new GetAnswersByQuestionQuery
         {
             QuestionId = questionId,
+            CurrentUserId = GetCurrentUserId(),
             Sort = sort,
             Page = page,
             PageSize = pageSize
