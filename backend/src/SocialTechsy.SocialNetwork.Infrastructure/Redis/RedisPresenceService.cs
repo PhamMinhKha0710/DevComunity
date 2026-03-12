@@ -6,13 +6,12 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Redis;
 public class RedisPresenceService
 {
     private readonly IDatabase _db;
-    private readonly IConnectionMultiplexer _redis;
     private readonly ILogger<RedisPresenceService> _logger;
     private static readonly TimeSpan PresenceTtl = TimeSpan.FromMinutes(5);
+    private const string OnlineTrackingSet = "presence:online";
 
     public RedisPresenceService(IConnectionMultiplexer redis, ILogger<RedisPresenceService> logger)
     {
-        _redis = redis;
         _db = redis.GetDatabase();
         _logger = logger;
     }
@@ -22,6 +21,7 @@ public class RedisPresenceService
         var key = $"presence:user:{userId}";
         await _db.SetAddAsync(key, connectionId);
         await _db.KeyExpireAsync(key, PresenceTtl);
+        await _db.SetAddAsync(OnlineTrackingSet, userId);
     }
 
     public async Task SetOfflineAsync(string userId, string connectionId)
@@ -32,6 +32,7 @@ public class RedisPresenceService
         if (remaining == 0)
         {
             await _db.KeyDeleteAsync(key);
+            await _db.SetRemoveAsync(OnlineTrackingSet, userId);
         }
     }
 
@@ -56,15 +57,10 @@ public class RedisPresenceService
 
     public async Task<string[]> GetOnlineUserIdsAsync()
     {
-        var server = _redis.GetServer(_redis.GetEndPoints().First());
-        var keys = new List<string>();
-
-        await foreach (var key in server.KeysAsync(pattern: "presence:user:*", pageSize: 250))
-        {
-            var userId = key.ToString().Replace("presence:user:", "");
-            keys.Add(userId);
-        }
-
-        return keys.ToArray();
+        var members = await _db.SetMembersAsync(OnlineTrackingSet);
+        return members
+            .Where(m => m.HasValue)
+            .Select(m => m.ToString())
+            .ToArray();
     }
 }

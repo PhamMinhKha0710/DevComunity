@@ -8,6 +8,7 @@ public class RedisLikeService : ILikeService
 {
     private readonly IDatabase _db;
     private readonly ILogger<RedisLikeService> _logger;
+    private static readonly TimeSpan CounterTtl = TimeSpan.FromDays(1);
 
     public RedisLikeService(IConnectionMultiplexer redis, ILogger<RedisLikeService> logger)
     {
@@ -27,6 +28,8 @@ public class RedisLikeService : ILikeService
         if (added)
         {
             var count = await _db.StringIncrementAsync(CountKey(targetType, targetId));
+            await _db.KeyExpireAsync(CountKey(targetType, targetId), CounterTtl);
+            await _db.KeyExpireAsync(UsersKey(targetType, targetId), CounterTtl);
             _logger.LogDebug("Like added: {TargetType}:{TargetId} by user {UserId}, count={Count}", targetType, targetId, userId, count);
             return count;
         }
