@@ -1,44 +1,52 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Votes;
+using SocialTechsy.SocialNetwork.Application.Common.Events;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Domain.Enums;
+using SocialTechsy.SocialNetwork.Domain.Events;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Votes;
 
-// Reputation constants
 public static class ReputationPoints
 {
     public const int QuestionUpvote = 5;
     public const int QuestionDownvote = -2;
     public const int AnswerUpvote = 10;
     public const int AnswerDownvote = -2;
-    public const int DownvoteCost = -1; // Voter penalty for downvoting
-    public const int AcceptedAnswerAuthor = 15; // Bonus for answer author when accepted
-    public const int AcceptedAnswerOwner = 2;   // Bonus for question owner for accepting
-    public const int AskQuestion = 2; // Bonus for asking a question
+    public const int DownvoteCost = -1;
+    public const int AcceptedAnswerAuthor = 15;
+    public const int AcceptedAnswerOwner = 2;
+    public const int AskQuestion = 2;
 }
 
-
-/// <summary>
-/// Handler for voting on a question
-/// </summary>
 public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, VoteResult>
 {
     private readonly IVoteRepository _voteRepository;
     private readonly IQuestionRepository _questionRepository;
     private readonly IUserRepository _userRepository;
-    private readonly INotificationRepository _notificationRepository;
+    private readonly IDomainEventDispatcher _eventDispatcher;
+    private readonly ILikeService? _likeService;
+    private readonly IActivityLogService? _activityLog;
+    private readonly ISocialEventPublisher? _eventPublisher;
 
     public VoteQuestionCommandHandler(
         IVoteRepository voteRepository,
         IQuestionRepository questionRepository,
         IUserRepository userRepository,
-        INotificationRepository notificationRepository)
+        IDomainEventDispatcher eventDispatcher,
+        ILikeService? likeService = null,
+        IActivityLogService? activityLog = null,
+        ISocialEventPublisher? eventPublisher = null)
     {
         _voteRepository = voteRepository;
         _questionRepository = questionRepository;
         _userRepository = userRepository;
-        _notificationRepository = notificationRepository;
+        _eventDispatcher = eventDispatcher;
+        _likeService = likeService;
+        _activityLog = activityLog;
+        _eventPublisher = eventPublisher;
     }
 
     public async Task<VoteResult> Handle(VoteQuestionCommand request, CancellationToken cancellationToken)
@@ -47,46 +55,24 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
         if (question == null)
             return new VoteResult { Success = false, Message = "Question not found" };
 
-        // Prevent self-voting
         if (question.UserId == request.UserId)
             return new VoteResult { Success = false, Message = "Cannot vote on your own question" };
 
         var existingVote = await _voteRepository.GetUserVoteOnQuestionAsync(
             request.UserId, request.QuestionId, cancellationToken);
 
-        var isUpvote = request.VoteType.ToLower() == "up";
+        var isUpvote = request.VoteType == VoteType.Up;
+        var wasPreviouslyUpvote = existingVote?.IsUpvote ?? false;
+        var isDirectionChange = existingVote != null && existingVote.IsUpvote != isUpvote;
+        var isNewVote = existingVote == null;
 
         if (existingVote != null)
         {
-            // If changing vote direction, adjust reputation
-            if (existingVote.IsUpvote != isUpvote)
-            {
-                var oldRepChange = existingVote.IsUpvote ? ReputationPoints.QuestionUpvote : ReputationPoints.QuestionDownvote;
-                var newRepChange = isUpvote ? ReputationPoints.QuestionUpvote : ReputationPoints.QuestionDownvote;
-                
-                // Reverse old reputation and apply new
-                await _userRepository.UpdateReputationAsync(question.UserId, -oldRepChange + newRepChange, cancellationToken);
-                
-                // Adjust voter's downvote penalty
-                if (!existingVote.IsUpvote) // Was downvote, now upvote - refund penalty
-                    await _userRepository.UpdateReputationAsync(request.UserId, -ReputationPoints.DownvoteCost, cancellationToken);
-                else if (!isUpvote) // Was upvote, now downvote - apply penalty
-                    await _userRepository.UpdateReputationAsync(request.UserId, ReputationPoints.DownvoteCost, cancellationToken);
-            }
-            
             existingVote.IsUpvote = isUpvote;
             await _voteRepository.UpdateAsync(existingVote, cancellationToken);
         }
         else
         {
-            // New vote - update author reputation
-            var repChange = isUpvote ? ReputationPoints.QuestionUpvote : ReputationPoints.QuestionDownvote;
-            await _userRepository.UpdateReputationAsync(question.UserId, repChange, cancellationToken);
-            
-            // Downvote costs the voter
-            if (!isUpvote)
-                await _userRepository.UpdateReputationAsync(request.UserId, ReputationPoints.DownvoteCost, cancellationToken);
-
             var vote = new Vote
             {
                 UserId = request.UserId,
@@ -97,65 +83,91 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
             await _voteRepository.AddAsync(vote, cancellationToken);
         }
 
-        var score = await _voteRepository.GetQuestionScoreAsync(request.QuestionId, cancellationToken);
-
-        // Check if we need to send notification (Only on Upvote and not self-vote)
-        Notification? notification = null;
-        if (isUpvote && request.UserId != question.UserId)
+        // Update Redis counter
+        long likeCount = 0;
+        if (_likeService != null && isUpvote)
         {
-             // Check if already notified recently? For now, just simplest logic: Notify on every new upvote.
-             // But usually we should avoid duplicate notifications.
-             // Ideally check if notification exists. But let's keep it simple for MVP.
-             // If vote was changed from Down to Up, or New Upvote.
-             bool shouldNotify = (existingVote == null) || (existingVote != null && !existingVote.IsUpvote);
-             
-             if (shouldNotify)
-             {
-                 var voter = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
-                 notification = new Notification
-                 {
-                     UserId = question.UserId,
-                     FromUserId = request.UserId,
-                     Type = "Upvote",
-                     Message = $"{voter?.DisplayName ?? voter?.Username ?? "Someone"} upvoted your question: {question.Title}",
-                     Link = $"/questions/{question.QuestionId}",
-                     CreatedDate = DateTime.UtcNow,
-                     IsRead = false
-                 };
-                 await _notificationRepository.AddAsync(notification, cancellationToken);
-             }
+            likeCount = await _likeService.LikeAsync("question", request.QuestionId, request.UserId);
         }
+        else if (_likeService != null && !isUpvote)
+        {
+            likeCount = await _likeService.UnlikeAsync("question", request.QuestionId, request.UserId);
+        }
+
+        // Log to MongoDB
+        if (_activityLog != null && isUpvote)
+            _ = _activityLog.LogLikeAsync("question", request.QuestionId, request.UserId);
+
+        var voter = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
+
+        await _eventDispatcher.DispatchAsync(new VoteCastEvent
+        {
+            VoterId = request.UserId,
+            ContentAuthorId = question.UserId,
+            QuestionId = request.QuestionId,
+            IsUpvote = isUpvote,
+            IsNewVote = isNewVote,
+            IsDirectionChange = isDirectionChange,
+            WasPreviouslyUpvote = wasPreviouslyUpvote,
+            ContentTitle = question.Title,
+            VoterDisplayName = voter?.DisplayName ?? voter?.Username ?? "Someone"
+        }, cancellationToken);
+
+        // Publish to RabbitMQ for realtime notification
+        if (_eventPublisher != null && isUpvote && (isNewVote || isDirectionChange))
+        {
+            _ = _eventPublisher.PublishLikeEventAsync(new LikeEvent
+            {
+                TargetType = "question",
+                TargetId = request.QuestionId,
+                LikedByUserId = request.UserId,
+                LikedByDisplayName = voter?.DisplayName ?? voter?.Username ?? "Someone",
+                ContentAuthorId = question.UserId,
+                ContentTitle = question.Title,
+                QuestionId = request.QuestionId,
+                LikeCount = likeCount
+            });
+        }
+
+        var score = _likeService != null
+            ? (int)likeCount
+            : await _voteRepository.GetQuestionScoreAsync(request.QuestionId, cancellationToken);
 
         return new VoteResult
         {
             Success = true,
             Score = score,
-            UserVote = request.VoteType,
-            CreatedNotification = notification
+            UserVote = request.VoteType
         };
     }
 }
 
-/// <summary>
-/// Handler for voting on an answer
-/// </summary>
 public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteResult>
 {
     private readonly IVoteRepository _voteRepository;
     private readonly IAnswerRepository _answerRepository;
     private readonly IUserRepository _userRepository;
-    private readonly INotificationRepository _notificationRepository;
+    private readonly IDomainEventDispatcher _eventDispatcher;
+    private readonly ILikeService? _likeService;
+    private readonly IActivityLogService? _activityLog;
+    private readonly ISocialEventPublisher? _eventPublisher;
 
     public VoteAnswerCommandHandler(
         IVoteRepository voteRepository,
         IAnswerRepository answerRepository,
         IUserRepository userRepository,
-        INotificationRepository notificationRepository)
+        IDomainEventDispatcher eventDispatcher,
+        ILikeService? likeService = null,
+        IActivityLogService? activityLog = null,
+        ISocialEventPublisher? eventPublisher = null)
     {
         _voteRepository = voteRepository;
         _answerRepository = answerRepository;
         _userRepository = userRepository;
-        _notificationRepository = notificationRepository;
+        _eventDispatcher = eventDispatcher;
+        _likeService = likeService;
+        _activityLog = activityLog;
+        _eventPublisher = eventPublisher;
     }
 
     public async Task<VoteResult> Handle(VoteAnswerCommand request, CancellationToken cancellationToken)
@@ -164,42 +176,24 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
         if (answer == null)
             return new VoteResult { Success = false, Message = "Answer not found" };
 
-        // Prevent self-voting
         if (answer.UserId == request.UserId)
             return new VoteResult { Success = false, Message = "Cannot vote on your own answer" };
 
         var existingVote = await _voteRepository.GetUserVoteOnAnswerAsync(
             request.UserId, request.AnswerId, cancellationToken);
 
-        var isUpvote = request.VoteType.ToLower() == "up";
+        var isUpvote = request.VoteType == VoteType.Up;
+        var wasPreviouslyUpvote = existingVote?.IsUpvote ?? false;
+        var isDirectionChange = existingVote != null && existingVote.IsUpvote != isUpvote;
+        var isNewVote = existingVote == null;
 
         if (existingVote != null)
         {
-            // If changing vote direction, adjust reputation
-            if (existingVote.IsUpvote != isUpvote)
-            {
-                var oldRepChange = existingVote.IsUpvote ? ReputationPoints.AnswerUpvote : ReputationPoints.AnswerDownvote;
-                var newRepChange = isUpvote ? ReputationPoints.AnswerUpvote : ReputationPoints.AnswerDownvote;
-                
-                await _userRepository.UpdateReputationAsync(answer.UserId, -oldRepChange + newRepChange, cancellationToken);
-                
-                if (!existingVote.IsUpvote)
-                    await _userRepository.UpdateReputationAsync(request.UserId, -ReputationPoints.DownvoteCost, cancellationToken);
-                else if (!isUpvote)
-                    await _userRepository.UpdateReputationAsync(request.UserId, ReputationPoints.DownvoteCost, cancellationToken);
-            }
-            
             existingVote.IsUpvote = isUpvote;
             await _voteRepository.UpdateAsync(existingVote, cancellationToken);
         }
         else
         {
-            var repChange = isUpvote ? ReputationPoints.AnswerUpvote : ReputationPoints.AnswerDownvote;
-            await _userRepository.UpdateReputationAsync(answer.UserId, repChange, cancellationToken);
-            
-            if (!isUpvote)
-                await _userRepository.UpdateReputationAsync(request.UserId, ReputationPoints.DownvoteCost, cancellationToken);
-
             var vote = new Vote
             {
                 UserId = request.UserId,
@@ -210,51 +204,74 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
             await _voteRepository.AddAsync(vote, cancellationToken);
         }
 
-        var score = await _voteRepository.GetAnswerScoreAsync(request.AnswerId, cancellationToken);
-
-         // Notification Logic for Answer Upvote
-        Notification? notification = null;
-        if (isUpvote && request.UserId != answer.UserId)
+        long likeCount = 0;
+        if (_likeService != null && isUpvote)
         {
-             bool shouldNotify = (existingVote == null) || (existingVote != null && !existingVote.IsUpvote);
-             
-             if (shouldNotify)
-             {
-                 var voter = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
-                 notification = new Notification
-                 {
-                     UserId = answer.UserId,
-                     FromUserId = request.UserId,
-                     Type = "Upvote",
-                     Message = $"{voter?.DisplayName ?? voter?.Username ?? "Someone"} upvoted your answer",
-                     Link = $"/questions/{answer.QuestionId}", // Link to question, maybe anchor to answer?
-                     CreatedDate = DateTime.UtcNow,
-                     IsRead = false
-                 };
-                 await _notificationRepository.AddAsync(notification, cancellationToken);
-             }
+            likeCount = await _likeService.LikeAsync("answer", request.AnswerId, request.UserId);
         }
+        else if (_likeService != null && !isUpvote)
+        {
+            likeCount = await _likeService.UnlikeAsync("answer", request.AnswerId, request.UserId);
+        }
+
+        if (_activityLog != null && isUpvote)
+            _ = _activityLog.LogLikeAsync("answer", request.AnswerId, request.UserId);
+
+        var voter = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
+
+        await _eventDispatcher.DispatchAsync(new VoteCastEvent
+        {
+            VoterId = request.UserId,
+            ContentAuthorId = answer.UserId,
+            AnswerId = request.AnswerId,
+            IsUpvote = isUpvote,
+            IsNewVote = isNewVote,
+            IsDirectionChange = isDirectionChange,
+            WasPreviouslyUpvote = wasPreviouslyUpvote,
+            VoterDisplayName = voter?.DisplayName ?? voter?.Username ?? "Someone"
+        }, cancellationToken);
+
+        if (_eventPublisher != null && isUpvote && (isNewVote || isDirectionChange))
+        {
+            _ = _eventPublisher.PublishLikeEventAsync(new LikeEvent
+            {
+                TargetType = "answer",
+                TargetId = request.AnswerId,
+                LikedByUserId = request.UserId,
+                LikedByDisplayName = voter?.DisplayName ?? voter?.Username ?? "Someone",
+                ContentAuthorId = answer.UserId,
+                QuestionId = answer.QuestionId,
+                LikeCount = likeCount
+            });
+        }
+
+        var score = _likeService != null
+            ? (int)likeCount
+            : await _voteRepository.GetAnswerScoreAsync(request.AnswerId, cancellationToken);
 
         return new VoteResult
         {
             Success = true,
             Score = score,
-            UserVote = request.VoteType,
-            CreatedNotification = notification
+            UserVote = request.VoteType
         };
     }
 }
 
-/// <summary>
-/// Handler for removing a vote
-/// </summary>
 public class RemoveVoteCommandHandler : IRequestHandler<RemoveVoteCommand, VoteResult>
 {
     private readonly IVoteRepository _voteRepository;
+    private readonly ILikeService? _likeService;
+    private readonly IActivityLogService? _activityLog;
 
-    public RemoveVoteCommandHandler(IVoteRepository voteRepository)
+    public RemoveVoteCommandHandler(
+        IVoteRepository voteRepository,
+        ILikeService? likeService = null,
+        IActivityLogService? activityLog = null)
     {
         _voteRepository = voteRepository;
+        _likeService = likeService;
+        _activityLog = activityLog;
     }
 
     public async Task<VoteResult> Handle(RemoveVoteCommand request, CancellationToken cancellationToken)
@@ -266,8 +283,14 @@ public class RemoveVoteCommandHandler : IRequestHandler<RemoveVoteCommand, VoteR
             if (vote != null)
             {
                 await _voteRepository.DeleteAsync(vote.VoteId, cancellationToken);
+                if (_likeService != null)
+                    await _likeService.UnlikeAsync("question", request.QuestionId.Value, request.UserId);
+                if (_activityLog != null)
+                    _ = _activityLog.LogUnlikeAsync("question", request.QuestionId.Value, request.UserId);
             }
-            var score = await _voteRepository.GetQuestionScoreAsync(request.QuestionId.Value, cancellationToken);
+            var score = _likeService != null
+                ? (int)await _likeService.GetLikeCountAsync("question", request.QuestionId.Value)
+                : await _voteRepository.GetQuestionScoreAsync(request.QuestionId.Value, cancellationToken);
             return new VoteResult { Success = true, Score = score };
         }
         else if (request.AnswerId.HasValue)
@@ -277,8 +300,14 @@ public class RemoveVoteCommandHandler : IRequestHandler<RemoveVoteCommand, VoteR
             if (vote != null)
             {
                 await _voteRepository.DeleteAsync(vote.VoteId, cancellationToken);
+                if (_likeService != null)
+                    await _likeService.UnlikeAsync("answer", request.AnswerId.Value, request.UserId);
+                if (_activityLog != null)
+                    _ = _activityLog.LogUnlikeAsync("answer", request.AnswerId.Value, request.UserId);
             }
-            var score = await _voteRepository.GetAnswerScoreAsync(request.AnswerId.Value, cancellationToken);
+            var score = _likeService != null
+                ? (int)await _likeService.GetLikeCountAsync("answer", request.AnswerId.Value)
+                : await _voteRepository.GetAnswerScoreAsync(request.AnswerId.Value, cancellationToken);
             return new VoteResult { Success = true, Score = score };
         }
 
@@ -286,14 +315,10 @@ public class RemoveVoteCommandHandler : IRequestHandler<RemoveVoteCommand, VoteR
     }
 }
 
-/// <summary>
-/// Result of a vote operation
-/// </summary>
 public class VoteResult
 {
     public bool Success { get; set; }
     public int Score { get; set; }
-    public string? UserVote { get; set; }
+    public VoteType? UserVote { get; set; }
     public string? Message { get; set; }
-    public Notification? CreatedNotification { get; set; }
 }

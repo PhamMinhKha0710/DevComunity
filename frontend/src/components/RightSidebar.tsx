@@ -7,7 +7,7 @@ export default function RightSidebar() {
     const { isAuthenticated } = useAuth();
 
     return (
-        <aside className="hidden xl:flex flex-col w-80 shrink-0 space-y-8">
+        <aside className="hidden xl:flex flex-col w-80 shrink-0 space-y-8 sticky top-0 self-start max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin">
             {/* Trending Topics */}
             <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Trending Topics</h3>

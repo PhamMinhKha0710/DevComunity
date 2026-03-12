@@ -37,6 +37,10 @@ builder.Services.AddMemoryCache();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// SignalR-based like notification handler (needs API layer for hub contexts)
+builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.ILikeNotificationHandler,
+    SocialTechsy.SocialNetwork.Api.Services.SignalRLikeNotificationHandler>();
+
 // Health checks
 var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddSqlServer(

@@ -53,6 +53,11 @@ public static class DependencyInjection
             services.AddSingleton<RedisChatCacheService>();
             services.AddSingleton<RedisPresenceService>();
             services.AddSingleton<RedisChatRateLimiter>();
+            services.AddSingleton<RedisLikeService>();
+            services.AddSingleton<ILikeService>(sp => sp.GetRequiredService<RedisLikeService>());
+            services.AddSingleton<RedisViewService>();
+            services.AddSingleton<IViewService>(sp => sp.GetRequiredService<RedisViewService>());
+            services.AddHostedService<ViewSyncBackgroundService>();
         }
 
         // ========== CHAT REPOSITORY (MongoDB + Redis cache) ==========
@@ -77,6 +82,12 @@ public static class DependencyInjection
                 var userRepo = sp.GetRequiredService<IUserRepository>();
                 var cache = sp.GetService<RedisChatCacheService>();
                 return new MongoChatRepository(database, userRepo, cache);
+            });
+            services.AddSingleton<IActivityLogService>(sp =>
+            {
+                var db = sp.GetRequiredService<IMongoDatabase>();
+                var logger = sp.GetRequiredService<ILogger<ActivityLogService>>();
+                return new ActivityLogService(db, logger);
             });
         }
         else
@@ -103,11 +114,16 @@ public static class DependencyInjection
                 return factory.CreateConnectionAsync().GetAwaiter().GetResult();
             });
             services.AddSingleton<IChatMessageBroker, RabbitMqChatMessageBroker>();
+            services.AddSingleton<ISocialEventPublisher, SocialEventPublisher>();
             services.AddHostedService(sp => new ChatMessageConsumerService(
                 sp.GetRequiredService<IConnection>(),
                 sp,
                 sp.GetRequiredService<ILogger<ChatMessageConsumerService>>(),
                 sp.GetService<IConnectionMultiplexer>()));
+            services.AddHostedService(sp => new LikeNotificationConsumer(
+                sp.GetRequiredService<IConnection>(),
+                sp,
+                sp.GetRequiredService<ILogger<LikeNotificationConsumer>>()));
             services.AddHostedService<SocialTechsy.SocialNetwork.Infrastructure.MongoDB.OutboxProcessor>();
         }
 
