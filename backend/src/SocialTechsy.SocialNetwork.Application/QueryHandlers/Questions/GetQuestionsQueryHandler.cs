@@ -1,57 +1,64 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.Mappings;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Application.Queries.Questions;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Questions;
 
-/// <summary>
-/// Handler for GetQuestionsQuery
-/// </summary>
-public class GetQuestionsQueryHandler : IRequestHandler<GetQuestionsQuery, PaginatedResponse<QuestionDto>>
+public class GetQuestionsQueryHandler : IRequestHandler<GetQuestionsQuery, PaginatedResponse<QuestionSummaryDto>>
 {
     private readonly IQuestionRepository _questionRepository;
+    private readonly IVoteRepository _voteRepository;
+    private readonly ILikeService? _likeService;
+    private readonly IViewService? _viewService;
 
-    public GetQuestionsQueryHandler(IQuestionRepository questionRepository)
+    public GetQuestionsQueryHandler(
+        IQuestionRepository questionRepository,
+        IVoteRepository voteRepository,
+        ILikeService? likeService = null,
+        IViewService? viewService = null)
     {
         _questionRepository = questionRepository;
+        _voteRepository = voteRepository;
+        _likeService = likeService;
+        _viewService = viewService;
     }
 
-    public async Task<PaginatedResponse<QuestionDto>> Handle(GetQuestionsQuery request, CancellationToken cancellationToken = default)
+    public async Task<PaginatedResponse<QuestionSummaryDto>> Handle(GetQuestionsQuery request, CancellationToken cancellationToken = default)
     {
         var (questions, totalCount) = await _questionRepository.GetPaginatedAsync(
-            request.Page,
-            request.PageSize,
-            request.SearchTerm,
-            request.Tag,
-            request.Sort,
-            cancellationToken);
+            request.Page, request.PageSize, request.SearchTerm, request.Tag, request.Sort, cancellationToken);
 
-        var items = questions.Select(q => new QuestionDto
+        var items = questions.Select(q => q.ToSummaryDto()).ToList();
+        var ids = items.Select(i => i.QuestionId).ToArray();
+
+        if (_likeService != null && ids.Length > 0)
         {
-            QuestionId = q.QuestionId,
-            Title = q.Title,
-            Body = q.Body,
-            BodyExcerpt = q.Body.Length > 200 ? q.Body.Substring(0, 200) + "..." : q.Body,
-            ViewCount = q.ViewCount,
-            Score = q.Score,
-            AnswerCount = q.Answers?.Count ?? 0,
-            HasAcceptedAnswer = q.Answers?.Any(a => a.IsAccepted) ?? false,
-            CreatedDate = q.CreatedDate,
-            UpdatedDate = q.UpdatedDate,
-            Status = q.Status,
-            AuthorId = q.UserId,
-            AuthorUsername = q.User?.Username,
-            AuthorProfilePicture = q.User?.ProfilePicture,
-            AuthorReputation = q.User?.ReputationPoints,
-            Tags = q.QuestionTags?.Select(qt => new TagDto
+            var likeCounts = await _likeService.GetLikeCountsBatchAsync("question", ids);
+            foreach (var item in items)
             {
-                TagId = qt.Tag.TagId,
-                TagName = qt.Tag.TagName
-            }).ToList() ?? new List<TagDto>()
-        }).ToList();
+                item.Score = likeCounts.TryGetValue(item.QuestionId, out var c) ? (int)c : item.Score;
+            }
+        }
+        else
+        {
+            foreach (var item in items)
+                item.Score = await _voteRepository.GetQuestionScoreAsync(item.QuestionId, cancellationToken);
+        }
 
-        return new PaginatedResponse<QuestionDto>
+        if (_viewService != null && ids.Length > 0)
+        {
+            var viewCounts = await _viewService.GetViewCountsBatchAsync(ids);
+            foreach (var item in items)
+            {
+                if (viewCounts.TryGetValue(item.QuestionId, out var v) && v > 0)
+                    item.ViewCount = (int)v;
+            }
+        }
+
+        return new PaginatedResponse<QuestionSummaryDto>
         {
             Items = items,
             TotalCount = totalCount,

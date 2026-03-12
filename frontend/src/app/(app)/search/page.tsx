@@ -125,8 +125,9 @@ function SearchContent() {
                                         <div className="flex items-start gap-4">
                                             <div className="flex flex-col items-center gap-2 text-sm min-w-[60px] text-[var(--text-secondary)]">
                                                 <div className="flex flex-col items-center">
+                                                    <span className="material-symbols-outlined text-sm text-[var(--primary)]">thumb_up</span>
                                                     <span className="font-bold text-lg">{q.score}</span>
-                                                    <span className="text-xs">votes</span>
+                                                    <span className="text-xs">likes</span>
                                                 </div>
                                                 <div className={`px-2 py-1 rounded-lg ${q.answerCount > 0 ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-[var(--bg-tertiary)]'}`}>
                                                     <span className="font-bold">{q.answerCount}</span>
