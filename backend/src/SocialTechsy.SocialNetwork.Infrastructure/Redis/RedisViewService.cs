@@ -8,12 +8,15 @@ public class RedisViewService : IViewService
 {
     private readonly IDatabase _db;
     private readonly ILogger<RedisViewService> _logger;
+    private static readonly TimeSpan CounterTtl = TimeSpan.FromDays(7);
 
     public RedisViewService(IConnectionMultiplexer redis, ILogger<RedisViewService> logger)
     {
         _db = redis.GetDatabase();
         _logger = logger;
     }
+
+    private const string DeltaTrackingSet = "view:delta:tracking";
 
     private static string CountKey(int questionId) => $"view:question:{questionId}";
     private static string VisitorsKey(int questionId) => $"view:question:{questionId}:visitors";
@@ -25,6 +28,7 @@ public class RedisViewService : IViewService
         var added = await _db.HyperLogLogAddAsync(VisitorsKey(questionId), identifier);
 
         await _db.StringIncrementAsync(DeltaKey(questionId));
+        await _db.SetAddAsync(DeltaTrackingSet, questionId);
         var total = await _db.StringIncrementAsync(CountKey(questionId));
 
         _logger.LogDebug("View recorded: question {QuestionId}, unique={IsUnique}, total={Total}", questionId, added, total);
@@ -58,15 +62,18 @@ public class RedisViewService : IViewService
         return delta.HasValue ? (long)delta : 0;
     }
 
-    public async Task<RedisKey[]> GetAllDeltaKeysAsync()
+    public async Task<int[]> GetDirtyQuestionIdsAsync()
     {
-        var server = _db.Multiplexer.GetServers().First();
-        var keys = new List<RedisKey>();
-        await foreach (var key in server.KeysAsync(pattern: "view:question:*:delta"))
-        {
-            keys.Add(key);
-        }
-        return keys.ToArray();
+        var members = await _db.SetMembersAsync(DeltaTrackingSet);
+        return members
+            .Where(m => m.HasValue)
+            .Select(m => (int)m)
+            .ToArray();
+    }
+
+    public async Task RemoveFromTrackingAsync(int questionId)
+    {
+        await _db.SetRemoveAsync(DeltaTrackingSet, questionId);
     }
 
     public async Task InitializeFromSqlAsync(int questionId, int sqlViewCount)
@@ -74,7 +81,7 @@ public class RedisViewService : IViewService
         var exists = await _db.KeyExistsAsync(CountKey(questionId));
         if (!exists && sqlViewCount > 0)
         {
-            await _db.StringSetAsync(CountKey(questionId), sqlViewCount);
+            await _db.StringSetAsync(CountKey(questionId), sqlViewCount, CounterTtl);
         }
     }
 }

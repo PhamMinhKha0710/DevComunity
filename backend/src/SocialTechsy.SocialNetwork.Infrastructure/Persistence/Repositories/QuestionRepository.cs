@@ -112,6 +112,15 @@ public class QuestionRepository : IQuestionRepository
             .ExecuteUpdateAsync(setters => setters.SetProperty(q => q.ViewCount, q => q.ViewCount + 1), cancellationToken);
     }
 
+    public async Task IncrementViewCountByDeltaAsync(int id, long delta, CancellationToken cancellationToken = default)
+    {
+        if (delta <= 0) return;
+        await _context.Questions
+            .Where(q => q.QuestionId == id)
+            .ExecuteUpdateAsync(setters =>
+                setters.SetProperty(q => q.ViewCount, q => q.ViewCount + (int)delta), cancellationToken);
+    }
+
     public async Task<(IEnumerable<Question> Items, int TotalCount)> GetByUserIdAsync(
         int userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
