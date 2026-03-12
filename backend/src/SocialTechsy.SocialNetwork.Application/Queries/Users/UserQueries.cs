@@ -22,7 +22,7 @@ public class GetUserByIdQuery : IRequest<UserDto?>
 /// <summary>
 /// Query to get user profile by username
 /// </summary>
-public class GetUserByUsernameQuery
+public class GetUserByUsernameQuery : IRequest<UserDto?>
 {
     public string Username { get; set; } = null!;
 }

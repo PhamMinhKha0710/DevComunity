@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Answers;
+using SocialTechsy.SocialNetwork.Application.Common;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 
 namespace SocialTechsy.SocialNetwork.Application.Commands.Answers;
@@ -47,19 +48,9 @@ public class DeleteAnswerCommand : IRequest<bool>
 /// <summary>
 /// Command to accept an answer
 /// </summary>
-public class AcceptAnswerCommand : IRequest<AcceptAnswerResult>
+public class AcceptAnswerCommand : IRequest<AcceptAnswerResult>, ITransactionalRequest
 {
     public int AnswerId { get; set; }
     public int QuestionId { get; set; }
     public int UserId { get; set; } // Question author
-}
-
-/// <summary>
-/// Command to vote on an answer
-/// </summary>
-public class VoteAnswerCommand
-{
-    public int AnswerId { get; set; }
-    public int UserId { get; set; }
-    public string VoteType { get; set; } = null!; // "up", "down", "remove"
 }

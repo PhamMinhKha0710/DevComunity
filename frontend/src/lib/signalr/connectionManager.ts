@@ -2,7 +2,7 @@ import * as signalR from '@microsoft/signalr';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5122';
 
-type HubName = 'chat' | 'notifications' | 'presence' | 'question';
+type HubName = 'chat' | 'notifications' | 'presence' | 'question' | 'call';
 
 interface ManagedConnection {
     connection: signalR.HubConnection;

@@ -32,9 +32,19 @@ public class SearchQueryHandler : IRequestHandler<SearchQuery, SearchResultDto>
         if (string.IsNullOrWhiteSpace(searchTerm))
             return result;
 
-        // Search questions
-        var (questions, _) = await _questionRepository.GetPaginatedAsync(
+        // Run all three searches in parallel
+        var questionsTask = _questionRepository.GetPaginatedAsync(
             1, request.MaxResults, searchTerm, null, "newest", cancellationToken);
+        var usersTask = _userRepository.GetPaginatedAsync(
+            1, request.MaxResults, searchTerm, "reputation", cancellationToken);
+        var tagsTask = _tagRepository.GetPaginatedAsync(
+            1, request.MaxResults, searchTerm, "popular", cancellationToken);
+
+        await Task.WhenAll(questionsTask, usersTask, tagsTask);
+
+        var (questions, _) = await questionsTask;
+        var (users, _) = await usersTask;
+        var (tags, _) = await tagsTask;
 
         result.Questions = questions.Select(q => new QuestionSearchResult
         {
@@ -48,10 +58,6 @@ public class SearchQueryHandler : IRequestHandler<SearchQuery, SearchResultDto>
             Tags = q.QuestionTags?.Select(qt => qt.Tag?.TagName ?? "").Where(t => !string.IsNullOrEmpty(t)).ToList() ?? new List<string>()
         }).ToList();
 
-        // Search users
-        var (users, _) = await _userRepository.GetPaginatedAsync(
-            1, request.MaxResults, searchTerm, "reputation", cancellationToken);
-
         result.Users = users.Select(u => new UserSearchResult
         {
             UserId = u.UserId,
@@ -60,10 +66,6 @@ public class SearchQueryHandler : IRequestHandler<SearchQuery, SearchResultDto>
             ProfilePicture = u.ProfilePicture,
             ReputationPoints = u.ReputationPoints
         }).ToList();
-
-        // Search tags
-        var (tags, _) = await _tagRepository.GetPaginatedAsync(
-            1, request.MaxResults, searchTerm, "popular", cancellationToken);
 
         result.Tags = tags.Select(t => new TagSearchResult
         {

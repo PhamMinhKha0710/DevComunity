@@ -95,15 +95,16 @@ export function buildMessageGroups(messages: RealtimeMessage[]): MessageGroup[] 
         const nextTime = nextMsg ? new Date(nextMsg.sentDate).getTime() : 0;
 
         const showTimeLabel = !prevMsg || (currTime - prevTime > TIME_GAP);
-        const sameSenderAsPrev = prevMsg && prevMsg.senderId === msg.senderId && !showTimeLabel;
-        const sameSenderAsNext = nextMsg && nextMsg.senderId === msg.senderId && (nextTime - currTime <= TIME_GAP);
+        const isCallMessage = msg.messageType === 'call';
+        const sameSenderAsPrev = !isCallMessage && prevMsg && prevMsg.senderId === msg.senderId && prevMsg.messageType !== 'call' && !showTimeLabel;
+        const sameSenderAsNext = !isCallMessage && nextMsg && nextMsg.senderId === msg.senderId && nextMsg.messageType !== 'call' && (nextTime - currTime <= TIME_GAP);
         const showAvatar = !sameSenderAsNext;
 
-        if (!sameSenderAsPrev || groups.length === 0) {
+        if (isCallMessage || !sameSenderAsPrev || groups.length === 0) {
             groups.push({
                 senderId: msg.senderId,
                 messages: [msg],
-                showAvatar,
+                showAvatar: isCallMessage ? false : showAvatar,
                 showTime: showTimeLabel,
                 timeLabel: showTimeLabel ? formatTimeLabel(msg.sentDate) : '',
             });

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import type { User, Question } from '@/types';
+import type { User, Question, Answer } from '@/types';
 import { usersApi } from '@/lib/api/users.api';
 import AppLayout from '@/components/AppLayout';
 import RelativeTime from '@/components/RelativeTime';
@@ -34,8 +34,14 @@ export default function UserProfilePage() {
         queryFn: () => usersApi.getQuestions(userId),
     });
 
-    const isLoading = userLoading || questionsLoading;
+    const { data: answersData, isLoading: answersLoading } = useQuery({
+        queryKey: ['user', userId, 'answers'],
+        queryFn: () => usersApi.getAnswers(userId),
+    });
+
+    const isLoading = userLoading || questionsLoading || answersLoading;
     const questions: Question[] = questionsData?.items || [];
+    const answers: Answer[] = answersData?.items || [];
 
     if (isLoading) {
         return (
@@ -63,7 +69,7 @@ export default function UserProfilePage() {
 
     const tabs = [
         { id: 'questions' as const, label: `Questions (${questions.length})`, icon: 'help' },
-        { id: 'answers' as const, label: `Answers (${user.answerCount || 0})`, icon: 'chat' },
+        { id: 'answers' as const, label: `Answers (${answersData?.totalCount ?? user.answerCount ?? 0})`, icon: 'chat' },
         { id: 'about' as const, label: 'About', icon: 'person' },
     ];
 
@@ -81,7 +87,6 @@ export default function UserProfilePage() {
                         />
                         <div className="flex-1">
                             <h1 className="text-2xl font-black text-[#0f172a] dark:text-white">{user.displayName || user.username}</h1>
-                            <p className="text-[#64748b] text-sm">@{user.username}</p>
                             {user.location && (
                                 <p className="text-[#64748b] text-sm flex items-center gap-1 mt-1">
                                     <span className="material-symbols-outlined text-sm">location_on</span>{user.location}
@@ -155,9 +160,38 @@ export default function UserProfilePage() {
 
                     {/* Answers Tab */}
                     {activeTab === 'answers' && (
-                        <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl p-12 text-center">
-                            <span className="material-symbols-outlined text-5xl text-[#94a3b8] mb-4 block">chat</span>
-                            <p className="text-[#64748b]">Answers will be displayed here</p>
+                        <div className="bg-white dark:bg-[var(--bg-secondary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-2xl overflow-hidden">
+                            {answers.length > 0 ? (
+                                answers.map((a, index) => (
+                                    <Link
+                                        key={a.answerId}
+                                        href={`/questions/${a.questionId}#answer-${a.answerId}`}
+                                        className={`block p-4 hover:bg-[#f8fafc] dark:hover:bg-[var(--bg-tertiary)] transition ${index > 0 ? 'border-t border-[#e2e8f0] dark:border-[var(--border-color)]' : ''}`}
+                                    >
+                                        <div className="flex justify-between items-start gap-3">
+                                            <p className="text-sm text-[#475569] dark:text-[var(--text-secondary)] line-clamp-2">
+                                                {a.body.replace(/<[^>]*>/g, '').slice(0, 150)}
+                                                {a.body.replace(/<[^>]*>/g, '').length > 150 ? '...' : ''}
+                                            </p>
+                                            {a.isAccepted && (
+                                                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                                                    Accepted
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-4 text-[#94a3b8] text-xs mt-2">
+                                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">thumb_up</span>{a.score}</span>
+                                            <RelativeTime value={a.createdDate} />
+                                        </div>
+                                    </Link>
+                                ))
+                            ) : (
+                                <div className="p-12 text-center">
+                                    <span className="material-symbols-outlined text-5xl text-[#94a3b8] mb-4 block">chat</span>
+                                    <p className="text-[#64748b]">No answers yet</p>
+                                </div>
+                            )}
                         </div>
                     )}
 

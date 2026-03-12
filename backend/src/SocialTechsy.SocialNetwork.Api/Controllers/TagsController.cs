@@ -74,8 +74,8 @@ public class TagsController : ControllerBase
     }
 
     [HttpGet("{tagName}/questions")]
-    [ProducesResponseType(typeof(PaginatedResponse<QuestionDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<PaginatedResponse<QuestionDto>>> GetQuestionsByTag(
+    [ProducesResponseType(typeof(PaginatedResponse<QuestionSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<QuestionSummaryDto>>> GetQuestionsByTag(
         string tagName,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 15,

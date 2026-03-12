@@ -6,7 +6,7 @@ namespace SocialTechsy.SocialNetwork.Application.Queries.Questions;
 /// <summary>
 /// Query to get paginated list of questions
 /// </summary>
-public class GetQuestionsQuery : IRequest<PaginatedResponse<QuestionDto>>
+public class GetQuestionsQuery : IRequest<PaginatedResponse<QuestionSummaryDto>>
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 15;

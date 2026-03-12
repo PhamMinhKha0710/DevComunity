@@ -18,12 +18,16 @@ interface MessageListProps {
     onReply: (msg: RealtimeMessage) => void;
     onToggleReaction: (messageId: number, type: string) => void;
     onOpenLightbox: (url: string, type: 'image' | 'video', fileName?: string) => void;
+    onAudioCall?: () => void;
+    onVideoCall?: () => void;
+    onInfoClick?: () => void;
     messagesEndRef: RefObject<HTMLDivElement | null>;
 }
 
 export default function MessageList({
     messages, currentUser, otherParticipant, selectedConversation,
-    typingUsers, onlineUsers, onReply, onToggleReaction, onOpenLightbox, messagesEndRef,
+    typingUsers, onlineUsers, onReply, onToggleReaction, onOpenLightbox,
+    onAudioCall, onVideoCall, onInfoClick, messagesEndRef,
 }: MessageListProps) {
     const [showReactionPicker, setShowReactionPicker] = useState<number | null>(null);
     const groupedMessages = useMemo(() => buildMessageGroups(messages), [messages]);
@@ -66,13 +70,13 @@ export default function MessageList({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                    <button onClick={onAudioCall} className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Gọi thoại">
                         <span className="material-symbols-outlined">call</span>
                     </button>
-                    <button className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                    <button onClick={onVideoCall} className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Gọi video">
                         <span className="material-symbols-outlined">videocam</span>
                     </button>
-                    <button className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                    <button onClick={onInfoClick} className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Thông tin">
                         <span className="material-symbols-outlined">info</span>
                     </button>
                 </div>
@@ -85,7 +89,9 @@ export default function MessageList({
                     followOutput="smooth"
                     initialTopMostItemIndex={groupedMessages.length > 0 ? groupedMessages.length - 1 : 0}
                     className="h-full"
-                    itemContent={(groupIdx, group) => (
+                    itemContent={(groupIdx, group) => {
+                        const isCallGroup = group.messages.length === 1 && group.messages[0].messageType === 'call';
+                        return (
                         <div className="max-w-3xl mx-auto px-6 py-0.5 animate-fadeIn">
                             {group.showTime && (
                                 <div className="flex justify-center my-4">
@@ -95,6 +101,24 @@ export default function MessageList({
                                 </div>
                             )}
 
+                            {isCallGroup ? (
+                                <div className="flex justify-center my-2">
+                                    <MessageBubble
+                                        message={group.messages[0]}
+                                        isSent={false}
+                                        isFirst={true}
+                                        isLast={true}
+                                        groupLength={1}
+                                        currentUserId={currentUser.userId}
+                                        showReactionPicker={false}
+                                        onReply={onReply}
+                                        onToggleReaction={handleToggleReaction}
+                                        onShowReactionPicker={setShowReactionPicker}
+                                        onOpenLightbox={onOpenLightbox}
+                                        isCallEvent
+                                    />
+                                </div>
+                            ) : (
                             <div className={`flex ${group.senderId === currentUser.userId ? 'flex-row-reverse' : ''} items-start gap-3`}>
                                 {group.senderId !== currentUser.userId ? (
                                     <div className={`size-9 rounded-full overflow-hidden shrink-0 mt-1 ${group.showAvatar ? 'visible' : 'invisible'}`}>
@@ -114,7 +138,7 @@ export default function MessageList({
                                     </div>
                                 )}
 
-                                <div className={`flex flex-col ${group.senderId === currentUser.userId ? 'items-end' : 'items-start'} gap-1 max-w-[70%]`}>
+                                <div className={`flex flex-col ${group.senderId === currentUser.userId ? 'items-end' : 'items-start'} gap-1 max-w-[70%] w-full`}>
                                     {group.messages.map((msg, msgIdx) => (
                                         <MessageBubble
                                             key={msg.messageId}
@@ -146,8 +170,10 @@ export default function MessageList({
                                     )}
                                 </div>
                             </div>
+                            )}
                         </div>
-                    )}
+                        );
+                    }}
                     components={{
                         Footer: () => (
                             <div className="max-w-3xl mx-auto px-6 pb-4">

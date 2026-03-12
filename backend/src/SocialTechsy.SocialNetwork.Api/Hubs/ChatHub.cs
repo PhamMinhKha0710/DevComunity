@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Chat;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Chat;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 using SocialTechsy.SocialNetwork.Infrastructure.Redis;
 
 namespace SocialTechsy.SocialNetwork.Api.Hubs;
@@ -78,8 +79,7 @@ public class ChatHub : Hub
         var userId = GetCurrentUserId();
         if (userId == 0) return;
 
-        var validTypes = new[] { "text", "image", "video", "audio", "file" };
-        if (!validTypes.Contains(messageType))
+        if (!Enum.TryParse<MessageType>(messageType, ignoreCase: true, out var parsedMessageType))
         { await SendError("Invalid message type"); return; }
         if (string.IsNullOrWhiteSpace(attachmentUrl))
         { await SendError("Attachment URL is required"); return; }
@@ -93,7 +93,7 @@ public class ChatHub : Hub
             ConversationId = conversationId,
             SenderId = userId,
             Content = caption != null ? HtmlEncoder.Default.Encode(caption) : "",
-            MessageType = messageType,
+            MessageType = parsedMessageType,
             AttachmentUrl = attachmentUrl,
             AttachmentFileName = attachmentFileName,
             AttachmentSize = attachmentSize,
@@ -147,11 +147,14 @@ public class ChatHub : Hub
         var userId = GetCurrentUserId();
         if (userId == 0) return;
 
+        if (!Enum.TryParse<ReactionType>(reactionType, ignoreCase: true, out var parsedReaction))
+        { await SendError("Invalid reaction type"); return; }
+
         var result = await _mediator.Send(new AddReactionCommand
         {
             MessageId = messageId,
             UserId = userId,
-            ReactionType = reactionType
+            ReactionType = parsedReaction
         });
 
         if (result == null) return;

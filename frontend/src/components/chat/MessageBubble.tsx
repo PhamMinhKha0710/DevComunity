@@ -28,13 +28,48 @@ interface MessageBubbleProps {
     onToggleReaction: (messageId: number, type: string) => void;
     onShowReactionPicker: (messageId: number | null) => void;
     onOpenLightbox: (url: string, type: 'image' | 'video', fileName?: string) => void;
+    isCallEvent?: boolean;
+}
+
+function formatCallDuration(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `0:${s.toString().padStart(2, '0')}`;
+}
+
+function parseCallContent(content: string): { type: string; callType?: string; duration?: number } {
+    try {
+        const parsed = JSON.parse(content);
+        return { type: parsed.type ?? 'ended', callType: parsed.callType, duration: parsed.duration };
+    } catch {
+        return { type: 'ended' };
+    }
 }
 
 export default function MessageBubble({
     message: msg, isSent, currentUserId,
     showReactionPicker: pickerOpen, onReply, onToggleReaction,
-    onShowReactionPicker, onOpenLightbox,
+    onShowReactionPicker, onOpenLightbox, isCallEvent,
 }: MessageBubbleProps) {
+    if (msg.messageType === 'call' || isCallEvent) {
+        const { type, callType, duration } = parseCallContent(msg.content || '{}');
+        const labels: Record<string, string> = {
+            ended: duration != null ? `Cuộc gọi đã kết thúc • ${formatCallDuration(duration)}` : 'Cuộc gọi đã kết thúc',
+            rejected: 'Cuộc gọi đã từ chối',
+            missed: 'Cuộc gọi nhỡ',
+            cancelled: 'Cuộc gọi đã hủy',
+        };
+        const label = labels[type] ?? 'Cuộc gọi';
+        const icon = type === 'missed' ? 'call_missed' : type === 'ended' ? 'call_end' : 'phone_disabled';
+        return (
+            <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-full bg-slate-200/80 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 text-sm">
+                <span className="material-symbols-outlined text-base">{icon}</span>
+                <span>{label}</span>
+                {callType === 'video' && <span className="material-symbols-outlined text-xs">videocam</span>}
+            </div>
+        );
+    }
+
     const borderRadius = isSent ? 'rounded-2xl rounded-tr-none' : 'rounded-2xl rounded-tl-none';
 
     const userReaction = msg.reactions?.find(r => r.userId === currentUserId);

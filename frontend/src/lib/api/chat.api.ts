@@ -18,4 +18,7 @@ export const chatApi = {
 
     deleteConversation: (conversationId: number) =>
         apiClient.delete(`/chat/conversations/${conversationId}`).then(r => r.data),
+
+    logCallEvent: (conversationId: number, data: { callEventType: string; callType?: string; durationSeconds?: number }) =>
+        apiClient.post(`/chat/conversations/${conversationId}/call-events`, data).then(r => r.data),
 };

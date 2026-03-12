@@ -2,9 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Commands.Votes;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 using System.Security.Claims;
-using Microsoft.AspNetCore.SignalR;
-using SocialTechsy.SocialNetwork.Api.Hubs;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
@@ -14,16 +13,13 @@ public class VotesController : ControllerBase
 {
     private readonly ILogger<VotesController> _logger;
     private readonly IMediator _mediator;
-    private readonly IHubContext<NotificationHub> _hubContext;
 
     public VotesController(
         ILogger<VotesController> logger,
-        IMediator mediator,
-        IHubContext<NotificationHub> hubContext)
+        IMediator mediator)
     {
         _logger = logger;
         _mediator = mediator;
-        _hubContext = hubContext;
     }
 
     private int GetCurrentUserId()
@@ -46,30 +42,20 @@ public class VotesController : ControllerBase
         if (userId == 0)
             return Unauthorized();
 
-        _logger.LogInformation("User {UserId} voting on question {QuestionId}: {VoteType}", userId, questionId, request.VoteType);
+        if (!Enum.TryParse<VoteType>(request.VoteType, ignoreCase: true, out var voteType))
+            return BadRequest(new { message = "Invalid vote type. Must be 'up' or 'down'." });
+
+        _logger.LogInformation("User {UserId} voting on question {QuestionId}: {VoteType}", userId, questionId, voteType);
 
         var result = await _mediator.Send(new VoteQuestionCommand
         {
             UserId = userId,
             QuestionId = questionId,
-            VoteType = request.VoteType
+            VoteType = voteType
         }, cancellationToken);
 
         if (!result.Success)
             return BadRequest(new { message = result.Message });
-
-        if (result.CreatedNotification != null)
-        {
-            try
-            {
-                await _hubContext.Clients.Group($"user_{result.CreatedNotification.UserId}")
-                    .SendAsync("ReceiveNotification", result.CreatedNotification, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending upvote notification");
-            }
-        }
 
         return Ok(new { score = result.Score, userVote = result.UserVote });
     }
@@ -88,30 +74,20 @@ public class VotesController : ControllerBase
         if (userId == 0)
             return Unauthorized();
 
-        _logger.LogInformation("User {UserId} voting on answer {AnswerId}: {VoteType}", userId, answerId, request.VoteType);
+        if (!Enum.TryParse<VoteType>(request.VoteType, ignoreCase: true, out var voteType))
+            return BadRequest(new { message = "Invalid vote type. Must be 'up' or 'down'." });
+
+        _logger.LogInformation("User {UserId} voting on answer {AnswerId}: {VoteType}", userId, answerId, voteType);
 
         var result = await _mediator.Send(new VoteAnswerCommand
         {
             UserId = userId,
             AnswerId = answerId,
-            VoteType = request.VoteType
+            VoteType = voteType
         }, cancellationToken);
 
         if (!result.Success)
             return BadRequest(new { message = result.Message });
-
-        if (result.CreatedNotification != null)
-        {
-            try
-            {
-                await _hubContext.Clients.Group($"user_{result.CreatedNotification.UserId}")
-                    .SendAsync("ReceiveNotification", result.CreatedNotification, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending answer upvote notification");
-            }
-        }
 
         return Ok(new { score = result.Score, userVote = result.UserVote });
     }

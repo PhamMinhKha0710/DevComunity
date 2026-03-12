@@ -30,8 +30,16 @@ builder.Host.UseSerilog((context, loggerConfig) =>
 });
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase));
+    });
 builder.Services.AddMemoryCache();
+builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.EntityNotFoundExceptionHandler>();
+builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.UnauthorizedCommandExceptionHandler>();
 
 // Add Application and Infrastructure services
 builder.Services.AddApplication();
@@ -240,7 +248,9 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseExceptionHandler(_ => { });
 app.UseResponseCompression();
+app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseSerilogRequestLogging();
 app.UseCors("ReactApp");
@@ -257,6 +267,7 @@ app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.NotificationHub>("/hubs/notificat
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.QuestionHub>("/hubs/question");
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.PresenceHub>("/hubs/presence");
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.ActivityHub>("/hubs/activity");
+app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.CallHub>("/hubs/call");
 
 // Initialize Database
 if (app.Environment.IsDevelopment())
