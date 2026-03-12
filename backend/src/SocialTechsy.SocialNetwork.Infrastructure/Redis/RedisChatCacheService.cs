@@ -11,7 +11,7 @@ public class RedisChatCacheService
     private readonly IDatabase _db;
     private readonly ILogger<RedisChatCacheService> _logger;
     private static readonly TimeSpan ConversationTtl = TimeSpan.FromMinutes(10);
-    private static readonly TimeSpan UserInfoTtl = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan UserInfoTtl = TimeSpan.FromMinutes(5);
 
     public RedisChatCacheService(IConnectionMultiplexer redis, ILogger<RedisChatCacheService> logger)
     {
@@ -131,6 +131,11 @@ public class RedisChatCacheService
     {
         var json = JsonSerializer.Serialize(info);
         await _db.StringSetAsync($"chat:user:{info.UserId}", json, UserInfoTtl);
+    }
+
+    public async Task InvalidateUserInfoAsync(int userId)
+    {
+        await _db.KeyDeleteAsync($"chat:user:{userId}");
     }
 
     // ========== UNREAD MESSAGE COUNTS ==========

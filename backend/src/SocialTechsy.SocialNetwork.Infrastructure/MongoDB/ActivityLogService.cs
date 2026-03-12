@@ -35,6 +35,15 @@ public class ActivityLogService : IActivityLogService
                 .Ascending(v => v.TargetId)
                 .Descending(v => v.CreatedAt),
             new CreateIndexOptions { Background = true }));
+
+        _views.Indexes.CreateOne(new CreateIndexModel<ViewLog>(
+            Builders<ViewLog>.IndexKeys.Ascending(v => v.CreatedAt),
+            new CreateIndexOptions
+            {
+                ExpireAfter = TimeSpan.FromDays(90),
+                Background = true,
+                Name = "TTL_ViewLog_90d"
+            }));
     }
 
     public async Task LogLikeAsync(string targetType, int targetId, int userId)

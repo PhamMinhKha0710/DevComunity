@@ -11,6 +11,7 @@ public class OutboxProcessor : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<OutboxProcessor> _logger;
+    private bool _indexesEnsured;
 
     public OutboxProcessor(IServiceProvider serviceProvider, ILogger<OutboxProcessor> logger)
     {
@@ -21,6 +22,8 @@ public class OutboxProcessor : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("OutboxProcessor starting...");
+
+        await EnsureIndexesAsync();
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -80,6 +83,43 @@ public class OutboxProcessor : BackgroundService
                 await outbox.UpdateOneAsync(
                     Builders<OutboxDocument>.Filter.Eq(e => e.Id, evt.Id), update, cancellationToken: ct);
             }
+        }
+    }
+
+    private async Task EnsureIndexesAsync()
+    {
+        if (_indexesEnsured) return;
+
+        try
+        {
+            var mongoDb = _serviceProvider.GetService<IMongoDatabase>();
+            if (mongoDb == null) return;
+
+            var outbox = mongoDb.GetCollection<OutboxDocument>("outbox");
+
+            await outbox.Indexes.CreateOneAsync(new CreateIndexModel<OutboxDocument>(
+                Builders<OutboxDocument>.IndexKeys
+                    .Ascending(e => e.Processed)
+                    .Ascending(e => e.CreatedAt),
+                new CreateIndexOptions { Background = true, Name = "IX_Outbox_Pending" }));
+
+            // TTL index: auto-delete documents 7 days after ProcessedAt is set.
+            // Documents with ProcessedAt=null (unprocessed) are ignored by MongoDB TTL.
+            await outbox.Indexes.CreateOneAsync(new CreateIndexModel<OutboxDocument>(
+                Builders<OutboxDocument>.IndexKeys.Ascending(e => e.ProcessedAt),
+                new CreateIndexOptions
+                {
+                    ExpireAfter = TimeSpan.FromDays(7),
+                    Background = true,
+                    Name = "TTL_Outbox_Processed_7d"
+                }));
+
+            _indexesEnsured = true;
+            _logger.LogInformation("Outbox indexes ensured (including 7-day TTL for processed events)");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to create outbox indexes");
         }
     }
 }
