@@ -144,7 +144,10 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<DataSeeder>();
-        services.AddSingleton<ICacheService, CacheService>();
+        services.AddSingleton<ICacheService>(sp =>
+            new CacheService(
+                sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+                sp.GetService<IConnectionMultiplexer>()));
 
         // Gitea integration
         services.Configure<GiteaConfiguration>(
