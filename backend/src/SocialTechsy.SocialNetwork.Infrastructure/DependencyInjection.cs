@@ -128,7 +128,8 @@ public static class DependencyInjection
             services.AddHostedService(sp => new LikeNotificationConsumer(
                 sp.GetRequiredService<IConnection>(),
                 sp,
-                sp.GetRequiredService<ILogger<LikeNotificationConsumer>>()));
+                sp.GetRequiredService<ILogger<LikeNotificationConsumer>>(),
+                sp.GetService<IConnectionMultiplexer>()));
             services.AddHostedService<SocialTechsy.SocialNetwork.Infrastructure.MongoDB.OutboxProcessor>();
         }
 

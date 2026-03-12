@@ -57,7 +57,8 @@ public class SocialEventPublisher : ISocialEventPublisher, IAsyncDisposable
             {
                 ContentType = "application/json",
                 DeliveryMode = DeliveryModes.Persistent,
-                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
+                MessageId = evt.EventId
             };
 
             await _channel!.BasicPublishAsync(
