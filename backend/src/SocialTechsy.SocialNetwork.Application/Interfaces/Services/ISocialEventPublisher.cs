@@ -7,6 +7,7 @@ public interface ISocialEventPublisher
 
 public class LikeEvent
 {
+    public string EventId { get; set; } = Guid.NewGuid().ToString();
     public string TargetType { get; set; } = "";
     public int TargetId { get; set; }
     public int LikedByUserId { get; set; }
