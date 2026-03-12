@@ -27,10 +27,10 @@ public class AnswerConfiguration : IEntityTypeConfiguration<Answer>
         builder.Property(a => a.CreatedDate)
             .HasDefaultValueSql("GETUTCDATE()");
 
-        // Indexes
-        builder.HasIndex(a => a.QuestionId);
-        builder.HasIndex(a => a.IsAccepted);
-        builder.HasIndex(a => a.Score);
+        // Composite: sorted answers for a question (WHERE QuestionId = X ORDER BY Score DESC)
+        builder.HasIndex(a => new { a.QuestionId, a.Score })
+            .IsDescending(false, true);
+        builder.HasIndex(a => new { a.QuestionId, a.IsAccepted });
 
         // Relationships
         builder.HasOne(a => a.Question)
