@@ -107,7 +107,7 @@ export default function DeleteQuestionPage() {
                             </p>
                             <div className="flex gap-4 text-[#94a3b8] text-xs">
                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">visibility</span>{question.viewCount} views</span>
-                                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">thumb_up</span>{question.score} votes</span>
+                                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">thumb_up</span>{question.score} likes</span>
                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">chat</span>{question.answerCount} answers</span>
                             </div>
                         </div>
