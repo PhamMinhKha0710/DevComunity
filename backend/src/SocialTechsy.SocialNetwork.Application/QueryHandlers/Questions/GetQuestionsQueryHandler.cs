@@ -1,6 +1,8 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.Mappings;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Application.Queries.Questions;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Questions;
@@ -8,55 +10,42 @@ namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Questions;
 /// <summary>
 /// Handler for GetQuestionsQuery
 /// </summary>
-public class GetQuestionsQueryHandler : IRequestHandler<GetQuestionsQuery, PaginatedResponse<QuestionDto>>
+public class GetQuestionsQueryHandler : IRequestHandler<GetQuestionsQuery, PaginatedResponse<QuestionSummaryDto>>
 {
     private readonly IQuestionRepository _questionRepository;
+    private readonly ICacheService _cacheService;
 
-    public GetQuestionsQueryHandler(IQuestionRepository questionRepository)
+    public GetQuestionsQueryHandler(
+        IQuestionRepository questionRepository,
+        ICacheService cacheService)
     {
         _questionRepository = questionRepository;
+        _cacheService = cacheService;
     }
 
-    public async Task<PaginatedResponse<QuestionDto>> Handle(GetQuestionsQuery request, CancellationToken cancellationToken = default)
+    public async Task<PaginatedResponse<QuestionSummaryDto>> Handle(GetQuestionsQuery request, CancellationToken cancellationToken = default)
     {
-        var (questions, totalCount) = await _questionRepository.GetPaginatedAsync(
-            request.Page,
-            request.PageSize,
-            request.SearchTerm,
-            request.Tag,
-            request.Sort,
-            cancellationToken);
+        var cacheKey = $"questions_{request.Page}_{request.PageSize}_{request.SearchTerm ?? ""}_{request.Tag ?? ""}_{request.Sort}";
 
-        var items = questions.Select(q => new QuestionDto
+        return await _cacheService.GetOrCreateAsync(cacheKey, async () =>
         {
-            QuestionId = q.QuestionId,
-            Title = q.Title,
-            Body = q.Body,
-            BodyExcerpt = q.Body.Length > 200 ? q.Body.Substring(0, 200) + "..." : q.Body,
-            ViewCount = q.ViewCount,
-            Score = q.Score,
-            AnswerCount = q.Answers?.Count ?? 0,
-            HasAcceptedAnswer = q.Answers?.Any(a => a.IsAccepted) ?? false,
-            CreatedDate = DateTime.SpecifyKind(q.CreatedDate, DateTimeKind.Utc),
-            UpdatedDate = q.UpdatedDate.HasValue ? DateTime.SpecifyKind(q.UpdatedDate.Value, DateTimeKind.Utc) : null,
-            Status = q.Status,
-            AuthorId = q.UserId,
-            AuthorUsername = q.User?.Username,
-            AuthorProfilePicture = q.User?.ProfilePicture,
-            AuthorReputation = q.User?.ReputationPoints,
-            Tags = q.QuestionTags?.Select(qt => new TagDto
+            var (questions, totalCount) = await _questionRepository.GetPaginatedAsync(
+                request.Page,
+                request.PageSize,
+                request.SearchTerm,
+                request.Tag,
+                request.Sort,
+                cancellationToken);
+
+            var items = questions.Select(q => q.ToSummaryDto()).ToList();
+
+            return new PaginatedResponse<QuestionSummaryDto>
             {
-                TagId = qt.Tag.TagId,
-                TagName = qt.Tag.TagName
-            }).ToList() ?? new List<TagDto>()
-        }).ToList();
-
-        return new PaginatedResponse<QuestionDto>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            Page = request.Page,
-            PageSize = request.PageSize
-        };
+                Items = items,
+                TotalCount = totalCount,
+                Page = request.Page,
+                PageSize = request.PageSize
+            };
+        }, TimeSpan.FromMinutes(2));
     }
 }

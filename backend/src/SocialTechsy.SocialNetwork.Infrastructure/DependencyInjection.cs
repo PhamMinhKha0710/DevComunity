@@ -5,11 +5,13 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using RabbitMQ.Client;
 using StackExchange.Redis;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Infrastructure.External.Gitea;
 using SocialTechsy.SocialNetwork.Infrastructure.MongoDB;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
+using SocialTechsy.SocialNetwork.Infrastructure.Persistence;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Repositories;
 using SocialTechsy.SocialNetwork.Infrastructure.RabbitMQ;
 using SocialTechsy.SocialNetwork.Infrastructure.Redis;
@@ -120,6 +122,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
 
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Register services
         services.AddScoped<IPasswordHasher, PasswordHasher>();

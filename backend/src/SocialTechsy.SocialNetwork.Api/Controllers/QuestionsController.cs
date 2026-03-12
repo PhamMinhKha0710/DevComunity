@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Queries.Questions;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
-using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
@@ -15,16 +14,13 @@ public class QuestionsController : ControllerBase
 {
     private readonly ILogger<QuestionsController> _logger;
     private readonly IMediator _mediator;
-    private readonly IQuestionRepository _questionRepository;
 
     public QuestionsController(
         ILogger<QuestionsController> logger,
-        IMediator mediator,
-        IQuestionRepository questionRepository)
+        IMediator mediator)
     {
         _logger = logger;
         _mediator = mediator;
-        _questionRepository = questionRepository;
     }
 
     private int GetCurrentUserId()
@@ -34,8 +30,8 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(PaginatedResponse<QuestionDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<PaginatedResponse<QuestionDto>>> GetQuestions(
+    [ProducesResponseType(typeof(PaginatedResponse<QuestionSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<QuestionSummaryDto>>> GetQuestions(
         [FromQuery] GetQuestionsQuery query,
         CancellationToken cancellationToken)
     {
@@ -45,9 +41,9 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(QuestionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(QuestionDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<QuestionDto>> GetQuestion(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<QuestionDetailDto>> GetQuestion(int id, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Getting question with ID: {QuestionId}", id);
 
@@ -56,7 +52,7 @@ public class QuestionsController : ControllerBase
         if (result == null)
             return NotFound(new { message = $"Question with ID {id} not found" });
 
-        _ = _questionRepository.IncrementViewCountAsync(id, CancellationToken.None);
+        _ = _mediator.Send(new IncrementViewCountCommand { QuestionId = id }, cancellationToken);
 
         return Ok(result);
     }
@@ -110,10 +106,7 @@ public class QuestionsController : ControllerBase
 
         _logger.LogInformation("User {UserId} updating question {QuestionId}", userId, id);
 
-        var success = await _mediator.Send(command, cancellationToken);
-
-        if (!success)
-            return NotFound();
+        await _mediator.Send(command, cancellationToken);
 
         return Ok(new { message = "Question updated successfully" });
     }
@@ -131,10 +124,7 @@ public class QuestionsController : ControllerBase
 
         _logger.LogInformation("User {UserId} deleting question {QuestionId}", userId, id);
 
-        var success = await _mediator.Send(new DeleteQuestionCommand { QuestionId = id, UserId = userId }, cancellationToken);
-
-        if (!success)
-            return NotFound();
+        await _mediator.Send(new DeleteQuestionCommand { QuestionId = id, UserId = userId }, cancellationToken);
 
         return NoContent();
     }

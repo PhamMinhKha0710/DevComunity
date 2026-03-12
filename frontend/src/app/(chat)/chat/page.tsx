@@ -14,6 +14,11 @@ import ConversationList from '@/components/chat/ConversationList';
 import MessageList from '@/components/chat/MessageList';
 import MessageInput from '@/components/chat/MessageInput';
 import NewConversationModal from '@/components/chat/NewConversationModal';
+import ConfirmDialog from '@/components/chat/ConfirmDialog';
+import ConversationInfoPanel from '@/components/chat/ConversationInfoPanel';
+import CallOverlay from '@/components/chat/CallOverlay';
+import { useWebRTC } from '@/lib/webrtc/useWebRTC';
+import type { CallType } from '@/lib/webrtc/useWebRTC';
 import type { RealtimeMessage, ConnectionStatus } from '@/components/chat/types';
 
 function ChatContent() {
@@ -21,6 +26,8 @@ function ChatContent() {
     const router = useRouter();
     const chatHub = useHub('chat');
     const presenceHub = useHub('presence');
+    const callHub = useHub('call');
+    const webrtc = useWebRTC();
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
@@ -32,6 +39,8 @@ function ChatContent() {
     const [replyingTo, setReplyingTo] = useState<RealtimeMessage | null>(null);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxMedia, setLightboxMedia] = useState<{ url: string; type: 'image' | 'video'; fileName?: string }>({ url: '', type: 'image' });
+    const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+    const [showInfoPanel, setShowInfoPanel] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -123,6 +132,9 @@ function ChatContent() {
 
     // ── Presence hub events ──
 
+    const presenceHubRef = useRef(presenceHub);
+    presenceHubRef.current = presenceHub;
+
     useEffect(() => {
         if (presenceHub.connectionState !== HubConnectionState.Connected) return;
         presenceHub.invoke('GetOnlineUsers')
@@ -135,6 +147,135 @@ function ChatContent() {
         presenceHub.on('UserOffline', onOffline);
         return () => { presenceHub.off('UserOnline', onOnline); presenceHub.off('UserOffline', onOffline); };
     }, [presenceHub.connectionState]);
+
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && presenceHubRef.current.connectionState === HubConnectionState.Connected) {
+                presenceHubRef.current.invoke('GetOnlineUsers')
+                    .then((list: unknown) => setOnlineUsers(new Set(list as string[])))
+                    .catch(console.error);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    }, []);
+
+    const selectedConv = conversations.find(c => c.conversationId === selectedConversation);
+    const otherParticipant = selectedConv?.participants?.find(p => p.userId !== user?.userId);
+
+    const webrtcRef = useRef(webrtc);
+    useEffect(() => { webrtcRef.current = webrtc; });
+
+    // ── Call hub events ──
+
+    useEffect(() => {
+        if (callHub.connectionState !== HubConnectionState.Connected) return;
+
+        webrtcRef.current.setIceCandidateSender((peerId: string, candidate: string) => {
+            callHub.invoke('SendIceCandidate', peerId, candidate).catch(console.error);
+        });
+
+        const onIncomingCall = (data: { callerId: string; callerName: string; callType: string }) => {
+            webrtcRef.current.handleIncomingCall(data.callerId, data.callerName, data.callType as CallType);
+        };
+
+        const onCallAccepted = () => {
+            webrtcRef.current.handleCallAccepted((peerId: string, sdp: string) => {
+                callHub.invoke('SendOffer', peerId, sdp).catch(console.error);
+            });
+        };
+
+        const onCallRejected = () => {
+            webrtcRef.current.handleCallRejected();
+        };
+
+        const onCallEnded = () => {
+            const info = webrtcRef.current.callInfo;
+            const state = webrtcRef.current.callState;
+            const convId = selectedConvRef.current;
+            if (state === 'incoming' && convId && userRef.current) {
+                chatApi.logCallEvent(convId, {
+                    callEventType: 'missed',
+                    callType: info?.callType ?? 'audio',
+                }).then(() => fetchMessages(convId)).catch(console.error);
+            }
+            webrtcRef.current.handleCallEnded();
+        };
+
+        const onReceiveOffer = (data: { callerId: string; sdp: string }) => {
+            webrtcRef.current.handleReceiveOffer(data.callerId, data.sdp, (peerId: string, sdp: string) => {
+                callHub.invoke('SendAnswer', peerId, sdp).catch(console.error);
+            });
+        };
+
+        const onReceiveAnswer = (data: { answererId: string; sdp: string }) => {
+            webrtcRef.current.handleReceiveAnswer(data.sdp);
+        };
+
+        const onReceiveIceCandidate = (data: { senderId: string; candidate: string }) => {
+            webrtcRef.current.handleReceiveIceCandidate(data.candidate);
+        };
+
+        callHub.on('IncomingCall', onIncomingCall);
+        callHub.on('CallAccepted', onCallAccepted);
+        callHub.on('CallRejected', onCallRejected);
+        callHub.on('CallEnded', onCallEnded);
+        callHub.on('ReceiveOffer', onReceiveOffer);
+        callHub.on('ReceiveAnswer', onReceiveAnswer);
+        callHub.on('ReceiveIceCandidate', onReceiveIceCandidate);
+
+        return () => {
+            callHub.off('IncomingCall', onIncomingCall);
+            callHub.off('CallAccepted', onCallAccepted);
+            callHub.off('CallRejected', onCallRejected);
+            callHub.off('CallEnded', onCallEnded);
+            callHub.off('ReceiveOffer', onReceiveOffer);
+            callHub.off('ReceiveAnswer', onReceiveAnswer);
+            callHub.off('ReceiveIceCandidate', onReceiveIceCandidate);
+        };
+    }, [callHub.connectionState, fetchMessages]);
+
+    const initiateCall = useCallback(async (type: CallType) => {
+        if (!otherParticipant || callHub.connectionState !== HubConnectionState.Connected) return;
+        const peerId = String(otherParticipant.userId);
+        const peerName = otherParticipant.displayName || otherParticipant.username;
+        const callerName = user?.displayName || user?.username || 'User';
+
+        await webrtc.startCall(peerId, peerName, type);
+        callHub.invoke('InitiateCall', peerId, type, callerName).catch(console.error);
+    }, [otherParticipant, callHub.connectionState, user, webrtc]);
+
+    const handleAcceptCall = useCallback(async () => {
+        if (!webrtc.callInfo || callHub.connectionState !== HubConnectionState.Connected) return;
+        await webrtc.acceptCall();
+        callHub.invoke('AcceptCall', webrtc.callInfo.peerId).catch(console.error);
+    }, [webrtc, callHub.connectionState]);
+
+    const logCallEvent = useCallback((eventType: string, callType?: string, durationSeconds?: number) => {
+        if (!selectedConversation || !user) return;
+        chatApi.logCallEvent(selectedConversation, {
+            callEventType: eventType,
+            callType: callType ?? 'audio',
+            durationSeconds,
+        }).then(() => fetchMessages(selectedConversation)).catch(console.error);
+    }, [selectedConversation, user, fetchMessages]);
+
+    const handleRejectCall = useCallback(() => {
+        if (!webrtc.callInfo || callHub.connectionState !== HubConnectionState.Connected) return;
+        logCallEvent('rejected', webrtc.callInfo.callType);
+        callHub.invoke('RejectCall', webrtc.callInfo.peerId).catch(console.error);
+        webrtc.endCall();
+    }, [webrtc, callHub.connectionState, logCallEvent]);
+
+    const handleEndCall = useCallback(() => {
+        if (!webrtc.callInfo || callHub.connectionState !== HubConnectionState.Connected) return;
+        const eventType = webrtc.callState === 'connected' ? 'ended' : 'cancelled';
+        const duration = webrtc.callState === 'connected' ? webrtc.callDuration : undefined;
+        logCallEvent(eventType, webrtc.callInfo.callType, duration);
+        callHub.invoke('EndCall', webrtc.callInfo.peerId).catch(console.error);
+        webrtc.endCall();
+    }, [webrtc, callHub.connectionState, logCallEvent]);
+
 
     // ── Join / leave conversation ──
 
@@ -244,10 +385,14 @@ function ChatContent() {
         fetchConversations();
     };
 
-    const handleDeleteConversation = async (convId: number) => {
-        if (!window.confirm('Xóa đoạn chat này khỏi hộp thoại của bạn? Đoạn chat vẫn còn ở phía người kia.')) {
-            return;
-        }
+    const handleDeleteConversation = (convId: number) => {
+        setDeleteConfirmId(convId);
+    };
+
+    const confirmDeleteConversation = async () => {
+        if (deleteConfirmId === null) return;
+        const convId = deleteConfirmId;
+        setDeleteConfirmId(null);
         try {
             await chatApi.deleteConversation(convId);
             setConversations(prev => prev.filter(c => c.conversationId !== convId));
@@ -266,9 +411,6 @@ function ChatContent() {
         chatHub.connectionState === HubConnectionState.Connected ? 'connected'
             : [HubConnectionState.Connecting, HubConnectionState.Reconnecting].includes(chatHub.connectionState) ? 'connecting'
                 : 'disconnected';
-
-    const selectedConv = conversations.find(c => c.conversationId === selectedConversation);
-    const otherParticipant = selectedConv?.participants?.find(p => p.userId !== user?.userId);
 
     if (authLoading || isLoading) {
         return (
@@ -305,25 +447,41 @@ function ChatContent() {
                         />
                     ) : selectedConversation ? (
                         <>
-                            <MessageList
-                                messages={messages}
-                                currentUser={user}
-                                otherParticipant={otherParticipant}
-                                selectedConversation={selectedConv}
-                                typingUsers={typingUsers}
-                                onlineUsers={onlineUsers}
-                                onReply={setReplyingTo}
-                                onToggleReaction={handleToggleReaction}
-                                onOpenLightbox={(url, type, fileName) => { setLightboxMedia({ url, type, fileName }); setLightboxOpen(true); }}
-                                messagesEndRef={messagesEndRef}
-                            />
-                            <MessageInput
-                                replyingTo={replyingTo}
-                                onCancelReply={() => setReplyingTo(null)}
-                                onSend={handleSendMessage}
-                                onSendMedia={handleSendMedia}
-                                onTyping={handleTyping}
-                            />
+                            <div className="flex flex-1 overflow-hidden">
+                                <div className="flex flex-1 flex-col">
+                                    <MessageList
+                                        messages={messages}
+                                        currentUser={user}
+                                        otherParticipant={otherParticipant}
+                                        selectedConversation={selectedConv}
+                                        typingUsers={typingUsers}
+                                        onlineUsers={onlineUsers}
+                                        onReply={setReplyingTo}
+                                        onToggleReaction={handleToggleReaction}
+                                        onOpenLightbox={(url, type, fileName) => { setLightboxMedia({ url, type, fileName }); setLightboxOpen(true); }}
+                                        onAudioCall={() => initiateCall('audio')}
+                                        onVideoCall={() => initiateCall('video')}
+                                        onInfoClick={() => setShowInfoPanel(prev => !prev)}
+                                        messagesEndRef={messagesEndRef}
+                                    />
+                                    <MessageInput
+                                        replyingTo={replyingTo}
+                                        onCancelReply={() => setReplyingTo(null)}
+                                        onSend={handleSendMessage}
+                                        onSendMedia={handleSendMedia}
+                                        onTyping={handleTyping}
+                                    />
+                                </div>
+                                {showInfoPanel && selectedConv && (
+                                    <ConversationInfoPanel
+                                        conversation={selectedConv}
+                                        otherParticipant={otherParticipant}
+                                        isOnline={otherParticipant ? onlineUsers.has(String(otherParticipant.userId)) : false}
+                                        messages={messages}
+                                        onClose={() => setShowInfoPanel(false)}
+                                    />
+                                )}
+                            </div>
                         </>
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-slate-950">
@@ -341,6 +499,30 @@ function ChatContent() {
                 mediaType={lightboxMedia.type}
                 fileName={lightboxMedia.fileName}
             />
+            <ConfirmDialog
+                isOpen={deleteConfirmId !== null}
+                message="Bạn có chắc chắn muốn xóa đoạn chat này?"
+                confirmLabel="Xóa"
+                onConfirm={confirmDeleteConversation}
+                onCancel={() => setDeleteConfirmId(null)}
+            />
+            {webrtc.callState !== 'idle' && webrtc.callInfo && (
+                <CallOverlay
+                    callState={webrtc.callState}
+                    callType={webrtc.callInfo.callType}
+                    peerName={webrtc.callInfo.peerName}
+                    localStream={webrtc.localStream}
+                    remoteStream={webrtc.remoteStream}
+                    isMuted={webrtc.isMuted}
+                    isCameraOff={webrtc.isCameraOff}
+                    callDuration={webrtc.callDuration}
+                    onAccept={handleAcceptCall}
+                    onReject={handleRejectCall}
+                    onEnd={handleEndCall}
+                    onToggleMute={webrtc.toggleMute}
+                    onToggleCamera={webrtc.toggleCamera}
+                />
+            )}
         </>
     );
 }

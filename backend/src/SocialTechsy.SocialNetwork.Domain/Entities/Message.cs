@@ -9,7 +9,7 @@ public enum DeliveryStatus
 
 public class Message
 {
-    public static readonly string[] ValidMessageTypes = { "text", "image", "video", "audio", "file" };
+    public static readonly string[] ValidMessageTypes = { "text", "image", "video", "audio", "file", "call" };
     public static readonly int MaxContentLength = 10_000;
 
     public int MessageId { get; set; }
@@ -51,6 +51,25 @@ public class Message
         };
     }
 
+    public static Message CreateCallEvent(int conversationId, int senderId, string callEventType, string callType, int? durationSeconds = null)
+    {
+        var content = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            type = callEventType,
+            callType,
+            duration = durationSeconds
+        });
+        return new Message
+        {
+            ConversationId = conversationId,
+            SenderId = senderId,
+            Content = content,
+            MessageType = "call",
+            SentDate = DateTime.UtcNow,
+            IsRead = false
+        };
+    }
+
     public static Message CreateMedia(int conversationId, int senderId, string messageType,
         string attachmentUrl, string? attachmentFileName, long attachmentSize, string? caption = null)
     {
@@ -87,6 +106,7 @@ public class Message
                 "image" => "Photo",
                 "video" => "Video",
                 "audio" => "Audio",
+                "call" => "Call",
                 _ => AttachmentFileName ?? "File"
             };
         }

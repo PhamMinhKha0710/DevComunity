@@ -1,5 +1,6 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
+using SocialTechsy.SocialNetwork.Application.Common.Exceptions;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
@@ -7,7 +8,7 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
 /// <summary>
 /// Handler for DeleteQuestionCommand
 /// </summary>
-public class DeleteQuestionCommandHandler : IRequestHandler<DeleteQuestionCommand, bool>
+public class DeleteQuestionCommandHandler : IRequestHandler<DeleteQuestionCommand, Unit>
 {
     private readonly IQuestionRepository _questionRepository;
 
@@ -16,14 +17,17 @@ public class DeleteQuestionCommandHandler : IRequestHandler<DeleteQuestionComman
         _questionRepository = questionRepository;
     }
 
-    public async Task<bool> Handle(DeleteQuestionCommand request, CancellationToken cancellationToken)
+    public async Task<Unit> Handle(DeleteQuestionCommand request, CancellationToken cancellationToken)
     {
         var question = await _questionRepository.GetByIdAsync(request.QuestionId, cancellationToken);
-        
-        if (question == null || question.UserId != request.UserId)
-            return false;
+
+        if (question == null)
+            throw new EntityNotFoundException("Question", request.QuestionId);
+
+        if (question.UserId != request.UserId)
+            throw new UnauthorizedCommandException($"User {request.UserId} is not authorized to delete Question {request.QuestionId}.");
 
         await _questionRepository.DeleteAsync(request.QuestionId, cancellationToken);
-        return true;
+        return Unit.Value;
     }
 }

@@ -1,5 +1,6 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.Mappings;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Queries.Answers;
 
@@ -21,21 +22,10 @@ public class GetAnswersByQuestionQueryHandler : IRequestHandler<GetAnswersByQues
     {
         var (answers, totalCount) = await _answerRepository.GetByQuestionIdAsync(request.QuestionId, request.Page, request.PageSize, cancellationToken);
 
-        var answerDtos = answers.Select(a => new AnswerDto
+        var answerDtos = answers.Select(a =>
         {
-            AnswerId = a.AnswerId,
-            QuestionId = a.QuestionId,
-            Body = a.Body,
-            Score = a.Score,
-            IsAccepted = a.IsAccepted,
-            CreatedDate = DateTime.SpecifyKind(a.CreatedDate, DateTimeKind.Utc),
-            UpdatedDate = a.UpdatedDate.HasValue ? DateTime.SpecifyKind(a.UpdatedDate.Value, DateTimeKind.Utc) : null,
-            AuthorId = a.UserId,
-            AuthorUsername = a.User?.Username,
-            AuthorProfilePicture = a.User?.ProfilePicture,
-            AuthorReputation = a.User?.ReputationPoints,
-            ParentAnswerId = a.ParentAnswerId,
-            Comments = a.Comments?.Select(c => new CommentDto
+            var dto = a.ToDto();
+            dto.Comments = a.Comments?.Select(c => new CommentDto
             {
                 CommentId = c.CommentId,
                 Body = c.Body,
@@ -43,7 +33,8 @@ public class GetAnswersByQuestionQueryHandler : IRequestHandler<GetAnswersByQues
                 AuthorId = c.UserId,
                 AuthorUsername = c.User?.Username ?? "",
                 AuthorProfilePicture = c.User?.ProfilePicture
-            }).ToList() ?? new List<CommentDto>()
+            }).ToList() ?? new List<CommentDto>();
+            return dto;
         }).ToList();
 
         answerDtos = request.Sort switch
@@ -82,20 +73,6 @@ public class GetAnswerByIdQueryHandler : IRequestHandler<GetAnswerByIdQuery, Ans
         if (answer == null)
             return null;
 
-        return new AnswerDto
-        {
-            AnswerId = answer.AnswerId,
-            QuestionId = answer.QuestionId,
-            Body = answer.Body,
-            Score = answer.Score,
-            IsAccepted = answer.IsAccepted,
-            CreatedDate = DateTime.SpecifyKind(answer.CreatedDate, DateTimeKind.Utc),
-            UpdatedDate = answer.UpdatedDate.HasValue ? DateTime.SpecifyKind(answer.UpdatedDate.Value, DateTimeKind.Utc) : null,
-            AuthorId = answer.UserId,
-            AuthorUsername = answer.User?.Username,
-            AuthorProfilePicture = answer.User?.ProfilePicture,
-            AuthorReputation = answer.User?.ReputationPoints,
-            ParentAnswerId = answer.ParentAnswerId
-        };
+        return answer.ToDto();
     }
 }

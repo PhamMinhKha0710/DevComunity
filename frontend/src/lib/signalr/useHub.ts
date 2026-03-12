@@ -22,8 +22,9 @@ export function useHub(hubName: HubName) {
         if (!user) return;
 
         let mounted = true;
+        let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
-        (async () => {
+        const tryConnect = async (attempt = 0) => {
             try {
                 const conn = await signalRManager.connect(hubName);
                 if (!mounted) {
@@ -43,13 +44,21 @@ export function useHub(hubName: HubName) {
                     if (mounted) setConnectionState(signalR.HubConnectionState.Disconnected);
                 });
             } catch (err) {
-                console.error(`[useHub] Failed to connect to ${hubName}:`, err);
-                if (mounted) setConnectionState(signalR.HubConnectionState.Disconnected);
+                console.error(`[useHub] Failed to connect to ${hubName} (attempt ${attempt + 1}):`, err);
+                if (mounted && attempt < 5) {
+                    const delay = Math.min(1000 * 2 ** attempt, 30000);
+                    retryTimeout = setTimeout(() => tryConnect(attempt + 1), delay);
+                } else if (mounted) {
+                    setConnectionState(signalR.HubConnectionState.Disconnected);
+                }
             }
-        })();
+        };
+
+        tryConnect();
 
         return () => {
             mounted = false;
+            if (retryTimeout) clearTimeout(retryTimeout);
             if (connectedRef.current) {
                 signalRManager.disconnect(hubName);
                 connectedRef.current = false;

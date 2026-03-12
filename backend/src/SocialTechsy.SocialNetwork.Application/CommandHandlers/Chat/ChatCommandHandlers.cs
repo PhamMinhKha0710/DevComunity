@@ -4,6 +4,9 @@ using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Domain.Enums;
+using MessageType = SocialTechsy.SocialNetwork.Domain.Enums.MessageType;
+using ReactionType = SocialTechsy.SocialNetwork.Domain.Enums.ReactionType;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Chat;
 
@@ -103,6 +106,50 @@ public class StartConversationCommandHandler : IRequestHandler<StartConversation
 
 #endregion
 
+#region Log Call Event
+
+public class LogCallEventCommand : IRequest<bool>
+{
+    public int ConversationId { get; set; }
+    public int UserId { get; set; }
+    public string CallEventType { get; set; } = null!; // ended, rejected, missed, cancelled
+    public string CallType { get; set; } = "audio"; // audio, video
+    public int? DurationSeconds { get; set; }
+}
+
+public class LogCallEventCommandHandler : IRequestHandler<LogCallEventCommand, bool>
+{
+    private readonly IChatRepository _chatRepository;
+
+    public LogCallEventCommandHandler(IChatRepository chatRepository)
+    {
+        _chatRepository = chatRepository;
+    }
+
+    public async Task<bool> Handle(LogCallEventCommand request, CancellationToken cancellationToken)
+    {
+        var conversation = await _chatRepository.GetConversationByIdAsync(request.ConversationId, cancellationToken);
+        if (conversation == null || !conversation.Participants.Any(p => p.UserId == request.UserId))
+            return false;
+
+        var validEvents = new[] { "ended", "rejected", "missed", "cancelled" };
+        if (!validEvents.Contains(request.CallEventType, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        var message = Message.CreateCallEvent(
+            request.ConversationId,
+            request.UserId,
+            request.CallEventType.ToLowerInvariant(),
+            request.CallType.ToLowerInvariant(),
+            request.DurationSeconds);
+
+        await _chatRepository.AddMessageAsync(message, cancellationToken);
+        return true;
+    }
+}
+
+#endregion
+
 #region Send Message (text + media unified)
 
 public class SendMessageCommand : IRequest<SendMessageResult?>
@@ -111,7 +158,7 @@ public class SendMessageCommand : IRequest<SendMessageResult?>
     public int SenderId { get; set; }
     public string Content { get; set; } = null!;
     public int? ReplyToMessageId { get; set; }
-    public string MessageType { get; set; } = "text";
+    public MessageType MessageType { get; set; } = MessageType.Text;
     public string? AttachmentUrl { get; set; }
     public string? AttachmentFileName { get; set; }
     public long? AttachmentSize { get; set; }
@@ -141,12 +188,14 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Sen
 
         var sender = await _userRepository.GetByIdAsync(request.SenderId);
 
+        var messageTypeString = request.MessageType.ToString().ToLowerInvariant();
+
         var message = new Message
         {
             ConversationId = request.ConversationId,
             SenderId = request.SenderId,
             Content = request.Content,
-            MessageType = request.MessageType,
+            MessageType = messageTypeString,
             AttachmentUrl = request.AttachmentUrl,
             AttachmentFileName = request.AttachmentFileName,
             AttachmentSize = request.AttachmentSize ?? 0,
@@ -197,13 +246,13 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Sen
         };
 
         string notificationPreview;
-        if (request.MessageType != "text")
+        if (request.MessageType != MessageType.Text)
         {
             notificationPreview = request.MessageType switch
             {
-                "image" => "Photo",
-                "video" => "Video",
-                "audio" => "Audio",
+                MessageType.Image => "Photo",
+                MessageType.Video => "Video",
+                MessageType.Audio => "Audio",
                 _ => request.AttachmentFileName ?? "File"
             };
         }
@@ -324,7 +373,7 @@ public class AddReactionCommand : IRequest<MessageReactionDto?>
 {
     public int MessageId { get; set; }
     public int UserId { get; set; }
-    public string ReactionType { get; set; } = null!;
+    public ReactionType ReactionType { get; set; }
 }
 
 public class AddReactionCommandHandler : IRequestHandler<AddReactionCommand, MessageReactionDto?>
@@ -340,9 +389,7 @@ public class AddReactionCommandHandler : IRequestHandler<AddReactionCommand, Mes
 
     public async Task<MessageReactionDto?> Handle(AddReactionCommand request, CancellationToken cancellationToken)
     {
-        var validReactions = new[] { "like", "love", "haha", "wow", "sad", "angry" };
-        if (!validReactions.Contains(request.ReactionType.ToLower()))
-            return null;
+        var reactionTypeString = request.ReactionType.ToString().ToLowerInvariant();
 
         var message = await _chatRepository.GetMessageByIdAsync(request.MessageId, cancellationToken);
         if (message == null)
@@ -354,7 +401,7 @@ public class AddReactionCommandHandler : IRequestHandler<AddReactionCommand, Mes
 
         if (existingReaction != null)
         {
-            existingReaction.ReactionType = request.ReactionType.ToLower();
+            existingReaction.ReactionType = reactionTypeString;
             existingReaction.CreatedAt = DateTime.UtcNow;
             await _chatRepository.UpdateReactionAsync(existingReaction, cancellationToken);
 
@@ -373,7 +420,7 @@ public class AddReactionCommandHandler : IRequestHandler<AddReactionCommand, Mes
         {
             MessageId = request.MessageId,
             UserId = request.UserId,
-            ReactionType = request.ReactionType.ToLower(),
+            ReactionType = reactionTypeString,
             CreatedAt = DateTime.UtcNow
         };
 

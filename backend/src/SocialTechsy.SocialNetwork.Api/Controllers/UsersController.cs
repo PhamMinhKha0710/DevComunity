@@ -83,8 +83,8 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("{id:int}/questions")]
-    [ProducesResponseType(typeof(PaginatedResponse<QuestionDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<PaginatedResponse<QuestionDto>>> GetUserQuestions(
+    [ProducesResponseType(typeof(PaginatedResponse<QuestionSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<QuestionSummaryDto>>> GetUserQuestions(
         int id,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 15,

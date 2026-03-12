@@ -6,7 +6,7 @@ namespace SocialTechsy.SocialNetwork.Application.Commands.Questions;
 /// <summary>
 /// Command to update an existing question
 /// </summary>
-public class UpdateQuestionCommand : IRequest<bool>
+public class UpdateQuestionCommand : IRequest<Unit>
 {
     public int QuestionId { get; set; }
     

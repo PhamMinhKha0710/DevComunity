@@ -17,6 +17,9 @@ export const usersApi = {
     getQuestions: (userId: number | string) =>
         apiClient.get(`/users/${userId}/questions`).then(r => r.data),
 
+    getAnswers: (userId: number | string, page = 1, pageSize = 15) =>
+        apiClient.get(`/users/${userId}/answers`, { params: { page, pageSize } }).then(r => r.data),
+
     updateProfile: (data: FormData | Record<string, unknown>) =>
         apiClient.put('/users/profile', data).then(r => r.data),
 

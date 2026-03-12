@@ -1,5 +1,6 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.Mappings;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Queries.Users;
 
@@ -20,23 +21,11 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, U
     public async Task<UserDto?> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
-        
+
         if (user == null)
             return null;
 
-        return new UserDto
-        {
-            UserId = user.UserId,
-            Username = user.Username,
-            Email = user.Email,
-            DisplayName = user.DisplayName,
-            ProfilePicture = user.ProfilePicture,
-            Bio = user.Bio,
-            Location = user.Location,
-            Website = user.Website,
-            ReputationPoints = user.ReputationPoints,
-            IsEmailVerified = user.IsEmailVerified
-        };
+        return user.ToDto();
     }
 }
 
@@ -61,22 +50,30 @@ public class GetUserByIdQueryHandler : IRequestHandler<GetUserByIdQuery, UserDto
 
         var (user, questionCount, answerCount) = result.Value;
 
-        return new UserDto
-        {
-            UserId = user.UserId,
-            Username = user.Username,
-            Email = user.Email,
-            DisplayName = user.DisplayName,
-            ProfilePicture = user.ProfilePicture,
-            Bio = user.Bio,
-            Location = user.Location,
-            Website = user.Website,
-            ReputationPoints = user.ReputationPoints,
-            IsEmailVerified = user.IsEmailVerified,
-            QuestionCount = questionCount,
-            AnswerCount = answerCount,
-            CreatedDate = user.CreatedDate
-        };
+        return user.ToDto(questionCount, answerCount);
+    }
+}
+
+public class GetUserByUsernameQueryHandler : IRequestHandler<GetUserByUsernameQuery, UserDto?>
+{
+    private readonly IUserRepository _userRepository;
+
+    public GetUserByUsernameQueryHandler(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    public async Task<UserDto?> Handle(GetUserByUsernameQuery request, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByUsernameAsync(request.Username, cancellationToken);
+        if (user == null)
+            return null;
+
+        var statsResult = await _userRepository.GetUserWithStatsAsync(user.UserId, cancellationToken);
+        var questionCount = statsResult.HasValue ? statsResult.Value.QuestionCount : 0;
+        var answerCount = statsResult.HasValue ? statsResult.Value.AnswerCount : 0;
+
+        return user.ToDto(questionCount, answerCount);
     }
 }
 
@@ -103,15 +100,7 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PaginatedResp
 
         return new PaginatedResponse<UserDto>
         {
-            Items = items.Select(u => new UserDto
-            {
-                UserId = u.UserId,
-                Username = u.Username,
-                DisplayName = u.DisplayName,
-                ProfilePicture = u.ProfilePicture,
-                ReputationPoints = u.ReputationPoints,
-                CreatedDate = u.CreatedDate
-            }).ToList(),
+            Items = items.Select(u => u.ToDto()).ToList(),
             Page = request.Page,
             PageSize = request.PageSize,
             TotalCount = totalCount

@@ -3,6 +3,7 @@ using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
 
@@ -30,7 +31,7 @@ public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionComman
             Body = request.Body,
             UserId = request.UserId,
             CreatedDate = DateTime.UtcNow,
-            Status = "open",
+            Status = QuestionStatus.Open.ToString().ToLowerInvariant(),
             ViewCount = 0,
             Score = 0
         };
@@ -43,14 +44,12 @@ public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionComman
             CommandHandlers.Votes.ReputationPoints.AskQuestion, 
             cancellationToken);
 
-        var createdUtc = DateTime.SpecifyKind(createdQuestion.CreatedDate, DateTimeKind.Utc);
-
         return new QuestionDto
         {
             QuestionId = createdQuestion.QuestionId,
             Title = createdQuestion.Title,
             Body = createdQuestion.Body,
-            CreatedDate = createdUtc,
+            CreatedDate = DateTime.SpecifyKind(createdQuestion.CreatedDate, DateTimeKind.Utc),
             Status = createdQuestion.Status,
             ViewCount = createdQuestion.ViewCount,
             Score = createdQuestion.Score

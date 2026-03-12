@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Chat;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Chat;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
@@ -200,11 +201,14 @@ public class ChatController : ControllerBase
         _logger.LogInformation("User {UserId} adding {ReactionType} reaction to message {MessageId}",
             userId, request.ReactionType, messageId);
 
+        if (!Enum.TryParse<ReactionType>(request.ReactionType, ignoreCase: true, out var parsedReaction))
+            return BadRequest(new { message = "Invalid reaction type" });
+
         var command = new AddReactionCommand
         {
             MessageId = messageId,
             UserId = userId,
-            ReactionType = request.ReactionType
+            ReactionType = parsedReaction
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -212,6 +216,36 @@ public class ChatController : ControllerBase
             return BadRequest(new { message = "Invalid reaction type or message not found" });
 
         return Ok(result);
+    }
+
+    [HttpPost("conversations/{id:int}/call-events")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LogCallEvent(
+        int id,
+        [FromBody] LogCallEventRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        _logger.LogInformation("User {UserId} logging call event {EventType} in conversation {ConversationId}",
+            userId, request.CallEventType, id);
+
+        var success = await _mediator.Send(new LogCallEventCommand
+        {
+            ConversationId = id,
+            UserId = userId,
+            CallEventType = request.CallEventType,
+            CallType = request.CallType ?? "audio",
+            DurationSeconds = request.DurationSeconds
+        }, cancellationToken);
+
+        if (!success)
+            return NotFound(new { message = "Conversation not found or access denied" });
+
+        return Ok(new { message = "Call event logged" });
     }
 
     [HttpDelete("messages/{messageId:int}/reactions")]
@@ -241,4 +275,11 @@ public class StartConversationRequest
 public class SendMessageRequest
 {
     public string Content { get; set; } = null!;
+}
+
+public class LogCallEventRequest
+{
+    public string CallEventType { get; set; } = null!; // ended, rejected, missed, cancelled
+    public string? CallType { get; set; } = "audio"; // audio, video
+    public int? DurationSeconds { get; set; }
 }

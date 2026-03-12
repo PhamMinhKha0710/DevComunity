@@ -189,7 +189,7 @@ export interface ChatMessage {
     content: string;
     sentDate: string;
     isRead: boolean;
-    messageType?: 'text' | 'image' | 'video' | 'audio' | 'file';
+    messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'call';
     attachmentUrl?: string;
     attachmentFileName?: string;
     attachmentSize?: number;
