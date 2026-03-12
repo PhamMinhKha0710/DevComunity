@@ -36,13 +36,16 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
         builder.Property(q => q.CreatedDate)
             .HasDefaultValueSql("GETUTCDATE()");
 
-        // Indexes
-        builder.HasIndex(q => q.CreatedDate);
-        builder.HasIndex(q => q.Score);
+        builder.HasIndex(q => q.CreatedDate)
+            .IsDescending(true);
+        builder.HasIndex(q => q.Score)
+            .IsDescending(true);
         builder.HasIndex(q => q.ViewCount);
-
-        builder.HasIndex(q => q.UserId);
         builder.HasIndex(q => q.Status);
+
+        // Composite: user profile question list (WHERE UserId = X ORDER BY CreatedDate DESC)
+        builder.HasIndex(q => new { q.UserId, q.CreatedDate })
+            .IsDescending(false, true);
 
         // Relationships
         builder.HasOne(q => q.User)

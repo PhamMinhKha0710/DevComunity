@@ -33,8 +33,11 @@ public static class DependencyInjection
                           .EnableRetryOnFailure(3))
                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
-        // Register repositories
-        services.AddScoped<IQuestionRepository, QuestionRepository>();
+        var fullTextEnabled = configuration.GetValue<bool>("Search:FullTextEnabled");
+        services.AddScoped<IQuestionRepository>(sp =>
+            new QuestionRepository(
+                sp.GetRequiredService<SocialTechsySocialNetworkDbContext>(),
+                fullTextEnabled));
         services.AddScoped<IAnswerRepository, AnswerRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IVoteRepository, VoteRepository>();
