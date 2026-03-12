@@ -8,7 +8,7 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Redis;
 
 /// <summary>
 /// Background service that periodically syncs view count deltas from Redis to SQL Server.
-/// Runs every 60 seconds to batch-update Questions.ViewCount.
+/// Uses a tracking Set instead of SCAN to avoid O(N) key enumeration.
 /// </summary>
 public class ViewSyncBackgroundService : BackgroundService
 {
@@ -53,41 +53,35 @@ public class ViewSyncBackgroundService : BackgroundService
 
     private async Task SyncViewCountsAsync(CancellationToken ct)
     {
-        var db = _redis.GetDatabase();
-        var server = _redis.GetServers().First();
+        var viewService = _serviceProvider.GetRequiredService<RedisViewService>();
+        var dirtyIds = await viewService.GetDirtyQuestionIdsAsync();
 
-        var deltaKeys = new List<RedisKey>();
-        await foreach (var key in server.KeysAsync(pattern: "view:question:*:delta"))
-        {
-            deltaKeys.Add(key);
-        }
-
-        if (deltaKeys.Count == 0) return;
+        if (dirtyIds.Length == 0) return;
 
         using var scope = _serviceProvider.CreateScope();
         var questionRepo = scope.ServiceProvider.GetRequiredService<IQuestionRepository>();
+        var db = _redis.GetDatabase();
         var synced = 0;
 
-        foreach (var key in deltaKeys)
+        foreach (var questionId in dirtyIds)
         {
             try
             {
-                var keyStr = key.ToString();
-                var parts = keyStr.Split(':');
-                if (parts.Length < 4 || !int.TryParse(parts[2], out var questionId)) continue;
-
-                var delta = await db.StringGetSetAsync(key, 0);
-                if (!delta.HasValue || (long)delta == 0) continue;
-
-                for (var i = 0; i < (long)delta; i++)
+                var deltaKey = $"view:question:{questionId}:delta";
+                var delta = await db.StringGetSetAsync(deltaKey, 0);
+                if (!delta.HasValue || (long)delta == 0)
                 {
-                    await questionRepo.IncrementViewCountAsync(questionId, ct);
+                    await viewService.RemoveFromTrackingAsync(questionId);
+                    continue;
                 }
+
+                await questionRepo.IncrementViewCountByDeltaAsync(questionId, (long)delta, ct);
+                await viewService.RemoveFromTrackingAsync(questionId);
                 synced++;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to sync view delta for key {Key}", key);
+                _logger.LogWarning(ex, "Failed to sync view delta for question {QuestionId}", questionId);
             }
         }
 
