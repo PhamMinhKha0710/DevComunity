@@ -14,7 +14,7 @@ public class ChatPushEvent
 {
     public string EventId { get; set; } = Guid.NewGuid().ToString();
     public int ConversationId { get; set; }
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int SenderId { get; set; }
     public string SenderUsername { get; set; } = "";
     public string? SenderDisplayName { get; set; }
@@ -25,7 +25,7 @@ public class ChatPushEvent
     public string? AttachmentFileName { get; set; }
     public long? AttachmentSize { get; set; }
     public DateTime SentDate { get; set; }
-    public int? ReplyToMessageId { get; set; }
+    public long? ReplyToMessageId { get; set; }
     public string NotificationPreview { get; set; } = "";
     public List<int> RecipientUserIds { get; set; } = new();
 }

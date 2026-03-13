@@ -12,7 +12,7 @@ public class Message
     public static readonly string[] ValidMessageTypes = { "text", "image", "video", "audio", "file", "call" };
     public static readonly int MaxContentLength = 10_000;
 
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public string Content { get; set; } = null!;
     public bool IsRead { get; set; }
     public DateTime SentDate { get; set; }
@@ -24,7 +24,7 @@ public class Message
 
     public int ConversationId { get; set; }
     public int SenderId { get; set; }
-    public int? ReplyToMessageId { get; set; }
+    public long? ReplyToMessageId { get; set; }
 
     public virtual Conversation Conversation { get; set; } = null!;
     public virtual User Sender { get; set; } = null!;
