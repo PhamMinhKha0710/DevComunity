@@ -7,10 +7,10 @@ public class RedisPresenceService
 {
     private readonly IDatabase _db;
     private readonly ILogger<RedisPresenceService> _logger;
-    private static readonly TimeSpan PresenceTtl = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan ConnectionTtl = TimeSpan.FromSeconds(120);
     private static readonly TimeSpan FriendsCacheTtl = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan PendingPushTtl = TimeSpan.FromDays(7);
-    private const string OnlineTrackingSet = "presence:online";
+    private static readonly TimeSpan LastSeenTtl = TimeSpan.FromDays(30);
 
     public RedisPresenceService(IConnectionMultiplexer redis, ILogger<RedisPresenceService> logger)
     {
@@ -18,25 +18,26 @@ public class RedisPresenceService
         _logger = logger;
     }
 
-    // ========== CONNECTION STATE ==========
+    // ========== CONNECTION STATE (per-user TTL keys, no global SET) ==========
 
     public async Task SetOnlineAsync(string userId, string connectionId)
     {
         var key = $"presence:user:{userId}";
-        await _db.SetAddAsync(key, connectionId);
-        await _db.KeyExpireAsync(key, PresenceTtl);
-        await _db.SetAddAsync(OnlineTrackingSet, userId);
+        var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+        await _db.SortedSetAddAsync(key, connectionId, double.Parse(ts));
+        await _db.KeyExpireAsync(key, ConnectionTtl);
     }
 
     public async Task SetOfflineAsync(string userId, string connectionId)
     {
         var key = $"presence:user:{userId}";
-        await _db.SetRemoveAsync(key, connectionId);
-        var remaining = await _db.SetLengthAsync(key);
+        await _db.SortedSetRemoveAsync(key, connectionId);
+        var remaining = await _db.SortedSetLengthAsync(key);
         if (remaining == 0)
         {
             await _db.KeyDeleteAsync(key);
-            await _db.SetRemoveAsync(OnlineTrackingSet, userId);
+            await _db.StringSetAsync($"presence:lastseen:{userId}",
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), LastSeenTtl);
         }
     }
 
@@ -47,7 +48,7 @@ public class RedisPresenceService
 
     public async Task<bool> HasConnectionsAsync(string userId)
     {
-        return await _db.SetLengthAsync($"presence:user:{userId}") > 0;
+        return await _db.SortedSetLengthAsync($"presence:user:{userId}") > 0;
     }
 
     public async Task HeartbeatAsync(string userId)
@@ -55,8 +56,15 @@ public class RedisPresenceService
         var key = $"presence:user:{userId}";
         if (await _db.KeyExistsAsync(key))
         {
-            await _db.KeyExpireAsync(key, PresenceTtl);
+            await _db.KeyExpireAsync(key, ConnectionTtl);
         }
+    }
+
+    public async Task<DateTimeOffset?> GetLastSeenAsync(string userId)
+    {
+        var val = await _db.StringGetAsync($"presence:lastseen:{userId}");
+        if (!val.HasValue) return null;
+        return DateTimeOffset.FromUnixTimeSeconds(long.Parse(val!));
     }
 
     // ========== FRIEND-SCOPED PRESENCE ==========
@@ -89,7 +97,10 @@ public class RedisPresenceService
         var friendIds = await GetCachedFriendIdsAsync(userId);
         if (friendIds.Length == 0) return Array.Empty<string>();
 
-        var tasks = friendIds.Select(id => IsOnlineAsync(id));
+        var batch = _db.CreateBatch();
+        var tasks = friendIds.Select(id =>
+            batch.KeyExistsAsync($"presence:user:{id}")).ToArray();
+        batch.Execute();
         var results = await Task.WhenAll(tasks);
 
         return friendIds.Where((_, i) => results[i]).ToArray();
@@ -100,19 +111,18 @@ public class RedisPresenceService
         var ids = userIds.ToArray();
         if (ids.Length == 0) return Array.Empty<string>();
 
-        var tasks = ids.Select(id => IsOnlineAsync(id));
+        var batch = _db.CreateBatch();
+        var tasks = ids.Select(id =>
+            batch.KeyExistsAsync($"presence:user:{id}")).ToArray();
+        batch.Execute();
         var results = await Task.WhenAll(tasks);
         return ids.Where((_, i) => results[i]).ToArray();
     }
 
     [Obsolete("Use GetOnlineFriendsAsync for scoped presence")]
-    public async Task<string[]> GetOnlineUserIdsAsync()
+    public Task<string[]> GetOnlineUserIdsAsync()
     {
-        var members = await _db.SetMembersAsync(OnlineTrackingSet);
-        return members
-            .Where(m => m.HasValue)
-            .Select(m => m.ToString())
-            .ToArray();
+        return Task.FromResult(Array.Empty<string>());
     }
 
     // ========== PENDING PUSH (offline message queue) ==========
