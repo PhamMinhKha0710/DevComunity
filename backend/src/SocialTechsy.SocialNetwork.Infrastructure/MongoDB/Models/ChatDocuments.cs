@@ -26,6 +26,7 @@ public class ConversationDocument
     public DateTime CreatedDate { get; set; }
     public DateTime? LastMessageDate { get; set; }
     public List<ParticipantEmbed> Participants { get; set; } = new();
+    public List<PinnedMessageEmbed> PinnedMessages { get; set; } = new();
 }
 
 public class ParticipantEmbed
@@ -53,7 +54,19 @@ public class MessageDocument
     public string? AttachmentFileName { get; set; }
     public long? AttachmentSize { get; set; }
     public int? ReplyToMessageId { get; set; }
+    public int? ThreadRootMessageId { get; set; }
+    public int ThreadReplyCount { get; set; }
+    public bool IsEdited { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? EditedDate { get; set; }
     public List<ReactionEmbed> Reactions { get; set; } = new();
+}
+
+public class PinnedMessageEmbed
+{
+    public int MessageId { get; set; }
+    public int PinnedByUserId { get; set; }
+    public DateTime PinnedAt { get; set; }
 }
 
 public class ReactionEmbed
