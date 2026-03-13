@@ -45,9 +45,11 @@ builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHan
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// SignalR-based like notification handler (needs API layer for hub contexts)
+// SignalR-based handlers (needs API layer for hub contexts)
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.ILikeNotificationHandler,
     SocialTechsy.SocialNetwork.Api.Services.SignalRLikeNotificationHandler>();
+builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IChatPushHandler,
+    SocialTechsy.SocialNetwork.Api.Services.SignalRChatPushHandler>();
 
 // Health checks
 var healthChecksBuilder = builder.Services.AddHealthChecks()
