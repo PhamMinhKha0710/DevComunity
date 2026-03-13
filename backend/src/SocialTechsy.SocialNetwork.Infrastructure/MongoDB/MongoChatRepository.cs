@@ -50,16 +50,31 @@ public class MongoChatRepository : IChatRepository
                 new CreateIndexModel<MessageDocument>(
                     Builders<MessageDocument>.IndexKeys
                         .Ascending(m => m.ConversationId)
-                        .Ascending(m => m.SentDate)),
+                        .Descending(m => m.MessageId)),
                 new CreateIndexModel<MessageDocument>(
                     Builders<MessageDocument>.IndexKeys
                         .Ascending(m => m.ConversationId)
-                        .Ascending(m => m.IsRead)
-                        .Ascending(m => m.SenderId))
+                        .Descending(m => m.SentDate)),
+                new CreateIndexModel<MessageDocument>(
+                    Builders<MessageDocument>.IndexKeys
+                        .Ascending(m => m.ConversationId)
+                        .Ascending(m => m.SenderId)
+                        .Descending(m => m.SentDate)),
+                new CreateIndexModel<MessageDocument>(
+                    Builders<MessageDocument>.IndexKeys
+                        .Ascending(m => m.SenderId)
+                        .Descending(m => m.SentDate))
             });
 
-            _conversations.Indexes.CreateOne(new CreateIndexModel<ConversationDocument>(
-                Builders<ConversationDocument>.IndexKeys.Ascending("Participants.UserId")));
+            _conversations.Indexes.CreateMany(new[]
+            {
+                new CreateIndexModel<ConversationDocument>(
+                    Builders<ConversationDocument>.IndexKeys
+                        .Ascending("Participants.UserId")
+                        .Descending(c => c.LastMessageDate)),
+                new CreateIndexModel<ConversationDocument>(
+                    Builders<ConversationDocument>.IndexKeys.Ascending(c => c.ConversationId))
+            });
 
             _indexesCreated = true;
         }
