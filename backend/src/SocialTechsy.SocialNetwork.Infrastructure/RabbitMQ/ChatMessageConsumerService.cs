@@ -8,6 +8,7 @@ using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
+using SocialTechsy.SocialNetwork.Infrastructure.Redis;
 using StackExchange.Redis;
 
 namespace SocialTechsy.SocialNetwork.Infrastructure.RabbitMQ;
@@ -202,10 +203,14 @@ public class ChatMessageConsumerService : BackgroundService
 
         using var scope = _serviceProvider.CreateScope();
         var notificationRepo = scope.ServiceProvider.GetService<INotificationRepository>();
+        var chatPushHandler = scope.ServiceProvider.GetService<IChatPushHandler>();
+        var presenceService = scope.ServiceProvider.GetService<RedisPresenceService>();
+
+        var recipientIds = payload.ParticipantUserIds.Where(id => id != payload.SenderId).ToList();
 
         if (notificationRepo != null)
         {
-            foreach (var participantId in payload.ParticipantUserIds.Where(id => id != payload.SenderId))
+            foreach (var participantId in recipientIds)
             {
                 var notification = new Domain.Entities.Notification
                 {
@@ -218,6 +223,41 @@ public class ChatMessageConsumerService : BackgroundService
                     CreatedDate = chatEvent.Timestamp
                 };
                 await notificationRepo.AddAsync(notification);
+            }
+        }
+
+        if (chatPushHandler != null)
+        {
+            var pushEvent = new ChatPushEvent
+            {
+                EventId = chatEvent.EventId,
+                ConversationId = payload.ConversationId,
+                MessageId = payload.MessageId,
+                SenderId = payload.SenderId,
+                SenderUsername = payload.SenderUsername,
+                NotificationPreview = $"New message from {payload.SenderUsername}",
+                RecipientUserIds = recipientIds
+            };
+
+            await chatPushHandler.PushNewMessageNotificationAsync(pushEvent);
+
+            if (presenceService != null)
+            {
+                foreach (var uid in recipientIds)
+                {
+                    var isOnline = await presenceService.IsOnlineAsync(uid.ToString());
+                    if (!isOnline)
+                    {
+                        var pendingPayload = JsonSerializer.Serialize(new
+                        {
+                            type = "chat_message",
+                            payload.ConversationId,
+                            payload.MessageId,
+                            payload.SenderUsername
+                        });
+                        await presenceService.AddPendingPushAsync(uid.ToString(), pendingPayload);
+                    }
+                }
             }
         }
 
