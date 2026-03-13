@@ -467,6 +467,48 @@ public class MongoChatRepository : IChatRepository
         }
     }
 
+    public async Task UpdateReadWatermarkAsync(int conversationId, int userId, int lastReadMessageId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<ConversationDocument>.Filter.And(
+            Builders<ConversationDocument>.Filter.Eq(c => c.ConversationId, conversationId),
+            Builders<ConversationDocument>.Filter.ElemMatch(
+                c => c.Participants, p => p.UserId == userId));
+        var update = Builders<ConversationDocument>.Update
+            .Set("Participants.$.LastReadMessageId", lastReadMessageId)
+            .Set("Participants.$.LastReadDate", DateTime.UtcNow);
+        await _conversations.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
+
+        if (_cache != null)
+        {
+            await _cache.ResetUnreadAsync(userId, conversationId);
+            await _cache.InvalidateConversationAsync(conversationId);
+        }
+    }
+
+    public async Task<int> GetUnreadCountAsync(int conversationId, int userId, CancellationToken cancellationToken = default)
+    {
+        if (_cache != null)
+        {
+            var cached = await _cache.GetUnreadCountAsync(userId, conversationId);
+            if (cached > 0) return (int)cached;
+        }
+
+        var convDoc = await _conversations
+            .Find(c => c.ConversationId == conversationId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var participant = convDoc?.Participants.FirstOrDefault(p => p.UserId == userId);
+        if (participant == null) return 0;
+
+        var watermark = participant.LastReadMessageId;
+        var filter = Builders<MessageDocument>.Filter.And(
+            Builders<MessageDocument>.Filter.Eq(m => m.ConversationId, conversationId),
+            Builders<MessageDocument>.Filter.Ne(m => m.SenderId, userId),
+            Builders<MessageDocument>.Filter.Gt(m => m.MessageId, watermark));
+
+        return (int)await _messages.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+    }
+
     public async Task UpdateDeliveryStatusAsync(int messageId, DeliveryStatus status, CancellationToken cancellationToken = default)
     {
         var filter = Builders<MessageDocument>.Filter.Eq(m => m.MessageId, messageId);

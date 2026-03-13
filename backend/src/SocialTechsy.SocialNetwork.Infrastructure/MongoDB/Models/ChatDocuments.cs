@@ -34,6 +34,7 @@ public class ParticipantEmbed
     public int UserId { get; set; }
     public DateTime JoinedDate { get; set; }
     public DateTime? LastReadDate { get; set; }
+    public int LastReadMessageId { get; set; }
     public UserInfoEmbed User { get; set; } = null!;
 }
 
