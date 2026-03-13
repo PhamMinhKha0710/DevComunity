@@ -62,6 +62,7 @@ public static class DependencyInjection
             services.AddSingleton<RedisChatCacheService>();
             services.AddSingleton<RedisPresenceService>();
             services.AddSingleton<RedisChatRateLimiter>();
+            services.AddSingleton<RedisStreamWriteAheadLog>();
             services.AddSingleton<RedisLikeService>();
             services.AddSingleton<ILikeService>(sp => sp.GetRequiredService<RedisLikeService>());
             services.AddSingleton<RedisViewService>();
