@@ -18,6 +18,7 @@ public class SendMessageResult
     public List<int> OtherParticipantUserIds { get; set; } = new();
     public string? SenderDisplayName { get; set; }
     public string NotificationPreview { get; set; } = null!;
+    public string GroupTier { get; set; } = "small";
 }
 
 #endregion
@@ -260,13 +261,20 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Sen
         }
 
         var participantIds = conversation.Participants.Select(p => p.UserId).ToList();
+        var groupTier = participantIds.Count switch
+        {
+            <= 50 => "small",
+            <= 500 => "medium",
+            _ => "large"
+        };
 
         return new SendMessageResult
         {
             Message = messageDto,
             OtherParticipantUserIds = participantIds.Where(id => id != request.SenderId).ToList(),
             SenderDisplayName = senderDisplayName,
-            NotificationPreview = notificationPreview
+            NotificationPreview = notificationPreview,
+            GroupTier = groupTier
         };
     }
 }
