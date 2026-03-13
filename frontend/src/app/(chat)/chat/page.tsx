@@ -130,6 +130,23 @@ function ChatContent() {
         };
     }, [chatHub.connectionState, fetchConversations]);
 
+    // ── Reconnect sync: fetch delta messages for open conversation ──
+
+    useEffect(() => {
+        const handleReconnect = () => {
+            const convId = selectedConvRef.current;
+            if (!convId) return;
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg?.messageId && typeof lastMsg.messageId === 'number') {
+                chatHub.invoke('SyncMessages', convId, lastMsg.messageId)
+                    .catch(err => console.error('[ChatSync] Failed to sync on reconnect:', err));
+            }
+            fetchConversations();
+        };
+        chatHub.onReconnected(handleReconnect);
+        return () => { chatHub.offReconnected(handleReconnect); };
+    }, [chatHub, messages, fetchConversations]);
+
     // ── Presence hub events ──
 
     const presenceHubRef = useRef(presenceHub);
@@ -137,21 +154,27 @@ function ChatContent() {
 
     useEffect(() => {
         if (presenceHub.connectionState !== HubConnectionState.Connected) return;
-        presenceHub.invoke('GetOnlineUsers')
+        presenceHub.invoke('GetOnlineFriends')
             .then((list: unknown) => setOnlineUsers(new Set(list as string[])))
             .catch(console.error);
 
         const onOnline = (id: unknown) => setOnlineUsers(prev => new Set([...prev, String(id)]));
         const onOffline = (id: unknown) => { setOnlineUsers(prev => { const s = new Set(prev); s.delete(String(id)); return s; }); };
+        const onPendingNotifications = () => { fetchConversations(); };
         presenceHub.on('UserOnline', onOnline);
         presenceHub.on('UserOffline', onOffline);
-        return () => { presenceHub.off('UserOnline', onOnline); presenceHub.off('UserOffline', onOffline); };
+        presenceHub.on('PendingNotifications', onPendingNotifications);
+        return () => {
+            presenceHub.off('UserOnline', onOnline);
+            presenceHub.off('UserOffline', onOffline);
+            presenceHub.off('PendingNotifications', onPendingNotifications);
+        };
     }, [presenceHub.connectionState]);
 
     useEffect(() => {
         const onVisibilityChange = () => {
             if (document.visibilityState === 'visible' && presenceHubRef.current.connectionState === HubConnectionState.Connected) {
-                presenceHubRef.current.invoke('GetOnlineUsers')
+                presenceHubRef.current.invoke('GetOnlineFriends')
                     .then((list: unknown) => setOnlineUsers(new Set(list as string[])))
                     .catch(console.error);
             }

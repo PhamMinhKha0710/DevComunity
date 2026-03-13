@@ -2,7 +2,7 @@ import * as signalR from '@microsoft/signalr';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5122';
 
-type HubName = 'chat' | 'notifications' | 'presence' | 'question' | 'call';
+type HubName = 'chat' | 'notifications' | 'presence' | 'question' | 'call' | 'activity';
 
 interface ManagedConnection {
     connection: signalR.HubConnection;
@@ -12,6 +12,7 @@ interface ManagedConnection {
 class SignalRConnectionManager {
     private connections = new Map<HubName, ManagedConnection>();
     private eventListeners = new Map<string, Set<(...args: unknown[]) => void>>();
+    private reconnectCallbacks = new Map<HubName, Set<() => void>>();
 
     getConnection(hubName: HubName): signalR.HubConnection | null {
         return this.connections.get(hubName)?.connection ?? null;
@@ -48,6 +49,7 @@ class SignalRConnectionManager {
 
         connection.onreconnected(() => {
             console.log(`[SignalR] ${hubName} reconnected`);
+            this.reconnectCallbacks.get(hubName)?.forEach(cb => cb());
         });
 
         await connection.start();
@@ -79,6 +81,18 @@ class SignalRConnectionManager {
         await Promise.all(stops);
         this.connections.clear();
         this.eventListeners.clear();
+        this.reconnectCallbacks.clear();
+    }
+
+    onReconnected(hubName: HubName, callback: () => void): void {
+        if (!this.reconnectCallbacks.has(hubName)) {
+            this.reconnectCallbacks.set(hubName, new Set());
+        }
+        this.reconnectCallbacks.get(hubName)!.add(callback);
+    }
+
+    offReconnected(hubName: HubName, callback: () => void): void {
+        this.reconnectCallbacks.get(hubName)?.delete(callback);
     }
 
     on(hubName: HubName, event: string, handler: (...args: unknown[]) => void): void {

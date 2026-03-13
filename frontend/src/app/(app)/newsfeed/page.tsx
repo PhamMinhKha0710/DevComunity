@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { HubConnectionState } from '@microsoft/signalr';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { newsfeedApi } from '@/lib/api/newsfeed.api';
+import { useHub } from '@/lib/signalr/useHub';
 import RelativeTime from '@/components/RelativeTime';
 
 interface Post {
@@ -27,6 +29,7 @@ export default function NewsfeedPage() {
     const queryClient = useQueryClient();
     const [newPostContent, setNewPostContent] = useState('');
     const [activeTab, setActiveTab] = useState('all');
+    const activityHub = useHub('activity');
 
     const { data: postsData, isLoading: loading } = useQuery({
         queryKey: ['newsfeed'],
@@ -35,6 +38,22 @@ export default function NewsfeedPage() {
     });
 
     const posts: Post[] = postsData?.items || [];
+
+    const handleNewPost = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
+    }, [queryClient]);
+
+    useEffect(() => {
+        if (activityHub.connectionState !== HubConnectionState.Connected) return;
+        activityHub.on('NewPost', handleNewPost);
+        activityHub.on('NewGroupPost', handleNewPost);
+        activityHub.on('NewQuestion', handleNewPost);
+        return () => {
+            activityHub.off('NewPost', handleNewPost);
+            activityHub.off('NewGroupPost', handleNewPost);
+            activityHub.off('NewQuestion', handleNewPost);
+        };
+    }, [activityHub, handleNewPost]);
 
     const createPostMutation = useMutation({
         mutationFn: (content: string) => newsfeedApi.createPost({ content, groupId: null }),
