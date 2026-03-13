@@ -61,7 +61,7 @@ public class ChatRepository : IChatRepository
         return conversation;
     }
 
-    public async Task<Message?> GetMessageByIdAsync(int messageId, CancellationToken cancellationToken = default)
+    public async Task<Message?> GetMessageByIdAsync(long messageId, CancellationToken cancellationToken = default)
     {
         return await _context.Messages
             .Include(m => m.Sender)
@@ -98,7 +98,7 @@ public class ChatRepository : IChatRepository
     }
 
     public Task<IEnumerable<Message>> GetMessagesCursorAsync(
-        int conversationId, int? afterMessageId, int limit, CancellationToken cancellationToken = default)
+        int conversationId, long? afterMessageId, int limit, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException("Cursor pagination only supported with MongoDB");
     }
@@ -140,14 +140,14 @@ public class ChatRepository : IChatRepository
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.IsRead, true), cancellationToken);
     }
 
-    public async Task UpdateDeliveryStatusAsync(int messageId, DeliveryStatus status, CancellationToken cancellationToken = default)
+    public async Task UpdateDeliveryStatusAsync(long messageId, DeliveryStatus status, CancellationToken cancellationToken = default)
     {
         await _context.Messages
             .Where(m => m.MessageId == messageId)
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.DeliveryStatus, status), cancellationToken);
     }
 
-    public async Task<IEnumerable<Message>> GetMessagesSinceAsync(int conversationId, int sinceMessageId, int limit = 200, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<Message>> GetMessagesSinceAsync(int conversationId, long sinceMessageId, int limit = 200, CancellationToken cancellationToken = default)
     {
         return await _context.Messages
             .Include(m => m.Sender)
@@ -161,14 +161,14 @@ public class ChatRepository : IChatRepository
 
     // ========== REACTIONS ==========
 
-    public async Task<MessageReaction?> GetReactionAsync(int messageId, int userId, CancellationToken cancellationToken = default)
+    public async Task<MessageReaction?> GetReactionAsync(long messageId, int userId, CancellationToken cancellationToken = default)
     {
         return await _context.MessageReactions
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserId == userId, cancellationToken);
     }
 
-    public async Task<IEnumerable<MessageReaction>> GetMessageReactionsAsync(int messageId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<MessageReaction>> GetMessageReactionsAsync(long messageId, CancellationToken cancellationToken = default)
     {
         return await _context.MessageReactions
             .Include(r => r.User)
