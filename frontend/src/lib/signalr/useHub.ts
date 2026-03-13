@@ -73,6 +73,8 @@ export function useHub(hubName: HubName) {
             signalRManager.off(hubName, event, handler as (...args: unknown[]) => void),
         invoke: (method: string, ...args: any[]) =>
             signalRManager.invoke(hubName, method, ...args),
+        onReconnected: (cb: () => void) => signalRManager.onReconnected(hubName, cb),
+        offReconnected: (cb: () => void) => signalRManager.offReconnected(hubName, cb),
         connectionState,
     };
 }
