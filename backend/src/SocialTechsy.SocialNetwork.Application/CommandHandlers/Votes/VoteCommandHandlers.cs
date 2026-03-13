@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Votes;
 using SocialTechsy.SocialNetwork.Application.Common.Events;
@@ -29,7 +30,7 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
     private readonly IDomainEventDispatcher _eventDispatcher;
     private readonly ILikeService? _likeService;
     private readonly IActivityLogService? _activityLog;
-    private readonly ISocialEventPublisher? _eventPublisher;
+    private readonly IOutboxRepository? _outboxRepository;
 
     public VoteQuestionCommandHandler(
         IVoteRepository voteRepository,
@@ -38,7 +39,7 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
         IDomainEventDispatcher eventDispatcher,
         ILikeService? likeService = null,
         IActivityLogService? activityLog = null,
-        ISocialEventPublisher? eventPublisher = null)
+        IOutboxRepository? outboxRepository = null)
     {
         _voteRepository = voteRepository;
         _questionRepository = questionRepository;
@@ -46,7 +47,7 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
         _eventDispatcher = eventDispatcher;
         _likeService = likeService;
         _activityLog = activityLog;
-        _eventPublisher = eventPublisher;
+        _outboxRepository = outboxRepository;
     }
 
     public async Task<VoteResult> Handle(VoteQuestionCommand request, CancellationToken cancellationToken)
@@ -83,7 +84,7 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
             await _voteRepository.AddAsync(vote, cancellationToken);
         }
 
-        // Update Redis counter
+        // Redis counter -- still updated here for fast reads; consumer will reconcile
         long likeCount = 0;
         if (_likeService != null && isUpvote)
         {
@@ -94,7 +95,6 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
             likeCount = await _likeService.UnlikeAsync("question", request.QuestionId, request.UserId);
         }
 
-        // Log to MongoDB
         if (_activityLog != null && isUpvote)
             _ = _activityLog.LogLikeAsync("question", request.QuestionId, request.UserId);
 
@@ -113,10 +113,10 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
             VoterDisplayName = voter?.DisplayName ?? voter?.Username ?? "Someone"
         }, cancellationToken);
 
-        // Publish to RabbitMQ for realtime notification
-        if (_eventPublisher != null && isUpvote && (isNewVote || isDirectionChange))
+        // Write to SQL outbox (same transaction) instead of fire-and-forget RabbitMQ
+        if (_outboxRepository != null && isUpvote && (isNewVote || isDirectionChange))
         {
-            _ = _eventPublisher.PublishLikeEventAsync(new LikeEvent
+            var likeEvent = new LikeEvent
             {
                 TargetType = "question",
                 TargetId = request.QuestionId,
@@ -126,7 +126,13 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
                 ContentTitle = question.Title,
                 QuestionId = request.QuestionId,
                 LikeCount = likeCount
-            });
+            };
+            await _outboxRepository.AddAsync(new OutboxMessage
+            {
+                EventType = "like.question",
+                PayloadJson = JsonSerializer.Serialize(likeEvent),
+                CreatedAt = DateTime.UtcNow
+            }, cancellationToken);
         }
 
         var score = _likeService != null
@@ -150,7 +156,7 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
     private readonly IDomainEventDispatcher _eventDispatcher;
     private readonly ILikeService? _likeService;
     private readonly IActivityLogService? _activityLog;
-    private readonly ISocialEventPublisher? _eventPublisher;
+    private readonly IOutboxRepository? _outboxRepository;
 
     public VoteAnswerCommandHandler(
         IVoteRepository voteRepository,
@@ -159,7 +165,7 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
         IDomainEventDispatcher eventDispatcher,
         ILikeService? likeService = null,
         IActivityLogService? activityLog = null,
-        ISocialEventPublisher? eventPublisher = null)
+        IOutboxRepository? outboxRepository = null)
     {
         _voteRepository = voteRepository;
         _answerRepository = answerRepository;
@@ -167,7 +173,7 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
         _eventDispatcher = eventDispatcher;
         _likeService = likeService;
         _activityLog = activityLog;
-        _eventPublisher = eventPublisher;
+        _outboxRepository = outboxRepository;
     }
 
     public async Task<VoteResult> Handle(VoteAnswerCommand request, CancellationToken cancellationToken)
@@ -231,9 +237,9 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
             VoterDisplayName = voter?.DisplayName ?? voter?.Username ?? "Someone"
         }, cancellationToken);
 
-        if (_eventPublisher != null && isUpvote && (isNewVote || isDirectionChange))
+        if (_outboxRepository != null && isUpvote && (isNewVote || isDirectionChange))
         {
-            _ = _eventPublisher.PublishLikeEventAsync(new LikeEvent
+            var likeEvent = new LikeEvent
             {
                 TargetType = "answer",
                 TargetId = request.AnswerId,
@@ -242,7 +248,13 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
                 ContentAuthorId = answer.UserId,
                 QuestionId = answer.QuestionId,
                 LikeCount = likeCount
-            });
+            };
+            await _outboxRepository.AddAsync(new OutboxMessage
+            {
+                EventType = "like.answer",
+                PayloadJson = JsonSerializer.Serialize(likeEvent),
+                CreatedAt = DateTime.UtcNow
+            }, cancellationToken);
         }
 
         var score = _likeService != null

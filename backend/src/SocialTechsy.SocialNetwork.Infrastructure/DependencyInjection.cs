@@ -15,6 +15,7 @@ using SocialTechsy.SocialNetwork.Infrastructure.Persistence;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Repositories;
 using SocialTechsy.SocialNetwork.Infrastructure.RabbitMQ;
 using SocialTechsy.SocialNetwork.Infrastructure.Redis;
+using SocialTechsy.SocialNetwork.Infrastructure.Resilience;
 using SocialTechsy.SocialNetwork.Infrastructure.Services;
 
 namespace SocialTechsy.SocialNetwork.Infrastructure;
@@ -26,12 +27,14 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         // Database context (SQL Server - used for all non-chat entities)
-        services.AddDbContext<SocialTechsySocialNetworkDbContext>(options =>
+        services.AddSingleton<OutboxSaveChangesInterceptor>();
+        services.AddDbContext<SocialTechsySocialNetworkDbContext>((sp, options) =>
             options.UseSqlServer(
                     configuration.GetConnectionString("DefaultConnection"),
                     b => b.MigrationsAssembly(typeof(SocialTechsySocialNetworkDbContext).Assembly.FullName)
                           .EnableRetryOnFailure(3))
-                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                .AddInterceptors(sp.GetRequiredService<OutboxSaveChangesInterceptor>()));
 
         var fullTextEnabled = configuration.GetValue<bool>("Search:FullTextEnabled");
         services.AddScoped<IQuestionRepository>(sp =>
@@ -47,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<ISavedItemRepository, SavedItemRepository>();
         services.AddScoped<IBadgeRepository, BadgeRepository>();
         services.AddScoped<ICodeRepository, CodeRepository>();
+        services.AddScoped<IOutboxRepository, OutboxRepository>();
 
         // ========== REDIS CACHE ==========
         var redisEnabled = configuration.GetValue<bool>("Redis:Enabled");
@@ -83,10 +87,11 @@ public static class DependencyInjection
             });
             services.AddScoped<IChatRepository>(sp =>
             {
+                var client = sp.GetRequiredService<MongoClient>();
                 var database = sp.GetRequiredService<IMongoDatabase>();
                 var userRepo = sp.GetRequiredService<IUserRepository>();
                 var cache = sp.GetService<RedisChatCacheService>();
-                return new MongoChatRepository(database, userRepo, cache);
+                return new MongoChatRepository(client, database, userRepo, cache);
             });
             services.AddSingleton<IActivityLogService>(sp =>
             {
@@ -114,7 +119,11 @@ public static class DependencyInjection
                     Port = configuration.GetValue($"{RabbitMqSettings.SectionName}:Port", 5672),
                     UserName = configuration[$"{RabbitMqSettings.SectionName}:UserName"] ?? "guest",
                     Password = configuration[$"{RabbitMqSettings.SectionName}:Password"] ?? "guest",
-                    VirtualHost = configuration[$"{RabbitMqSettings.SectionName}:VirtualHost"] ?? "/"
+                    VirtualHost = configuration[$"{RabbitMqSettings.SectionName}:VirtualHost"] ?? "/",
+                    AutomaticRecoveryEnabled = true,
+                    NetworkRecoveryInterval = TimeSpan.FromSeconds(10),
+                    TopologyRecoveryEnabled = true,
+                    ConsumerDispatchConcurrency = 2
                 };
                 return factory.CreateConnectionAsync().GetAwaiter().GetResult();
             });
@@ -131,6 +140,10 @@ public static class DependencyInjection
                 sp.GetRequiredService<ILogger<LikeNotificationConsumer>>(),
                 sp.GetService<IConnectionMultiplexer>()));
             services.AddHostedService<SocialTechsy.SocialNetwork.Infrastructure.MongoDB.OutboxProcessor>();
+            services.AddHostedService(sp => new SqlOutboxProcessor(
+                sp,
+                sp.GetRequiredService<IConnection>(),
+                sp.GetRequiredService<ILogger<SqlOutboxProcessor>>()));
         }
 
         // Social Networking repositories
@@ -152,6 +165,9 @@ public static class DependencyInjection
             new CacheService(
                 sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
                 sp.GetService<IConnectionMultiplexer>()));
+
+        // Resilience pipelines (Polly retry + circuit breaker)
+        services.AddResiliencePipelines();
 
         // Gitea integration
         services.Configure<GiteaConfiguration>(

@@ -181,6 +181,13 @@ public class LikeNotificationConsumer : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var notificationRepo = scope.ServiceProvider.GetRequiredService<INotificationRepository>();
 
+        // Reconcile Redis like counter (idempotent SET add)
+        var likeService = scope.ServiceProvider.GetService<ILikeService>();
+        if (likeService != null)
+        {
+            await likeService.LikeAsync(evt.TargetType, evt.TargetId, evt.LikedByUserId);
+        }
+
         var link = evt.TargetType == "question"
             ? $"/questions/{evt.TargetId}"
             : $"/questions/{evt.QuestionId}#answer-{evt.TargetId}";

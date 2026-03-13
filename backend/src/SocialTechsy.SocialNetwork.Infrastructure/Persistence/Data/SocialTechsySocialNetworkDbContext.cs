@@ -57,6 +57,9 @@ public class SocialTechsySocialNetworkDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    // Outbox (transactional event relay)
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

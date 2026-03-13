@@ -68,20 +68,40 @@ public class ViewSyncBackgroundService : BackgroundService
             try
             {
                 var deltaKey = $"view:question:{questionId}:delta";
+                var pendingKey = $"view:question:{questionId}:delta:pending";
+
+                // Move delta to a pending key so we don't lose it if SQL fails
                 var delta = await db.StringGetSetAsync(deltaKey, 0);
                 if (!delta.HasValue || (long)delta == 0)
                 {
-                    await viewService.RemoveFromTrackingAsync(questionId);
-                    continue;
+                    // Check if there's a leftover pending delta from a previous failed attempt
+                    var leftover = await db.StringGetAsync(pendingKey);
+                    if (!leftover.HasValue || (long)leftover == 0)
+                    {
+                        await viewService.RemoveFromTrackingAsync(questionId);
+                        continue;
+                    }
+                    delta = leftover;
+                }
+                else
+                {
+                    // Accumulate with any leftover pending delta
+                    var existing = await db.StringGetAsync(pendingKey);
+                    var total = (long)delta + (existing.HasValue ? (long)existing : 0);
+                    await db.StringSetAsync(pendingKey, total);
+                    delta = total;
                 }
 
                 await questionRepo.IncrementViewCountByDeltaAsync(questionId, (long)delta, ct);
+
+                // Only clean up after SQL succeeds
+                await db.KeyDeleteAsync(pendingKey);
                 await viewService.RemoveFromTrackingAsync(questionId);
                 synced++;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to sync view delta for question {QuestionId}", questionId);
+                _logger.LogWarning(ex, "Failed to sync view delta for question {QuestionId} (pending delta preserved)", questionId);
             }
         }
 

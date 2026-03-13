@@ -1,5 +1,7 @@
+using System.Text.Json;
 using MongoDB.Driver;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 using SocialTechsy.SocialNetwork.Infrastructure.MongoDB.Models;
 using SocialTechsy.SocialNetwork.Infrastructure.Redis;
@@ -8,9 +10,11 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.MongoDB;
 
 public class MongoChatRepository : IChatRepository
 {
+    private readonly MongoClient _client;
     private readonly IMongoCollection<ConversationDocument> _conversations;
     private readonly IMongoCollection<MessageDocument> _messages;
     private readonly IMongoCollection<CounterDocument> _counters;
+    private readonly IMongoCollection<OutboxDocument> _outbox;
     private readonly IUserRepository _userRepository;
     private readonly RedisChatCacheService? _cache;
 
@@ -18,13 +22,16 @@ public class MongoChatRepository : IChatRepository
     private static readonly object _indexLock = new();
 
     public MongoChatRepository(
+        MongoClient client,
         IMongoDatabase database,
         IUserRepository userRepository,
         RedisChatCacheService? cache = null)
     {
+        _client = client;
         _conversations = database.GetCollection<ConversationDocument>("conversations");
         _messages = database.GetCollection<MessageDocument>("messages");
         _counters = database.GetCollection<CounterDocument>("counters");
+        _outbox = database.GetCollection<OutboxDocument>("outbox");
         _userRepository = userRepository;
         _cache = cache;
 
@@ -366,21 +373,53 @@ public class MongoChatRepository : IChatRepository
             Reactions = new List<ReactionEmbed>()
         };
 
-        await _messages.InsertOneAsync(doc, cancellationToken: cancellationToken);
+        // Fetch participant list before the write so the outbox payload is complete
+        var convDoc = await _conversations
+            .Find(c => c.ConversationId == message.ConversationId)
+            .FirstOrDefaultAsync(cancellationToken);
+        var participantIds = convDoc?.Participants.Select(p => p.UserId).ToList() ?? new List<int>();
 
-        var convFilter = Builders<ConversationDocument>.Filter.Eq(c => c.ConversationId, message.ConversationId);
-        var convUpdate = Builders<ConversationDocument>.Update.Set(c => c.LastMessageDate, message.SentDate);
-        await _conversations.UpdateOneAsync(convFilter, convUpdate, cancellationToken: cancellationToken);
+        // Build outbox event so message insert + outbox insert are atomic
+        var outboxDoc = new OutboxDocument
+        {
+            EventType = ChatEventTypes.NewMessage,
+            PayloadJson = JsonSerializer.Serialize(new NewMessagePayload
+            {
+                ConversationId = message.ConversationId,
+                MessageId = messageId,
+                SenderId = message.SenderId,
+                SenderUsername = senderInfo.Username,
+                ParticipantUserIds = participantIds
+            }),
+            CreatedAt = DateTime.UtcNow
+        };
 
-        // Invalidate conversation cache (LastMessageDate changed)
+        // Try session-based transaction; fall back to non-transactional if replica set unavailable
+        try
+        {
+            using var session = await _client.StartSessionAsync(cancellationToken: cancellationToken);
+            session.StartTransaction();
+            await _messages.InsertOneAsync(session, doc, cancellationToken: cancellationToken);
+            await _outbox.InsertOneAsync(session, outboxDoc, cancellationToken: cancellationToken);
+            var convFilter = Builders<ConversationDocument>.Filter.Eq(c => c.ConversationId, message.ConversationId);
+            var convUpdate = Builders<ConversationDocument>.Update.Set(c => c.LastMessageDate, message.SentDate);
+            await _conversations.UpdateOneAsync(session, convFilter, convUpdate, cancellationToken: cancellationToken);
+            await session.CommitTransactionAsync(cancellationToken);
+        }
+        catch (NotSupportedException)
+        {
+            // Standalone MongoDB -- no transaction support; write sequentially
+            await _messages.InsertOneAsync(doc, cancellationToken: cancellationToken);
+            await _outbox.InsertOneAsync(outboxDoc, cancellationToken: cancellationToken);
+            var convFilter = Builders<ConversationDocument>.Filter.Eq(c => c.ConversationId, message.ConversationId);
+            var convUpdate = Builders<ConversationDocument>.Update.Set(c => c.LastMessageDate, message.SentDate);
+            await _conversations.UpdateOneAsync(convFilter, convUpdate, cancellationToken: cancellationToken);
+        }
+
         if (_cache != null)
         {
             await _cache.InvalidateConversationAsync(message.ConversationId);
 
-            // Increment unread count for all participants except sender
-            var convDoc = await _conversations
-                .Find(c => c.ConversationId == message.ConversationId)
-                .FirstOrDefaultAsync(cancellationToken);
             if (convDoc != null)
             {
                 var otherParticipantIds = convDoc.Participants

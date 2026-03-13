@@ -448,3 +448,6 @@ uploads/
 # Docker (optional)
 docker-compose.override.yml
 
+# Cursor IDE project metadata
+.cursor/
+
