@@ -176,7 +176,7 @@ public class GetMessagesSinceQuery : IRequest<List<MessageDto>>
 {
     public int ConversationId { get; set; }
     public int UserId { get; set; }
-    public int SinceMessageId { get; set; }
+    public long SinceMessageId { get; set; }
     public int Limit { get; set; } = 200;
 }
 

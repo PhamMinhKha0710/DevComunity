@@ -24,7 +24,7 @@ public static class ChatEventTypes
 public class NewMessagePayload
 {
     public int ConversationId { get; set; }
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int SenderId { get; set; }
     public string SenderUsername { get; set; } = null!;
     public List<int> ParticipantUserIds { get; set; } = new();

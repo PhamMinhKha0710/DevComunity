@@ -49,7 +49,7 @@ public class ChatHub : Hub
     public Task LeaveConversation(int conversationId) =>
         Groups.RemoveFromGroupAsync(Context.ConnectionId, $"conversation_{conversationId}");
 
-    public async Task SendMessage(int conversationId, string content, int? replyToMessageId = null)
+    public async Task SendMessage(int conversationId, string content, long? replyToMessageId = null)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -74,7 +74,7 @@ public class ChatHub : Hub
     }
 
     public async Task SendMediaMessage(int conversationId, string messageType, string attachmentUrl,
-        string attachmentFileName, long attachmentSize, string? caption = null, int? replyToMessageId = null)
+        string attachmentFileName, long attachmentSize, string? caption = null, long? replyToMessageId = null)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -104,7 +104,7 @@ public class ChatHub : Hub
         await BroadcastMessageAsync(conversationId, result);
     }
 
-    public async Task SyncMessages(int conversationId, int lastMessageId)
+    public async Task SyncMessages(int conversationId, long lastMessageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -127,7 +127,7 @@ public class ChatHub : Hub
             .SendAsync("UserTyping", new { userId = userId.ToString(), isTyping });
     }
 
-    public async Task MarkAsRead(int conversationId, int lastMessageId)
+    public async Task MarkAsRead(int conversationId, long lastMessageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -142,7 +142,7 @@ public class ChatHub : Hub
             .SendAsync("MessagesRead", new { userId, lastMessageId });
     }
 
-    public async Task AddReaction(int conversationId, int messageId, string reactionType)
+    public async Task AddReaction(int conversationId, long messageId, string reactionType)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -162,7 +162,7 @@ public class ChatHub : Hub
             .SendAsync("ReceiveReaction", result);
     }
 
-    public async Task AcknowledgeDelivery(int conversationId, int messageId, string status)
+    public async Task AcknowledgeDelivery(int conversationId, long messageId, string status)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -182,7 +182,7 @@ public class ChatHub : Hub
             .SendAsync("DeliveryStatusUpdated", new { messageId, userId, status = status.ToLower() });
     }
 
-    public async Task RemoveReaction(int conversationId, int messageId)
+    public async Task RemoveReaction(int conversationId, long messageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
