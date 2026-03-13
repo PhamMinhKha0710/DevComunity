@@ -1,33 +1,40 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Users;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Users;
 
-public class UpdateProfileCommandHandler
+public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand, bool>
 {
     private readonly IUserRepository _userRepository;
+    private readonly ICacheService _cacheService;
 
-    public UpdateProfileCommandHandler(IUserRepository userRepository)
+    public UpdateProfileCommandHandler(IUserRepository userRepository, ICacheService cacheService)
     {
         _userRepository = userRepository;
+        _cacheService = cacheService;
     }
 
-    public async Task<bool> HandleAsync(int userId, UpdateProfileCommand command, CancellationToken cancellationToken = default)
+    public async Task<bool> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
             return false;
 
-        if (command.DisplayName != null)
-            user.DisplayName = command.DisplayName;
-        if (command.Bio != null)
-            user.Bio = command.Bio;
-        if (command.Location != null)
-            user.Location = command.Location;
-        if (command.Website != null)
-            user.Website = command.Website;
+        if (request.DisplayName != null)
+            user.DisplayName = request.DisplayName;
+        if (request.Bio != null)
+            user.Bio = request.Bio;
+        if (request.Location != null)
+            user.Location = request.Location;
+        if (request.Website != null)
+            user.Website = request.Website;
 
         await _userRepository.UpdateAsync(user, cancellationToken);
+
+        _cacheService.RemoveByPrefix($"user:{request.UserId}");
+
         return true;
     }
 }

@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Queries.Tags;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -5,7 +6,7 @@ using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Tags;
 
-public class GetTagsQueryHandler
+public class GetTagsQueryHandler : IRequestHandler<GetTagsQuery, PaginatedResponse<TagDto>>
 {
     private readonly ITagRepository _tagRepository;
     private readonly ICacheService _cacheService;
@@ -16,14 +17,14 @@ public class GetTagsQueryHandler
         _cacheService = cacheService;
     }
 
-    public async Task<PaginatedResponse<TagDto>> HandleAsync(GetTagsQuery query, CancellationToken cancellationToken)
+    public async Task<PaginatedResponse<TagDto>> Handle(GetTagsQuery request, CancellationToken cancellationToken)
     {
-        var cacheKey = $"tags_{query.Page}_{query.PageSize}_{query.Search ?? ""}_{query.Sort ?? ""}";
+        var cacheKey = $"tags_{request.Page}_{request.PageSize}_{request.Search ?? ""}_{request.Sort ?? ""}";
 
         var result = await _cacheService.GetOrCreateAsync(cacheKey, async () =>
         {
             var (items, totalCount) = await _tagRepository.GetPaginatedAsync(
-                query.Page, query.PageSize, query.Search, query.Sort, cancellationToken);
+                request.Page, request.PageSize, request.Search, request.Sort, cancellationToken);
 
             return new PaginatedResponse<TagDto>
             {
@@ -34,8 +35,8 @@ public class GetTagsQueryHandler
                     Description = t.Description,
                     QuestionCount = t.QuestionTags?.Count ?? 0
                 }).ToList(),
-                Page = query.Page,
-                PageSize = query.PageSize,
+                Page = request.Page,
+                PageSize = request.PageSize,
                 TotalCount = totalCount
             };
         }, TimeSpan.FromMinutes(10));
@@ -44,7 +45,7 @@ public class GetTagsQueryHandler
     }
 }
 
-public class GetTagByNameQueryHandler
+public class GetTagByNameQueryHandler : IRequestHandler<GetTagByNameQuery, TagDto?>
 {
     private readonly ITagRepository _tagRepository;
     private readonly ICacheService _cacheService;
@@ -55,13 +56,13 @@ public class GetTagByNameQueryHandler
         _cacheService = cacheService;
     }
 
-    public async Task<TagDto?> HandleAsync(GetTagByNameQuery query, CancellationToken cancellationToken)
+    public async Task<TagDto?> Handle(GetTagByNameQuery request, CancellationToken cancellationToken)
     {
-        var cacheKey = $"tag_{query.TagName}";
+        var cacheKey = $"tag_{request.TagName}";
 
         return await _cacheService.GetOrCreateAsync(cacheKey, async () =>
         {
-            var tag = await _tagRepository.GetByNameAsync(query.TagName, cancellationToken);
+            var tag = await _tagRepository.GetByNameAsync(request.TagName, cancellationToken);
             if (tag == null) return null;
 
             return new TagDto

@@ -1,37 +1,23 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Commands.Comments;
-using SocialTechsy.SocialNetwork.Application.CommandHandlers.Comments;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
-/// <summary>
-/// API Controller for Comments on Questions and Answers
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class CommentsController : ControllerBase
 {
     private readonly ILogger<CommentsController> _logger;
-    private readonly CreateQuestionCommentCommandHandler _createQuestionCommentHandler;
-    private readonly CreateAnswerCommentCommandHandler _createAnswerCommentHandler;
-    private readonly UpdateCommentCommandHandler _updateCommentHandler;
-    private readonly DeleteCommentCommandHandler _deleteCommentHandler;
+    private readonly IMediator _mediator;
 
-    public CommentsController(
-        ILogger<CommentsController> logger,
-        CreateQuestionCommentCommandHandler createQuestionCommentHandler,
-        CreateAnswerCommentCommandHandler createAnswerCommentHandler,
-        UpdateCommentCommandHandler updateCommentHandler,
-        DeleteCommentCommandHandler deleteCommentHandler)
+    public CommentsController(ILogger<CommentsController> logger, IMediator mediator)
     {
         _logger = logger;
-        _createQuestionCommentHandler = createQuestionCommentHandler;
-        _createAnswerCommentHandler = createAnswerCommentHandler;
-        _updateCommentHandler = updateCommentHandler;
-        _deleteCommentHandler = deleteCommentHandler;
+        _mediator = mediator;
     }
 
     private int GetCurrentUserId()
@@ -40,9 +26,6 @@ public class CommentsController : ControllerBase
         return userIdClaim != null ? int.Parse(userIdClaim.Value) : 0;
     }
 
-    /// <summary>
-    /// Add comment to a question
-    /// </summary>
     [HttpPost("question/{questionId:int}")]
     [Authorize]
     [ProducesResponseType(typeof(CommentDto), StatusCodes.Status201Created)]
@@ -54,24 +37,19 @@ public class CommentsController : ControllerBase
     {
         _logger.LogInformation("Adding comment to question {QuestionId}", questionId);
 
-        var command = new CreateQuestionCommentCommand
+        var result = await _mediator.Send(new CreateQuestionCommentCommand
         {
             QuestionId = questionId,
             UserId = GetCurrentUserId(),
             Body = request.Body
-        };
+        }, cancellationToken);
 
-        var result = await _createQuestionCommentHandler.HandleAsync(command, cancellationToken);
-        
         if (result == null)
             return NotFound(new { message = "Question not found" });
 
         return Created($"/api/comments/{result.CommentId}", result);
     }
 
-    /// <summary>
-    /// Add comment to an answer
-    /// </summary>
     [HttpPost("answer/{answerId:int}")]
     [Authorize]
     [ProducesResponseType(typeof(CommentDto), StatusCodes.Status201Created)]
@@ -83,24 +61,19 @@ public class CommentsController : ControllerBase
     {
         _logger.LogInformation("Adding comment to answer {AnswerId}", answerId);
 
-        var command = new CreateAnswerCommentCommand
+        var result = await _mediator.Send(new CreateAnswerCommentCommand
         {
             AnswerId = answerId,
             UserId = GetCurrentUserId(),
             Body = request.Body
-        };
+        }, cancellationToken);
 
-        var result = await _createAnswerCommentHandler.HandleAsync(command, cancellationToken);
-        
         if (result == null)
             return NotFound(new { message = "Answer not found" });
 
         return Created($"/api/comments/{result.CommentId}", result);
     }
 
-    /// <summary>
-    /// Update a comment
-    /// </summary>
     [HttpPut("{id:int}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -113,24 +86,19 @@ public class CommentsController : ControllerBase
     {
         _logger.LogInformation("Updating comment {CommentId}", id);
 
-        var command = new UpdateCommentCommand
+        var success = await _mediator.Send(new UpdateCommentCommand
         {
             CommentId = id,
             UserId = GetCurrentUserId(),
             Body = request.Body
-        };
+        }, cancellationToken);
 
-        var success = await _updateCommentHandler.HandleAsync(command, cancellationToken);
-        
         if (!success)
             return NotFound(new { message = "Comment not found or you don't have permission to edit it" });
 
         return Ok(new { message = "Comment updated successfully" });
     }
 
-    /// <summary>
-    /// Delete a comment
-    /// </summary>
     [HttpDelete("{id:int}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -140,14 +108,12 @@ public class CommentsController : ControllerBase
     {
         _logger.LogInformation("Deleting comment {CommentId}", id);
 
-        var command = new DeleteCommentCommand
+        var success = await _mediator.Send(new DeleteCommentCommand
         {
             CommentId = id,
             UserId = GetCurrentUserId()
-        };
+        }, cancellationToken);
 
-        var success = await _deleteCommentHandler.HandleAsync(command, cancellationToken);
-        
         if (!success)
             return NotFound(new { message = "Comment not found or you don't have permission to delete it" });
 

@@ -1,12 +1,30 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Repositories;
 
+public class GetRepositoriesQuery : IRequest<PaginatedResponse<RepositoryDto>>
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 15;
+    public string? Search { get; set; }
+}
+
+public class GetRepositoryByIdQuery : IRequest<RepositoryDto?>
+{
+    public int RepositoryId { get; set; }
+}
+
+public class GetUserRepositoriesQuery : IRequest<IEnumerable<RepositoryDto>>
+{
+    public int UserId { get; set; }
+}
+
 /// <summary>
 /// Handler for getting paginated repositories
 /// </summary>
-public class GetRepositoriesQueryHandler
+public class GetRepositoriesQueryHandler : IRequestHandler<GetRepositoriesQuery, PaginatedResponse<RepositoryDto>>
 {
     private readonly ICodeRepository _codeRepository;
 
@@ -15,10 +33,10 @@ public class GetRepositoriesQueryHandler
         _codeRepository = codeRepository;
     }
 
-    public async Task<PaginatedResponse<RepositoryDto>> HandleAsync(
-        int page, int pageSize, string? search, CancellationToken cancellationToken)
+    public async Task<PaginatedResponse<RepositoryDto>> Handle(
+        GetRepositoriesQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _codeRepository.GetPaginatedAsync(page, pageSize, search, null, cancellationToken);
+        var (items, totalCount) = await _codeRepository.GetPaginatedAsync(request.Page, request.PageSize, request.Search, null, cancellationToken);
 
         return new PaginatedResponse<RepositoryDto>
         {
@@ -38,8 +56,8 @@ public class GetRepositoriesQueryHandler
                 OwnerUsername = r.Owner?.Username,
                 OwnerProfilePicture = r.Owner?.ProfilePicture
             }).ToList(),
-            Page = page,
-            PageSize = pageSize,
+            Page = request.Page,
+            PageSize = request.PageSize,
             TotalCount = totalCount
         };
     }
@@ -48,7 +66,7 @@ public class GetRepositoriesQueryHandler
 /// <summary>
 /// Handler for getting a repository by ID
 /// </summary>
-public class GetRepositoryByIdQueryHandler
+public class GetRepositoryByIdQueryHandler : IRequestHandler<GetRepositoryByIdQuery, RepositoryDto?>
 {
     private readonly ICodeRepository _codeRepository;
 
@@ -57,9 +75,9 @@ public class GetRepositoryByIdQueryHandler
         _codeRepository = codeRepository;
     }
 
-    public async Task<RepositoryDto?> HandleAsync(int repositoryId, CancellationToken cancellationToken)
+    public async Task<RepositoryDto?> Handle(GetRepositoryByIdQuery request, CancellationToken cancellationToken)
     {
-        var r = await _codeRepository.GetByIdAsync(repositoryId, cancellationToken);
+        var r = await _codeRepository.GetByIdAsync(request.RepositoryId, cancellationToken);
         if (r == null) return null;
 
         return new RepositoryDto
@@ -84,7 +102,7 @@ public class GetRepositoryByIdQueryHandler
 /// <summary>
 /// Handler for getting user's repositories
 /// </summary>
-public class GetUserRepositoriesQueryHandler
+public class GetUserRepositoriesQueryHandler : IRequestHandler<GetUserRepositoriesQuery, IEnumerable<RepositoryDto>>
 {
     private readonly ICodeRepository _codeRepository;
 
@@ -93,9 +111,9 @@ public class GetUserRepositoriesQueryHandler
         _codeRepository = codeRepository;
     }
 
-    public async Task<IEnumerable<RepositoryDto>> HandleAsync(int userId, CancellationToken cancellationToken)
+    public async Task<IEnumerable<RepositoryDto>> Handle(GetUserRepositoriesQuery request, CancellationToken cancellationToken)
     {
-        var items = await _codeRepository.GetByOwnerIdAsync(userId, cancellationToken);
+        var items = await _codeRepository.GetByOwnerIdAsync(request.UserId, cancellationToken);
 
         return items.Select(r => new RepositoryDto
         {

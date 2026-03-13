@@ -1,11 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using MediatR;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 
 namespace SocialTechsy.SocialNetwork.Application.Commands.Auth;
 
 /// <summary>
 /// Command for user login
 /// </summary>
-public class LoginCommand
+public class LoginCommand : IRequest<AuthResponse>
 {
     [Required]
     public string Email { get; set; } = null!;
@@ -20,7 +23,7 @@ public class LoginCommand
 /// <summary>
 /// Command for user registration
 /// </summary>
-public class RegisterCommand
+public class RegisterCommand : IRequest<AuthResponse>
 {
     [Required]
     [StringLength(50, MinimumLength = 3)]
@@ -42,7 +45,7 @@ public class RegisterCommand
     public string? DisplayName { get; set; }
 }
 
-public class RefreshTokenCommand
+public class RefreshTokenCommand : IRequest<AuthResponse>
 {
     [Required]
     public string RefreshToken { get; set; } = null!;
@@ -51,7 +54,7 @@ public class RefreshTokenCommand
 /// <summary>
 /// Command for forgot password
 /// </summary>
-public class ForgotPasswordCommand
+public class ForgotPasswordCommand : IRequest<ForgotPasswordResponse>
 {
     [Required]
     [EmailAddress]
@@ -61,7 +64,7 @@ public class ForgotPasswordCommand
 /// <summary>
 /// Command for resetting password with token
 /// </summary>
-public class ResetPasswordCommand
+public class ResetPasswordCommand : IRequest<AuthResponse>
 {
     [Required]
     public string Token { get; set; } = null!;
@@ -77,4 +80,9 @@ public class ResetPasswordCommand
     [Required]
     [Compare("NewPassword")]
     public string ConfirmPassword { get; set; } = null!;
+}
+
+public class LogoutCommand : IRequest
+{
+    public int UserId { get; set; }
 }

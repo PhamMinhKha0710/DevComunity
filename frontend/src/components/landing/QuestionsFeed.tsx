@@ -4,23 +4,11 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { Question, PaginatedResponse, Tag } from '@/types';
 import apiClient from '@/lib/api/client';
+import RelativeTime from '@/components/RelativeTime';
 
 const stripHtml = (html: string): string => {
   if (!html) return '';
   return html.replace(/<[^>]*>/g, '').substring(0, 200);
-};
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
 };
 
 const FALLBACK_QUESTIONS = [
@@ -120,7 +108,11 @@ export default function QuestionsFeed() {
                       {q.authorUsername?.charAt(0).toUpperCase() || '?'}
                     </div>
                     <span className="landing-author-name">{q.authorUsername || 'Anonymous'}</span>
-                    <span className="landing-author-time">asked {formatDate(q.createdDate)}</span>
+                    <RelativeTime
+                      value={q.createdDate}
+                      prefix="asked "
+                      className="landing-author-time"
+                    />
                   </div>
                 </div>
               </div>

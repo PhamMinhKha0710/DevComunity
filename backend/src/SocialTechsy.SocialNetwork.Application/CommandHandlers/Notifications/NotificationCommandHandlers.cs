@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Notifications;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
@@ -6,7 +7,7 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Notifications;
 /// <summary>
 /// Handler for marking a notification as read
 /// </summary>
-public class MarkNotificationReadCommandHandler
+public class MarkNotificationReadCommandHandler : IRequestHandler<MarkNotificationReadCommand, bool>
 {
     private readonly INotificationRepository _notificationRepository;
 
@@ -15,13 +16,13 @@ public class MarkNotificationReadCommandHandler
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<bool> HandleAsync(MarkNotificationReadCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(MarkNotificationReadCommand request, CancellationToken cancellationToken)
     {
-        var notification = await _notificationRepository.GetByIdAsync(command.NotificationId, cancellationToken);
-        if (notification == null || notification.UserId != command.UserId)
+        var notification = await _notificationRepository.GetByIdAsync(request.NotificationId, cancellationToken);
+        if (notification == null || notification.UserId != request.UserId)
             return false;
 
-        await _notificationRepository.MarkAsReadAsync(command.NotificationId, cancellationToken);
+        await _notificationRepository.MarkAsReadAsync(request.NotificationId, cancellationToken);
         return true;
     }
 }
@@ -29,7 +30,7 @@ public class MarkNotificationReadCommandHandler
 /// <summary>
 /// Handler for marking all notifications as read
 /// </summary>
-public class MarkAllNotificationsReadCommandHandler
+public class MarkAllNotificationsReadCommandHandler : IRequestHandler<MarkAllNotificationsReadCommand>
 {
     private readonly INotificationRepository _notificationRepository;
 
@@ -38,16 +39,16 @@ public class MarkAllNotificationsReadCommandHandler
         _notificationRepository = notificationRepository;
     }
 
-    public async Task HandleAsync(MarkAllNotificationsReadCommand command, CancellationToken cancellationToken)
+    public async Task Handle(MarkAllNotificationsReadCommand request, CancellationToken cancellationToken)
     {
-        await _notificationRepository.MarkAllAsReadAsync(command.UserId, cancellationToken);
+        await _notificationRepository.MarkAllAsReadAsync(request.UserId, cancellationToken);
     }
 }
 
 /// <summary>
 /// Handler for deleting a notification
 /// </summary>
-public class DeleteNotificationCommandHandler
+public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificationCommand, bool>
 {
     private readonly INotificationRepository _notificationRepository;
 
@@ -56,13 +57,13 @@ public class DeleteNotificationCommandHandler
         _notificationRepository = notificationRepository;
     }
 
-    public async Task<bool> HandleAsync(DeleteNotificationCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
     {
-        var notification = await _notificationRepository.GetByIdAsync(command.NotificationId, cancellationToken);
-        if (notification == null || notification.UserId != command.UserId)
+        var notification = await _notificationRepository.GetByIdAsync(request.NotificationId, cancellationToken);
+        if (notification == null || notification.UserId != request.UserId)
             return false;
 
-        await _notificationRepository.DeleteAsync(command.NotificationId, cancellationToken);
+        await _notificationRepository.DeleteAsync(request.NotificationId, cancellationToken);
         return true;
     }
 }

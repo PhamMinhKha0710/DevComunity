@@ -1,51 +1,76 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.Mappings;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Application.Queries.Answers;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Answers;
 
-/// <summary>
-/// Handler for GetAnswersByQuestionQuery
-/// </summary>
-public class GetAnswersByQuestionQueryHandler
+public class GetAnswersByQuestionQueryHandler : IRequestHandler<GetAnswersByQuestionQuery, PaginatedResponse<AnswerDto>>
 {
     private readonly IAnswerRepository _answerRepository;
+    private readonly IVoteRepository _voteRepository;
+    private readonly ILikeService? _likeService;
 
-    public GetAnswersByQuestionQueryHandler(IAnswerRepository answerRepository)
+    public GetAnswersByQuestionQueryHandler(
+        IAnswerRepository answerRepository,
+        IVoteRepository voteRepository,
+        ILikeService? likeService = null)
     {
         _answerRepository = answerRepository;
+        _voteRepository = voteRepository;
+        _likeService = likeService;
     }
 
-    public async Task<PaginatedResponse<AnswerDto>> HandleAsync(GetAnswersByQuestionQuery query, CancellationToken cancellationToken = default)
+    public async Task<PaginatedResponse<AnswerDto>> Handle(GetAnswersByQuestionQuery request, CancellationToken cancellationToken = default)
     {
-        var (answers, totalCount) = await _answerRepository.GetByQuestionIdAsync(query.QuestionId, query.Page, query.PageSize, cancellationToken);
+        var (answers, totalCount) = await _answerRepository.GetByQuestionIdAsync(request.QuestionId, request.Page, request.PageSize, cancellationToken);
 
-        var answerDtos = answers.Select(a => new AnswerDto
+        var answerDtos = answers.Select(a =>
         {
-            AnswerId = a.AnswerId,
-            QuestionId = a.QuestionId,
-            Body = a.Body,
-            Score = a.Score,
-            IsAccepted = a.IsAccepted,
-            CreatedDate = a.CreatedDate,
-            UpdatedDate = a.UpdatedDate,
-            AuthorId = a.UserId,
-            AuthorUsername = a.User?.Username,
-            AuthorProfilePicture = a.User?.ProfilePicture,
-            AuthorReputation = a.User?.ReputationPoints,
-            ParentAnswerId = a.ParentAnswerId,
-            Comments = a.Comments?.Select(c => new CommentDto
+            var dto = a.ToDto();
+            dto.Comments = a.Comments?.Select(c => new CommentDto
             {
                 CommentId = c.CommentId,
                 Body = c.Body,
-                CreatedDate = c.CreatedDate,
+                CreatedDate = DateTime.SpecifyKind(c.CreatedDate, DateTimeKind.Utc),
                 AuthorId = c.UserId,
                 AuthorUsername = c.User?.Username ?? "",
                 AuthorProfilePicture = c.User?.ProfilePicture
-            }).ToList() ?? new List<CommentDto>()
+            }).ToList() ?? new List<CommentDto>();
+            return dto;
         }).ToList();
 
-        answerDtos = query.Sort switch
+        var ids = answerDtos.Select(a => a.AnswerId).ToArray();
+
+        if (_likeService != null && ids.Length > 0)
+        {
+            var likeCounts = await _likeService.GetLikeCountsBatchAsync("answer", ids);
+            foreach (var dto in answerDtos)
+            {
+                dto.Score = likeCounts.TryGetValue(dto.AnswerId, out var c) ? (int)c : 0;
+                if (request.CurrentUserId is > 0)
+                {
+                    var isLiked = await _likeService.IsLikedAsync("answer", dto.AnswerId, request.CurrentUserId.Value);
+                    dto.UserVoteType = isLiked ? "up" : null;
+                }
+            }
+        }
+        else
+        {
+            foreach (var dto in answerDtos)
+            {
+                dto.Score = await _voteRepository.GetAnswerScoreAsync(dto.AnswerId, cancellationToken);
+                if (request.CurrentUserId is > 0)
+                {
+                    var vote = await _voteRepository.GetUserVoteOnAnswerAsync(request.CurrentUserId.Value, dto.AnswerId, cancellationToken);
+                    dto.UserVoteType = vote == null ? null : (vote.IsUpvote ? "up" : "down");
+                }
+            }
+        }
+
+        answerDtos = request.Sort switch
         {
             "oldest" => answerDtos.OrderBy(a => a.CreatedDate).ToList(),
             "newest" => answerDtos.OrderByDescending(a => a.CreatedDate).ToList(),
@@ -55,17 +80,14 @@ public class GetAnswersByQuestionQueryHandler
         return new PaginatedResponse<AnswerDto>
         {
             Items = answerDtos,
-            Page = query.Page,
-            PageSize = query.PageSize,
+            Page = request.Page,
+            PageSize = request.PageSize,
             TotalCount = totalCount
         };
     }
 }
 
-/// <summary>
-/// Handler for GetAnswerByIdQuery
-/// </summary>
-public class GetAnswerByIdQueryHandler
+public class GetAnswerByIdQueryHandler : IRequestHandler<GetAnswerByIdQuery, AnswerDto?>
 {
     private readonly IAnswerRepository _answerRepository;
 
@@ -74,27 +96,9 @@ public class GetAnswerByIdQueryHandler
         _answerRepository = answerRepository;
     }
 
-    public async Task<AnswerDto?> HandleAsync(GetAnswerByIdQuery query, CancellationToken cancellationToken = default)
+    public async Task<AnswerDto?> Handle(GetAnswerByIdQuery request, CancellationToken cancellationToken = default)
     {
-        var answer = await _answerRepository.GetByIdAsync(query.AnswerId, cancellationToken);
-        
-        if (answer == null)
-            return null;
-
-        return new AnswerDto
-        {
-            AnswerId = answer.AnswerId,
-            QuestionId = answer.QuestionId,
-            Body = answer.Body,
-            Score = answer.Score,
-            IsAccepted = answer.IsAccepted,
-            CreatedDate = answer.CreatedDate,
-            UpdatedDate = answer.UpdatedDate,
-            AuthorId = answer.UserId,
-            AuthorUsername = answer.User?.Username,
-            AuthorProfilePicture = answer.User?.ProfilePicture,
-            AuthorReputation = answer.User?.ReputationPoints,
-            ParentAnswerId = answer.ParentAnswerId
-        };
+        var answer = await _answerRepository.GetByIdAsync(request.AnswerId, cancellationToken);
+        return answer?.ToDto();
     }
 }

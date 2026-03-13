@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -6,7 +7,7 @@ using SocialTechsy.SocialNetwork.Domain.Entities;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 
-public class ForgotPasswordCommandHandler
+public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordCommand, ForgotPasswordResponse>
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordResetTokenRepository _resetTokenRepository;
@@ -19,9 +20,9 @@ public class ForgotPasswordCommandHandler
         _resetTokenRepository = resetTokenRepository;
     }
 
-    public async Task<ForgotPasswordResponse> HandleAsync(ForgotPasswordCommand command, CancellationToken cancellationToken = default)
+    public async Task<ForgotPasswordResponse> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByEmailAsync(command.Email, cancellationToken);
+        var user = await _userRepository.GetByEmailAsync(request.Email, cancellationToken);
 
         // Always return success to prevent email enumeration
         if (user == null)

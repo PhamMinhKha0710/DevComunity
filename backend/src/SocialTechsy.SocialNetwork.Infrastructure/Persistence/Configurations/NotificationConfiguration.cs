@@ -32,10 +32,12 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
         builder.Property(n => n.CreatedDate)
             .HasDefaultValueSql("GETUTCDATE()");
 
-        // Indexes
-        builder.HasIndex(n => n.UserId);
-        builder.HasIndex(n => n.IsRead);
-        builder.HasIndex(n => n.CreatedDate);
+        // Composite index covering the primary query: WHERE UserId = X AND IsRead = false ORDER BY CreatedDate DESC
+        builder.HasIndex(n => new { n.UserId, n.IsRead, n.CreatedDate })
+            .IsDescending(false, false, true);
+
+        builder.HasIndex(n => new { n.UserId, n.CreatedDate })
+            .IsDescending(false, true);
 
         // Relationships - All Restrict
         builder.HasOne(n => n.User)

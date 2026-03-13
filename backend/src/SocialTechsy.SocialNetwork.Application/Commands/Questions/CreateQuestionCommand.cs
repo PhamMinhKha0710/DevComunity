@@ -1,11 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using MediatR;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 
 namespace SocialTechsy.SocialNetwork.Application.Commands.Questions;
 
 /// <summary>
 /// Command to create a new question
 /// </summary>
-public class CreateQuestionCommand
+public class CreateQuestionCommand : IRequest<QuestionDto>
 {
     [Required]
     [StringLength(500, MinimumLength = 10)]

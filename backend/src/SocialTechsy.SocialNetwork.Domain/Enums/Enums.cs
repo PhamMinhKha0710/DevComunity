@@ -61,6 +61,50 @@ public enum BadgeType
 }
 
 /// <summary>
+/// Direction of a vote
+/// </summary>
+public enum VoteType
+{
+    Up,
+    Down
+}
+
+/// <summary>
+/// Status of a question
+/// </summary>
+public enum QuestionStatus
+{
+    Open,
+    Closed,
+    Duplicate
+}
+
+/// <summary>
+/// Type of chat message
+/// </summary>
+public enum MessageType
+{
+    Text,
+    Image,
+    Video,
+    Audio,
+    File
+}
+
+/// <summary>
+/// Type of message reaction
+/// </summary>
+public enum ReactionType
+{
+    Like,
+    Love,
+    Haha,
+    Wow,
+    Sad,
+    Angry
+}
+
+/// <summary>
 /// Status of a repository
 /// </summary>
 public enum RepositoryStatus

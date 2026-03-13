@@ -1,23 +1,37 @@
+using System.Text.Json;
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Domain.Enums;
+using MessageType = SocialTechsy.SocialNetwork.Domain.Enums.MessageType;
+using ReactionType = SocialTechsy.SocialNetwork.Domain.Enums.ReactionType;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Chat;
 
-/// <summary>
-/// Command for starting a conversation
-/// </summary>
-public class StartConversationCommand
+#region Result Types
+
+public class SendMessageResult
+{
+    public MessageDto Message { get; set; } = null!;
+    public List<int> OtherParticipantUserIds { get; set; } = new();
+    public string? SenderDisplayName { get; set; }
+    public string NotificationPreview { get; set; } = null!;
+}
+
+#endregion
+
+#region Start Conversation
+
+public class StartConversationCommand : IRequest<ConversationDto>
 {
     public int InitiatorId { get; set; }
     public int RecipientId { get; set; }
     public string? InitialMessage { get; set; }
 }
 
-/// <summary>
-/// Handler for starting a conversation
-/// </summary>
-public class StartConversationCommandHandler
+public class StartConversationCommandHandler : IRequestHandler<StartConversationCommand, ConversationDto>
 {
     private readonly IChatRepository _chatRepository;
 
@@ -26,22 +40,20 @@ public class StartConversationCommandHandler
         _chatRepository = chatRepository;
     }
 
-    public async Task<ConversationDto> HandleAsync(StartConversationCommand command, CancellationToken cancellationToken)
+    public async Task<ConversationDto> Handle(StartConversationCommand request, CancellationToken cancellationToken)
     {
-        // Check if conversation already exists between users
         var existing = await _chatRepository.GetConversationBetweenUsersAsync(
-            command.InitiatorId, command.RecipientId, cancellationToken);
+            request.InitiatorId, request.RecipientId, cancellationToken);
 
         if (existing != null)
         {
-            // If initial message provided, add it
-            if (!string.IsNullOrEmpty(command.InitialMessage))
+            if (!string.IsNullOrEmpty(request.InitialMessage))
             {
                 var message = new Message
                 {
                     ConversationId = existing.ConversationId,
-                    SenderId = command.InitiatorId,
-                    Content = command.InitialMessage,
+                    SenderId = request.InitiatorId,
+                    Content = request.InitialMessage,
                     SentDate = DateTime.UtcNow,
                     IsRead = false
                 };
@@ -56,29 +68,27 @@ public class StartConversationCommandHandler
             };
         }
 
-        // Create new conversation
         var conversation = new Conversation
         {
             IsGroupChat = false,
             CreatedDate = DateTime.UtcNow,
-            LastMessageDate = !string.IsNullOrEmpty(command.InitialMessage) ? DateTime.UtcNow : null,
+            LastMessageDate = !string.IsNullOrEmpty(request.InitialMessage) ? DateTime.UtcNow : null,
             Participants = new List<ConversationParticipant>
             {
-                new() { UserId = command.InitiatorId, JoinedDate = DateTime.UtcNow },
-                new() { UserId = command.RecipientId, JoinedDate = DateTime.UtcNow }
+                new() { UserId = request.InitiatorId, JoinedDate = DateTime.UtcNow },
+                new() { UserId = request.RecipientId, JoinedDate = DateTime.UtcNow }
             }
         };
 
         var created = await _chatRepository.CreateConversationAsync(conversation, cancellationToken);
 
-        // Add initial message if provided
-        if (!string.IsNullOrEmpty(command.InitialMessage))
+        if (!string.IsNullOrEmpty(request.InitialMessage))
         {
             var message = new Message
             {
                 ConversationId = created.ConversationId,
-                SenderId = command.InitiatorId,
-                Content = command.InitialMessage,
+                SenderId = request.InitiatorId,
+                Content = request.InitialMessage,
                 SentDate = DateTime.UtcNow,
                 IsRead = false
             };
@@ -94,171 +104,297 @@ public class StartConversationCommandHandler
     }
 }
 
-/// <summary>
-/// Command for sending a message
-/// </summary>
-public class SendMessageCommand
+#endregion
+
+#region Log Call Event
+
+public class LogCallEventCommand : IRequest<bool>
+{
+    public int ConversationId { get; set; }
+    public int UserId { get; set; }
+    public string CallEventType { get; set; } = null!; // ended, rejected, missed, cancelled
+    public string CallType { get; set; } = "audio"; // audio, video
+    public int? DurationSeconds { get; set; }
+}
+
+public class LogCallEventCommandHandler : IRequestHandler<LogCallEventCommand, bool>
+{
+    private readonly IChatRepository _chatRepository;
+
+    public LogCallEventCommandHandler(IChatRepository chatRepository)
+    {
+        _chatRepository = chatRepository;
+    }
+
+    public async Task<bool> Handle(LogCallEventCommand request, CancellationToken cancellationToken)
+    {
+        var conversation = await _chatRepository.GetConversationByIdAsync(request.ConversationId, cancellationToken);
+        if (conversation == null || !conversation.Participants.Any(p => p.UserId == request.UserId))
+            return false;
+
+        var validEvents = new[] { "ended", "rejected", "missed", "cancelled" };
+        if (!validEvents.Contains(request.CallEventType, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        var message = Message.CreateCallEvent(
+            request.ConversationId,
+            request.UserId,
+            request.CallEventType.ToLowerInvariant(),
+            request.CallType.ToLowerInvariant(),
+            request.DurationSeconds);
+
+        await _chatRepository.AddMessageAsync(message, cancellationToken);
+        return true;
+    }
+}
+
+#endregion
+
+#region Send Message (text + media unified)
+
+public class SendMessageCommand : IRequest<SendMessageResult?>
 {
     public int ConversationId { get; set; }
     public int SenderId { get; set; }
     public string Content { get; set; } = null!;
-    
-    /// <summary>
-    /// Optional: ID of message being replied to (for Reply/Quote feature)
-    /// </summary>
     public int? ReplyToMessageId { get; set; }
+    public MessageType MessageType { get; set; } = MessageType.Text;
+    public string? AttachmentUrl { get; set; }
+    public string? AttachmentFileName { get; set; }
+    public long? AttachmentSize { get; set; }
 }
 
-/// <summary>
-/// Handler for sending a message
-/// </summary>
-public class SendMessageCommandHandler
+public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, SendMessageResult?>
 {
     private readonly IChatRepository _chatRepository;
+    private readonly IUserRepository _userRepository;
 
-    public SendMessageCommandHandler(IChatRepository chatRepository)
+    public SendMessageCommandHandler(
+        IChatRepository chatRepository,
+        IUserRepository userRepository)
     {
         _chatRepository = chatRepository;
+        _userRepository = userRepository;
     }
 
-    public async Task<MessageDto?> HandleAsync(SendMessageCommand command, CancellationToken cancellationToken)
+    public async Task<SendMessageResult?> Handle(SendMessageCommand request, CancellationToken cancellationToken)
     {
-        // Verify user is part of conversation
-        var conversation = await _chatRepository.GetConversationByIdAsync(command.ConversationId, cancellationToken);
-        if (conversation == null || !conversation.Participants.Any(p => p.UserId == command.SenderId))
+        var conversation = await _chatRepository.GetConversationByIdAsync(request.ConversationId, cancellationToken);
+        if (conversation == null || !conversation.Participants.Any(p => p.UserId == request.SenderId))
             return null;
+
+        var sender = await _userRepository.GetByIdAsync(request.SenderId);
+
+        var messageTypeString = request.MessageType.ToString().ToLowerInvariant();
 
         var message = new Message
         {
-            ConversationId = command.ConversationId,
-            SenderId = command.SenderId,
-            Content = command.Content,
+            ConversationId = request.ConversationId,
+            SenderId = request.SenderId,
+            Content = request.Content,
+            MessageType = messageTypeString,
+            AttachmentUrl = request.AttachmentUrl,
+            AttachmentFileName = request.AttachmentFileName,
+            AttachmentSize = request.AttachmentSize ?? 0,
             SentDate = DateTime.UtcNow,
             IsRead = false,
-            ReplyToMessageId = command.ReplyToMessageId
+            ReplyToMessageId = request.ReplyToMessageId
         };
 
-        var created = await _chatRepository.AddMessageAsync(message, cancellationToken);
+        // AddMessageAsync now writes both the message and an outbox event atomically
+        var saved = await _chatRepository.AddMessageAsync(message, cancellationToken);
 
-        // Get reply message info if applicable
         ReplyToMessageDto? replyToDto = null;
-        if (command.ReplyToMessageId.HasValue)
+        if (request.ReplyToMessageId.HasValue)
         {
-            var replyToMessage = await _chatRepository.GetMessageByIdAsync(command.ReplyToMessageId.Value, cancellationToken);
-            if (replyToMessage != null)
+            var replyTo = await _chatRepository.GetMessageByIdAsync(request.ReplyToMessageId.Value, cancellationToken);
+            if (replyTo != null)
             {
                 replyToDto = new ReplyToMessageDto
                 {
-                    MessageId = replyToMessage.MessageId,
-                    SenderId = replyToMessage.SenderId,
-                    SenderUsername = replyToMessage.Sender?.Username ?? "",
-                    Content = replyToMessage.Content.Length > 100 
-                        ? replyToMessage.Content.Substring(0, 100) + "..." 
-                        : replyToMessage.Content
+                    MessageId = replyTo.MessageId,
+                    SenderId = replyTo.SenderId,
+                    SenderUsername = replyTo.Sender?.Username ?? "",
+                    Content = replyTo.Content.Length > 100
+                        ? replyTo.Content[..100] + "..."
+                        : replyTo.Content
                 };
             }
         }
 
-        return new MessageDto
+        var senderUsername = sender?.Username ?? "Unknown";
+        var senderDisplayName = sender?.DisplayName ?? senderUsername;
+
+        var messageDto = new MessageDto
         {
-            MessageId = created.MessageId,
-            ConversationId = created.ConversationId,
-            SenderId = created.SenderId,
-            Content = created.Content,
-            SentDate = created.SentDate,
-            IsRead = created.IsRead,
-            ReplyToMessageId = created.ReplyToMessageId,
+            MessageId = saved.MessageId,
+            ConversationId = saved.ConversationId,
+            SenderId = saved.SenderId,
+            SenderUsername = senderUsername,
+            SenderProfilePicture = sender?.ProfilePicture,
+            Content = saved.Content,
+            MessageType = saved.MessageType ?? "text",
+            AttachmentUrl = saved.AttachmentUrl,
+            AttachmentFileName = saved.AttachmentFileName,
+            AttachmentSize = saved.AttachmentSize,
+            SentDate = saved.SentDate,
+            IsRead = saved.IsRead,
+            ReplyToMessageId = saved.ReplyToMessageId,
             ReplyToMessage = replyToDto
+        };
+
+        string notificationPreview;
+        if (request.MessageType != MessageType.Text)
+        {
+            notificationPreview = request.MessageType switch
+            {
+                MessageType.Image => "Photo",
+                MessageType.Video => "Video",
+                MessageType.Audio => "Audio",
+                _ => request.AttachmentFileName ?? "File"
+            };
+        }
+        else
+        {
+            notificationPreview = request.Content.Length > 50 ? request.Content[..50] + "..." : request.Content;
+        }
+
+        var participantIds = conversation.Participants.Select(p => p.UserId).ToList();
+
+        return new SendMessageResult
+        {
+            Message = messageDto,
+            OtherParticipantUserIds = participantIds.Where(id => id != request.SenderId).ToList(),
+            SenderDisplayName = senderDisplayName,
+            NotificationPreview = notificationPreview
         };
     }
 }
 
-/// <summary>
-/// Command for marking messages as read
-/// </summary>
-public class MarkConversationReadCommand
+#endregion
+
+#region Mark Conversation Read
+
+public class MarkConversationReadCommand : IRequest
 {
     public int ConversationId { get; set; }
     public int UserId { get; set; }
 }
 
-/// <summary>
-/// Handler for marking messages as read
-/// </summary>
-public class MarkConversationReadCommandHandler
+public class MarkConversationReadCommandHandler : IRequestHandler<MarkConversationReadCommand>
+{
+    private readonly IChatRepository _chatRepository;
+    private readonly IChatMessageBroker? _broker;
+
+    public MarkConversationReadCommandHandler(IChatRepository chatRepository, IChatMessageBroker? broker = null)
+    {
+        _chatRepository = chatRepository;
+        _broker = broker;
+    }
+
+    public async Task Handle(MarkConversationReadCommand request, CancellationToken cancellationToken)
+    {
+        await _chatRepository.MarkMessagesAsReadAsync(request.ConversationId, request.UserId, cancellationToken);
+
+        if (_broker == null) return;
+        try
+        {
+            await _broker.PublishAsync(new ChatEvent
+            {
+                Type = ChatEventTypes.MessagesRead,
+                PayloadJson = JsonSerializer.Serialize(new MessagesReadPayload
+                {
+                    ConversationId = request.ConversationId,
+                    UserId = request.UserId
+                }),
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch { /* non-critical */ }
+    }
+}
+
+#endregion
+
+#region Leave Conversation
+
+public class LeaveConversationCommand : IRequest<bool>
+{
+    public int ConversationId { get; set; }
+    public int UserId { get; set; }
+}
+
+public class LeaveConversationCommandHandler : IRequestHandler<LeaveConversationCommand, bool>
 {
     private readonly IChatRepository _chatRepository;
 
-    public MarkConversationReadCommandHandler(IChatRepository chatRepository)
+    public LeaveConversationCommandHandler(IChatRepository chatRepository)
     {
         _chatRepository = chatRepository;
     }
 
-    public async Task HandleAsync(MarkConversationReadCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(LeaveConversationCommand request, CancellationToken cancellationToken)
     {
-        await _chatRepository.MarkMessagesAsReadAsync(command.ConversationId, command.UserId, cancellationToken);
+        return await _chatRepository.RemoveParticipantAsync(request.ConversationId, request.UserId, cancellationToken);
     }
 }
 
-/// <summary>
-/// Command for adding a reaction to a message
-/// </summary>
-public class AddReactionCommand
+#endregion
+
+#region Add Reaction
+
+public class AddReactionCommand : IRequest<MessageReactionDto?>
 {
     public int MessageId { get; set; }
     public int UserId { get; set; }
-    public string ReactionType { get; set; } = null!;
+    public ReactionType ReactionType { get; set; }
 }
 
-/// <summary>
-/// Handler for adding a reaction to a message
-/// </summary>
-public class AddReactionCommandHandler
+public class AddReactionCommandHandler : IRequestHandler<AddReactionCommand, MessageReactionDto?>
 {
     private readonly IChatRepository _chatRepository;
+    private readonly IUserRepository _userRepository;
 
-    public AddReactionCommandHandler(IChatRepository chatRepository)
+    public AddReactionCommandHandler(IChatRepository chatRepository, IUserRepository userRepository)
     {
         _chatRepository = chatRepository;
+        _userRepository = userRepository;
     }
 
-    public async Task<MessageReactionDto?> HandleAsync(AddReactionCommand command, CancellationToken cancellationToken)
+    public async Task<MessageReactionDto?> Handle(AddReactionCommand request, CancellationToken cancellationToken)
     {
-        // Validate reaction type
-        var validReactions = new[] { "like", "love", "haha", "wow", "sad", "angry" };
-        if (!validReactions.Contains(command.ReactionType.ToLower()))
-            return null;
+        var reactionTypeString = request.ReactionType.ToString().ToLowerInvariant();
 
-        // Check if message exists
-        var message = await _chatRepository.GetMessageByIdAsync(command.MessageId, cancellationToken);
+        var message = await _chatRepository.GetMessageByIdAsync(request.MessageId, cancellationToken);
         if (message == null)
             return null;
 
-        // Check if user already has a reaction on this message
-        var existingReaction = await _chatRepository.GetReactionAsync(command.MessageId, command.UserId, cancellationToken);
-        
+        var user = await _userRepository.GetByIdAsync(request.UserId);
+
+        var existingReaction = await _chatRepository.GetReactionAsync(request.MessageId, request.UserId, cancellationToken);
+
         if (existingReaction != null)
         {
-            // Update existing reaction
-            existingReaction.ReactionType = command.ReactionType.ToLower();
+            existingReaction.ReactionType = reactionTypeString;
             existingReaction.CreatedAt = DateTime.UtcNow;
             await _chatRepository.UpdateReactionAsync(existingReaction, cancellationToken);
-            
+
             return new MessageReactionDto
             {
                 MessageReactionId = existingReaction.MessageReactionId,
                 UserId = existingReaction.UserId,
+                Username = user?.Username ?? "Unknown",
+                ProfilePicture = user?.ProfilePicture,
                 ReactionType = existingReaction.ReactionType,
                 CreatedAt = existingReaction.CreatedAt
             };
         }
 
-        // Add new reaction
         var reaction = new MessageReaction
         {
-            MessageId = command.MessageId,
-            UserId = command.UserId,
-            ReactionType = command.ReactionType.ToLower(),
+            MessageId = request.MessageId,
+            UserId = request.UserId,
+            ReactionType = reactionTypeString,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -268,25 +404,58 @@ public class AddReactionCommandHandler
         {
             MessageReactionId = created.MessageReactionId,
             UserId = created.UserId,
+            Username = user?.Username ?? "Unknown",
+            ProfilePicture = user?.ProfilePicture,
             ReactionType = created.ReactionType,
             CreatedAt = created.CreatedAt
         };
     }
 }
 
-/// <summary>
-/// Command for removing a reaction from a message
-/// </summary>
-public class RemoveReactionCommand
+#endregion
+
+#region Acknowledge Delivery
+
+public class AcknowledgeDeliveryCommand : IRequest<bool>
+{
+    public int MessageId { get; set; }
+    public int UserId { get; set; }
+    public DeliveryStatus Status { get; set; }
+}
+
+public class AcknowledgeDeliveryCommandHandler : IRequestHandler<AcknowledgeDeliveryCommand, bool>
+{
+    private readonly IChatRepository _chatRepository;
+
+    public AcknowledgeDeliveryCommandHandler(IChatRepository chatRepository)
+    {
+        _chatRepository = chatRepository;
+    }
+
+    public async Task<bool> Handle(AcknowledgeDeliveryCommand request, CancellationToken cancellationToken)
+    {
+        var message = await _chatRepository.GetMessageByIdAsync(request.MessageId, cancellationToken);
+        if (message == null) return false;
+
+        if ((int)request.Status <= (int)message.DeliveryStatus)
+            return false;
+
+        await _chatRepository.UpdateDeliveryStatusAsync(request.MessageId, request.Status, cancellationToken);
+        return true;
+    }
+}
+
+#endregion
+
+#region Remove Reaction
+
+public class RemoveReactionCommand : IRequest<bool>
 {
     public int MessageId { get; set; }
     public int UserId { get; set; }
 }
 
-/// <summary>
-/// Handler for removing a reaction from a message
-/// </summary>
-public class RemoveReactionCommandHandler
+public class RemoveReactionCommandHandler : IRequestHandler<RemoveReactionCommand, bool>
 {
     private readonly IChatRepository _chatRepository;
 
@@ -295,9 +464,9 @@ public class RemoveReactionCommandHandler
         _chatRepository = chatRepository;
     }
 
-    public async Task<bool> HandleAsync(RemoveReactionCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(RemoveReactionCommand request, CancellationToken cancellationToken)
     {
-        var reaction = await _chatRepository.GetReactionAsync(command.MessageId, command.UserId, cancellationToken);
+        var reaction = await _chatRepository.GetReactionAsync(request.MessageId, request.UserId, cancellationToken);
         if (reaction == null)
             return false;
 
@@ -305,3 +474,5 @@ public class RemoveReactionCommandHandler
         return true;
     }
 }
+
+#endregion
