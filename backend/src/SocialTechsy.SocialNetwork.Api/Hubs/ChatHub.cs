@@ -14,16 +14,21 @@ public class ChatHub : Hub
 {
     private const int MaxMessageLength = 10_000;
     private const int MaxMessagesPerMinute = 30;
+    private static readonly TimeSpan TypingThrottleWindow = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan TypingTtl = TimeSpan.FromSeconds(5);
 
     private readonly IMediator _mediator;
     private readonly ILogger<ChatHub> _logger;
     private readonly RedisChatRateLimiter? _rateLimiter;
+    private readonly RedisChatCacheService? _chatCache;
 
-    public ChatHub(IMediator mediator, ILogger<ChatHub> logger, RedisChatRateLimiter? rateLimiter = null)
+    public ChatHub(IMediator mediator, ILogger<ChatHub> logger,
+        RedisChatRateLimiter? rateLimiter = null, RedisChatCacheService? chatCache = null)
     {
         _mediator = mediator;
         _logger = logger;
         _rateLimiter = rateLimiter;
+        _chatCache = chatCache;
     }
 
     private int GetCurrentUserId() =>
