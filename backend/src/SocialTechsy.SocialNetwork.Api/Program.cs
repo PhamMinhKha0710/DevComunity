@@ -193,6 +193,12 @@ builder.Services.AddOpenTelemetry()
 var signalRBuilder = builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.MaximumReceiveMessageSize = 128 * 1024; // 128 KB
+    options.StreamBufferCapacity = 20;
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+    options.MaximumParallelInvocationsPerClient = 2;
 });
 
 var redisEnabled = builder.Configuration.GetValue<bool>("Redis:Enabled");
@@ -267,11 +273,19 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-// Map SignalR hubs
-app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.ChatHub>("/hubs/chat");
+// Map SignalR hubs with WebSocket transport preference for lower latency
+app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.ChatHub>("/hubs/chat", options =>
+{
+    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets
+                       | Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents;
+});
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.NotificationHub>("/hubs/notifications");
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.QuestionHub>("/hubs/question");
-app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.PresenceHub>("/hubs/presence");
+app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.PresenceHub>("/hubs/presence", options =>
+{
+    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets
+                       | Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents;
+});
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.ActivityHub>("/hubs/activity");
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.CallHub>("/hubs/call");
 
