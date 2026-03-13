@@ -23,9 +23,18 @@ public class ConversationDocument
     public int ConversationId { get; set; }
     public string? Title { get; set; }
     public bool IsGroupChat { get; set; }
+    public string GroupTier { get; set; } = "small";
+    public int ParticipantCount { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? LastMessageDate { get; set; }
     public List<ParticipantEmbed> Participants { get; set; } = new();
+
+    public static string DetermineGroupTier(int participantCount) => participantCount switch
+    {
+        <= 50 => "small",
+        <= 500 => "medium",
+        _ => "large"
+    };
 }
 
 public class ParticipantEmbed
