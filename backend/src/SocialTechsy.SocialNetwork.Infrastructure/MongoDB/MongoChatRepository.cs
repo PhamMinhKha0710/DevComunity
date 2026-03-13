@@ -224,6 +224,8 @@ public class MongoChatRepository : IChatRepository
             ConversationId = conversationId,
             Title = conversation.Title,
             IsGroupChat = conversation.IsGroupChat,
+            ParticipantCount = participants.Count,
+            GroupTier = ConversationDocument.DetermineGroupTier(participants.Count),
             CreatedDate = conversation.CreatedDate,
             LastMessageDate = conversation.LastMessageDate,
             Participants = participants
