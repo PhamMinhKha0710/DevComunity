@@ -168,16 +168,13 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Sen
 {
     private readonly IChatRepository _chatRepository;
     private readonly IUserRepository _userRepository;
-    private readonly IChatMessageBroker? _broker;
 
     public SendMessageCommandHandler(
         IChatRepository chatRepository,
-        IUserRepository userRepository,
-        IChatMessageBroker? broker = null)
+        IUserRepository userRepository)
     {
         _chatRepository = chatRepository;
         _userRepository = userRepository;
-        _broker = broker;
     }
 
     public async Task<SendMessageResult?> Handle(SendMessageCommand request, CancellationToken cancellationToken)
@@ -204,6 +201,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Sen
             ReplyToMessageId = request.ReplyToMessageId
         };
 
+        // AddMessageAsync now writes both the message and an outbox event atomically
         var saved = await _chatRepository.AddMessageAsync(message, cancellationToken);
 
         ReplyToMessageDto? replyToDto = null;
@@ -263,15 +261,6 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Sen
 
         var participantIds = conversation.Participants.Select(p => p.UserId).ToList();
 
-        await PublishEventAsync(ChatEventTypes.NewMessage, new NewMessagePayload
-        {
-            ConversationId = request.ConversationId,
-            MessageId = saved.MessageId,
-            SenderId = request.SenderId,
-            SenderUsername = senderUsername,
-            ParticipantUserIds = participantIds
-        });
-
         return new SendMessageResult
         {
             Message = messageDto,
@@ -279,21 +268,6 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Sen
             SenderDisplayName = senderDisplayName,
             NotificationPreview = notificationPreview
         };
-    }
-
-    private async Task PublishEventAsync<T>(string eventType, T payload)
-    {
-        if (_broker == null) return;
-        try
-        {
-            await _broker.PublishAsync(new ChatEvent
-            {
-                Type = eventType,
-                PayloadJson = JsonSerializer.Serialize(payload),
-                Timestamp = DateTime.UtcNow
-            });
-        }
-        catch { /* non-critical: gracefully degrade if broker unavailable */ }
     }
 }
 
