@@ -46,16 +46,17 @@ apiClient.interceptors.response.use(
 
                         const { accessToken } = response.data;
                         localStorage.setItem('accessToken', accessToken);
+                        document.cookie = `accessToken=${accessToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
                         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                         return apiClient(originalRequest);
                     }
                 }
             } catch (refreshError) {
-                // Refresh failed, clear tokens and redirect to login
                 if (typeof window !== 'undefined') {
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('refreshToken');
+                    document.cookie = 'accessToken=; path=/; max-age=0';
                     window.location.href = '/login';
                 }
                 return Promise.reject(refreshError);

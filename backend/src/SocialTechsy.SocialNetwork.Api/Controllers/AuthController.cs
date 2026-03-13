@@ -1,11 +1,10 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
-using SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Queries.Users;
-using SocialTechsy.SocialNetwork.Application.QueryHandlers.Users;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
@@ -15,32 +14,12 @@ namespace SocialTechsy.SocialNetwork.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;
-    private readonly RegisterCommandHandler _registerHandler;
-    private readonly LoginCommandHandler _loginHandler;
-    private readonly ForgotPasswordCommandHandler _forgotPasswordHandler;
-    private readonly ResetPasswordCommandHandler _resetPasswordHandler;
-    private readonly RefreshTokenCommandHandler _refreshTokenHandler;
-    private readonly LogoutCommandHandler _logoutHandler;
-    private readonly GetCurrentUserQueryHandler _getCurrentUserHandler;
+    private readonly IMediator _mediator;
 
-    public AuthController(
-        ILogger<AuthController> logger,
-        RegisterCommandHandler registerHandler,
-        LoginCommandHandler loginHandler,
-        ForgotPasswordCommandHandler forgotPasswordHandler,
-        ResetPasswordCommandHandler resetPasswordHandler,
-        RefreshTokenCommandHandler refreshTokenHandler,
-        LogoutCommandHandler logoutHandler,
-        GetCurrentUserQueryHandler getCurrentUserHandler)
+    public AuthController(ILogger<AuthController> logger, IMediator mediator)
     {
         _logger = logger;
-        _registerHandler = registerHandler;
-        _loginHandler = loginHandler;
-        _forgotPasswordHandler = forgotPasswordHandler;
-        _resetPasswordHandler = resetPasswordHandler;
-        _refreshTokenHandler = refreshTokenHandler;
-        _logoutHandler = logoutHandler;
-        _getCurrentUserHandler = getCurrentUserHandler;
+        _mediator = mediator;
     }
 
     [HttpPost("register")]
@@ -54,7 +33,7 @@ public class AuthController : ControllerBase
             return BadRequest(new AuthResponse { Success = false, Message = "Validation failed" });
 
         _logger.LogInformation("Registering new user: {Username}", command.Username);
-        var result = await _registerHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (!result.Success)
             return BadRequest(result);
@@ -73,7 +52,7 @@ public class AuthController : ControllerBase
             return BadRequest(new AuthResponse { Success = false, Message = "Validation failed" });
 
         _logger.LogInformation("Login attempt for: {Email}", command.Email);
-        var result = await _loginHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (!result.Success)
             return Unauthorized(result);
@@ -81,9 +60,6 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Request password reset
-    /// </summary>
     [HttpPost("forgot-password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ForgotPassword(
@@ -97,15 +73,11 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation("Password reset requested for: {Email}", command.Email);
 
-        var result = await _forgotPasswordHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
 
-        // Always return 200 to prevent email enumeration
         return Ok(new { success = true, message = result.Message });
     }
 
-    /// <summary>
-    /// Reset password with token
-    /// </summary>
     [HttpPost("reset-password")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -117,7 +89,7 @@ public class AuthController : ControllerBase
             return BadRequest(new AuthResponse { Success = false, Message = "Validation failed" });
 
         _logger.LogInformation("Password reset attempt");
-        var result = await _resetPasswordHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (!result.Success)
             return BadRequest(result);
@@ -125,9 +97,6 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Refresh access token using refresh token
-    /// </summary>
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -137,7 +106,7 @@ public class AuthController : ControllerBase
     {
         _logger.LogInformation("Refreshing token");
 
-        var result = await _refreshTokenHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (!result.Success)
             return Unauthorized(result);
@@ -156,7 +125,7 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation("User {UserId} logging out", userId);
 
-        await _logoutHandler.HandleAsync(userId, cancellationToken);
+        await _mediator.Send(new LogoutCommand { UserId = userId }, cancellationToken);
 
         return Ok(new { message = "Logged out successfully" });
     }
@@ -171,8 +140,7 @@ public class AuthController : ControllerBase
         if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
             return Unauthorized();
 
-        var query = new GetCurrentUserQuery { UserId = userId };
-        var result = await _getCurrentUserHandler.HandleAsync(query, cancellationToken);
+        var result = await _mediator.Send(new GetCurrentUserQuery { UserId = userId }, cancellationToken);
 
         if (result == null)
             return Unauthorized();

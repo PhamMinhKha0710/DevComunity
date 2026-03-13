@@ -1,50 +1,26 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Chat;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Chat;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
-/// <summary>
-/// API Controller for Chat/Messaging
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
 public class ChatController : ControllerBase
 {
     private readonly ILogger<ChatController> _logger;
-    private readonly GetConversationsQueryHandler _getConversationsHandler;
-    private readonly GetConversationByIdQueryHandler _getConversationByIdHandler;
-    private readonly GetMessagesQueryHandler _getMessagesHandler;
-    private readonly StartConversationCommandHandler _startConversationHandler;
-    private readonly SendMessageCommandHandler _sendMessageHandler;
-    private readonly MarkConversationReadCommandHandler _markReadHandler;
-    private readonly AddReactionCommandHandler _addReactionHandler;
-    private readonly RemoveReactionCommandHandler _removeReactionHandler;
+    private readonly IMediator _mediator;
 
-    public ChatController(
-        ILogger<ChatController> logger,
-        GetConversationsQueryHandler getConversationsHandler,
-        GetConversationByIdQueryHandler getConversationByIdHandler,
-        GetMessagesQueryHandler getMessagesHandler,
-        StartConversationCommandHandler startConversationHandler,
-        SendMessageCommandHandler sendMessageHandler,
-        MarkConversationReadCommandHandler markReadHandler,
-        AddReactionCommandHandler addReactionHandler,
-        RemoveReactionCommandHandler removeReactionHandler)
+    public ChatController(ILogger<ChatController> logger, IMediator mediator)
     {
         _logger = logger;
-        _getConversationsHandler = getConversationsHandler;
-        _getConversationByIdHandler = getConversationByIdHandler;
-        _getMessagesHandler = getMessagesHandler;
-        _startConversationHandler = startConversationHandler;
-        _sendMessageHandler = sendMessageHandler;
-        _markReadHandler = markReadHandler;
-        _addReactionHandler = addReactionHandler;
-        _removeReactionHandler = removeReactionHandler;
+        _mediator = mediator;
     }
 
     private int GetCurrentUserId()
@@ -53,9 +29,6 @@ public class ChatController : ControllerBase
         return int.TryParse(userIdClaim, out var userId) ? userId : 0;
     }
 
-    /// <summary>
-    /// Get user's conversations
-    /// </summary>
     [HttpGet("conversations")]
     [ProducesResponseType(typeof(PaginatedResponse<ConversationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedResponse<ConversationDto>>> GetConversations(
@@ -68,13 +41,10 @@ public class ChatController : ControllerBase
 
         _logger.LogInformation("Getting conversations for user {UserId}", userId);
 
-        var result = await _getConversationsHandler.HandleAsync(userId, page, pageSize, cancellationToken);
+        var result = await _mediator.Send(new GetConversationsQuery { UserId = userId, Page = page, PageSize = pageSize }, cancellationToken);
         return Ok(result);
     }
 
-    /// <summary>
-    /// Get conversation by ID
-    /// </summary>
     [HttpGet("conversations/{id:int}")]
     [ProducesResponseType(typeof(ConversationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -85,16 +55,13 @@ public class ChatController : ControllerBase
 
         _logger.LogInformation("Getting conversation {ConversationId} for user {UserId}", id, userId);
 
-        var result = await _getConversationByIdHandler.HandleAsync(id, userId, cancellationToken);
+        var result = await _mediator.Send(new GetConversationByIdQuery { ConversationId = id, UserId = userId }, cancellationToken);
         if (result == null)
             return NotFound(new { message = "Conversation not found or access denied" });
 
         return Ok(result);
     }
 
-    /// <summary>
-    /// Get messages in a conversation
-    /// </summary>
     [HttpGet("conversations/{id:int}/messages")]
     [ProducesResponseType(typeof(PaginatedResponse<MessageDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedResponse<MessageDto>>> GetMessages(
@@ -108,13 +75,10 @@ public class ChatController : ControllerBase
 
         _logger.LogInformation("Getting messages for conversation {ConversationId}", id);
 
-        var result = await _getMessagesHandler.HandleAsync(id, page, pageSize, cancellationToken);
+        var result = await _mediator.Send(new GetMessagesQuery { ConversationId = id, Page = page, PageSize = pageSize }, cancellationToken);
         return Ok(result);
     }
 
-    /// <summary>
-    /// Start a new conversation
-    /// </summary>
     [HttpPost("conversations")]
     [ProducesResponseType(typeof(ConversationDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<ConversationDto>> StartConversation(
@@ -133,13 +97,10 @@ public class ChatController : ControllerBase
             InitialMessage = request.InitialMessage
         };
 
-        var result = await _startConversationHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
         return Created($"/api/chat/conversations/{result.ConversationId}", result);
     }
 
-    /// <summary>
-    /// Send a message
-    /// </summary>
     [HttpPost("conversations/{id:int}/messages")]
     [ProducesResponseType(typeof(MessageDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -160,16 +121,34 @@ public class ChatController : ControllerBase
             Content = request.Content
         };
 
-        var result = await _sendMessageHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
         if (result == null)
             return NotFound(new { message = "Conversation not found or access denied" });
 
-        return Created($"/api/chat/conversations/{id}/messages/{result.MessageId}", result);
+        return Created($"/api/chat/conversations/{id}/messages/{result.Message.MessageId}", result.Message);
     }
 
-    /// <summary>
-    /// Mark messages as read
-    /// </summary>
+    [HttpGet("conversations/{id:int}/messages/since/{sinceMessageId:int}")]
+    [ProducesResponseType(typeof(List<MessageDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<MessageDto>>> GetMessagesSince(
+        int id, int sinceMessageId,
+        [FromQuery] int limit = 200,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        var result = await _mediator.Send(new GetMessagesSinceQuery
+        {
+            ConversationId = id,
+            UserId = userId,
+            SinceMessageId = sinceMessageId,
+            Limit = Math.Min(limit, 500)
+        }, cancellationToken);
+
+        return Ok(result);
+    }
+
     [HttpPut("conversations/{id:int}/read")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> MarkAsRead(int id, CancellationToken cancellationToken)
@@ -179,21 +158,34 @@ public class ChatController : ControllerBase
 
         _logger.LogInformation("User {UserId} marking conversation {ConversationId} as read", userId, id);
 
-        var command = new MarkConversationReadCommand
-        {
-            ConversationId = id,
-            UserId = userId
-        };
-
-        await _markReadHandler.HandleAsync(command, cancellationToken);
+        await _mediator.Send(new MarkConversationReadCommand { ConversationId = id, UserId = userId }, cancellationToken);
         return Ok(new { message = "Messages marked as read" });
     }
 
-    // ========== REACTIONS ==========
+    [HttpDelete("conversations/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteConversationForCurrentUser(int id, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
 
-    /// <summary>
-    /// Add or update a reaction to a message (Instagram/Facebook style)
-    /// </summary>
+        _logger.LogInformation("User {UserId} leaving conversation {ConversationId}", userId, id);
+
+        var success = await _mediator.Send(new LeaveConversationCommand
+        {
+            ConversationId = id,
+            UserId = userId
+        }, cancellationToken);
+
+        if (!success)
+        {
+            return NotFound(new { message = "Conversation not found or user is not a participant" });
+        }
+
+        return NoContent();
+    }
+
     [HttpPost("messages/{messageId:int}/reactions")]
     [ProducesResponseType(typeof(MessageReactionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -206,26 +198,56 @@ public class ChatController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
 
-        _logger.LogInformation("User {UserId} adding {ReactionType} reaction to message {MessageId}", 
+        _logger.LogInformation("User {UserId} adding {ReactionType} reaction to message {MessageId}",
             userId, request.ReactionType, messageId);
+
+        if (!Enum.TryParse<ReactionType>(request.ReactionType, ignoreCase: true, out var parsedReaction))
+            return BadRequest(new { message = "Invalid reaction type" });
 
         var command = new AddReactionCommand
         {
             MessageId = messageId,
             UserId = userId,
-            ReactionType = request.ReactionType
+            ReactionType = parsedReaction
         };
 
-        var result = await _addReactionHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
         if (result == null)
             return BadRequest(new { message = "Invalid reaction type or message not found" });
 
         return Ok(result);
     }
 
-    /// <summary>
-    /// Remove a reaction from a message
-    /// </summary>
+    [HttpPost("conversations/{id:int}/call-events")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LogCallEvent(
+        int id,
+        [FromBody] LogCallEventRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        _logger.LogInformation("User {UserId} logging call event {EventType} in conversation {ConversationId}",
+            userId, request.CallEventType, id);
+
+        var success = await _mediator.Send(new LogCallEventCommand
+        {
+            ConversationId = id,
+            UserId = userId,
+            CallEventType = request.CallEventType,
+            CallType = request.CallType ?? "audio",
+            DurationSeconds = request.DurationSeconds
+        }, cancellationToken);
+
+        if (!success)
+            return NotFound(new { message = "Conversation not found or access denied" });
+
+        return Ok(new { message = "Call event logged" });
+    }
+
     [HttpDelete("messages/{messageId:int}/reactions")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -236,13 +258,7 @@ public class ChatController : ControllerBase
 
         _logger.LogInformation("User {UserId} removing reaction from message {MessageId}", userId, messageId);
 
-        var command = new RemoveReactionCommand
-        {
-            MessageId = messageId,
-            UserId = userId
-        };
-
-        var success = await _removeReactionHandler.HandleAsync(command, cancellationToken);
+        var success = await _mediator.Send(new RemoveReactionCommand { MessageId = messageId, UserId = userId }, cancellationToken);
         if (!success)
             return NotFound(new { message = "Reaction not found" });
 
@@ -259,4 +275,11 @@ public class StartConversationRequest
 public class SendMessageRequest
 {
     public string Content { get; set; } = null!;
+}
+
+public class LogCallEventRequest
+{
+    public string CallEventType { get; set; } = null!; // ended, rejected, missed, cancelled
+    public string? CallType { get; set; } = "audio"; // audio, video
+    public int? DurationSeconds { get; set; }
 }

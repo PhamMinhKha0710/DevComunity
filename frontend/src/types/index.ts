@@ -5,6 +5,9 @@ export interface User {
     email: string;
     displayName?: string;
     profilePicture?: string;
+    bio?: string;
+    location?: string;
+    website?: string;
     reputationPoints: number;
     isEmailVerified: boolean;
 }
@@ -186,7 +189,7 @@ export interface ChatMessage {
     content: string;
     sentDate: string;
     isRead: boolean;
-    messageType?: 'text' | 'image' | 'video' | 'audio' | 'file';
+    messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'call';
     attachmentUrl?: string;
     attachmentFileName?: string;
     attachmentSize?: number;

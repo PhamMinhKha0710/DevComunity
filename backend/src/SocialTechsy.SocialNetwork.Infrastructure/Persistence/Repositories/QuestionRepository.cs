@@ -11,10 +11,12 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Persistence.Repositories;
 public class QuestionRepository : IQuestionRepository
 {
     private readonly SocialTechsySocialNetworkDbContext _context;
+    private readonly bool _fullTextEnabled;
 
-    public QuestionRepository(SocialTechsySocialNetworkDbContext context)
+    public QuestionRepository(SocialTechsySocialNetworkDbContext context, bool fullTextEnabled = false)
     {
         _context = context;
+        _fullTextEnabled = fullTextEnabled;
     }
 
     public async Task<Question?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -28,15 +30,6 @@ public class QuestionRepository : IQuestionRepository
             .FirstOrDefaultAsync(q => q.QuestionId == id, cancellationToken);
     }
 
-    public async Task<IEnumerable<Question>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        return await _context.Questions
-            .Include(q => q.User)
-            .Include(q => q.QuestionTags)
-                .ThenInclude(qt => qt.Tag)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<(IEnumerable<Question> Items, int TotalCount)> GetPaginatedAsync(
         int page,
         int pageSize,
@@ -47,6 +40,7 @@ public class QuestionRepository : IQuestionRepository
     {
         var query = _context.Questions
             .Include(q => q.User)
+            .Include(q => q.Answers)
             .Include(q => q.QuestionTags)
                 .ThenInclude(qt => qt.Tag)
             .AsQueryable();
@@ -54,9 +48,18 @@ public class QuestionRepository : IQuestionRepository
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             var term = searchTerm.Trim();
-            query = query.Where(q =>
-                EF.Functions.Like(q.Title, $"%{term}%") ||
-                EF.Functions.Like(q.Body, $"%{term}%"));
+            if (_fullTextEnabled)
+            {
+                query = query.Where(q =>
+                    EF.Functions.FreeText(q.Title, term) ||
+                    EF.Functions.FreeText(q.Body, term));
+            }
+            else
+            {
+                query = query.Where(q =>
+                    q.Title.Contains(term) ||
+                    q.Body.Contains(term));
+            }
         }
 
         // Filter by tag
@@ -118,6 +121,15 @@ public class QuestionRepository : IQuestionRepository
         await _context.Questions
             .Where(q => q.QuestionId == id)
             .ExecuteUpdateAsync(setters => setters.SetProperty(q => q.ViewCount, q => q.ViewCount + 1), cancellationToken);
+    }
+
+    public async Task IncrementViewCountByDeltaAsync(int id, long delta, CancellationToken cancellationToken = default)
+    {
+        if (delta <= 0) return;
+        await _context.Questions
+            .Where(q => q.QuestionId == id)
+            .ExecuteUpdateAsync(setters =>
+                setters.SetProperty(q => q.ViewCount, q => q.ViewCount + (int)delta), cancellationToken);
     }
 
     public async Task<(IEnumerable<Question> Items, int TotalCount)> GetByUserIdAsync(

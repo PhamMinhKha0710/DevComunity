@@ -1,5 +1,11 @@
 namespace SocialTechsy.SocialNetwork.Application.Common.DTOs;
 
+public class SavedItemsResponse
+{
+    public IEnumerable<SavedItemDto> Items { get; set; } = Enumerable.Empty<SavedItemDto>();
+    public int TotalCount { get; set; }
+}
+
 /// <summary>
 /// DTO for saved items with question/answer details
 /// </summary>

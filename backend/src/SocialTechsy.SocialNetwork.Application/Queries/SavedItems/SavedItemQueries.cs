@@ -1,9 +1,12 @@
+using MediatR;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+
 namespace SocialTechsy.SocialNetwork.Application.Queries.SavedItems;
 
 /// <summary>
 /// Query to get saved items for a user
 /// </summary>
-public class GetSavedItemsQuery
+public class GetSavedItemsQuery : IRequest<SavedItemsResponse>
 {
     public int UserId { get; set; }
     public string? Type { get; set; } // "question", "answer", or null for all

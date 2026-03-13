@@ -1,49 +1,32 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Badges;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
-/// <summary>
-/// API Controller for Badges
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class BadgesController : ControllerBase
 {
     private readonly ILogger<BadgesController> _logger;
-    private readonly GetBadgesQueryHandler _getBadgesHandler;
-    private readonly GetBadgeByIdQueryHandler _getBadgeByIdHandler;
-    private readonly GetBadgeUsersQueryHandler _getBadgeUsersHandler;
+    private readonly IMediator _mediator;
 
-    public BadgesController(
-        ILogger<BadgesController> logger,
-        GetBadgesQueryHandler getBadgesHandler,
-        GetBadgeByIdQueryHandler getBadgeByIdHandler,
-        GetBadgeUsersQueryHandler getBadgeUsersHandler)
+    public BadgesController(ILogger<BadgesController> logger, IMediator mediator)
     {
         _logger = logger;
-        _getBadgesHandler = getBadgesHandler;
-        _getBadgeByIdHandler = getBadgeByIdHandler;
-        _getBadgeUsersHandler = getBadgeUsersHandler;
+        _mediator = mediator;
     }
 
-    /// <summary>
-    /// Get all available badges
-    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<BadgeDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<BadgeDto>>> GetBadges(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Getting all badges");
-
-        var result = await _getBadgesHandler.HandleAsync(cancellationToken);
+        var result = await _mediator.Send(new GetBadgesQuery(), cancellationToken);
         return Ok(result);
     }
 
-    /// <summary>
-    /// Get badge by ID
-    /// </summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(BadgeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -51,17 +34,14 @@ public class BadgesController : ControllerBase
     {
         _logger.LogInformation("Getting badge {BadgeId}", id);
 
-        var result = await _getBadgeByIdHandler.HandleAsync(id, cancellationToken);
-        
+        var result = await _mediator.Send(new GetBadgeByIdQuery { BadgeId = id }, cancellationToken);
+
         if (result == null)
             return NotFound(new { message = $"Badge with ID {id} not found" });
 
         return Ok(result);
     }
 
-    /// <summary>
-    /// Get users who earned a badge
-    /// </summary>
     [HttpGet("{id:int}/users")]
     [ProducesResponseType(typeof(PaginatedResponse<UserDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedResponse<UserDto>>> GetBadgeUsers(
@@ -72,7 +52,7 @@ public class BadgesController : ControllerBase
     {
         _logger.LogInformation("Getting users for badge {BadgeId}", id);
 
-        var result = await _getBadgeUsersHandler.HandleAsync(id, page, pageSize, cancellationToken);
+        var result = await _mediator.Send(new GetBadgeUsersQuery { BadgeId = id, Page = page, PageSize = pageSize }, cancellationToken);
         return Ok(result);
     }
 }

@@ -1,49 +1,25 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Commands.Answers;
-using SocialTechsy.SocialNetwork.Application.CommandHandlers.Answers;
 using SocialTechsy.SocialNetwork.Application.Queries.Answers;
-using SocialTechsy.SocialNetwork.Application.QueryHandlers.Answers;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
-/// <summary>
-/// API Controller for Answers - Uses CQRS pattern
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class AnswersController : ControllerBase
 {
     private readonly ILogger<AnswersController> _logger;
-    private readonly CreateAnswerCommandHandler _createHandler;
-    private readonly UpdateAnswerCommandHandler _updateHandler;
-    private readonly DeleteAnswerCommandHandler _deleteHandler;
-    private readonly AcceptAnswerCommandHandler _acceptHandler;
-    private readonly GetAnswerByIdQueryHandler _getAnswerByIdHandler;
-    private readonly GetAnswersByQuestionQueryHandler _getAnswersByQuestionHandler;
+    private readonly IMediator _mediator;
 
-    public AnswersController(
-        ILogger<AnswersController> logger,
-        CreateAnswerCommandHandler createHandler,
-        UpdateAnswerCommandHandler updateHandler,
-        DeleteAnswerCommandHandler deleteHandler,
-        AcceptAnswerCommandHandler acceptHandler,
-        GetAnswerByIdQueryHandler getAnswerByIdHandler,
-        GetAnswersByQuestionQueryHandler getAnswersByQuestionHandler)
+    public AnswersController(ILogger<AnswersController> logger, IMediator mediator)
     {
         _logger = logger;
-        _createHandler = createHandler;
-        _updateHandler = updateHandler;
-        _deleteHandler = deleteHandler;
-        _acceptHandler = acceptHandler;
-        _getAnswerByIdHandler = getAnswerByIdHandler;
-        _getAnswersByQuestionHandler = getAnswersByQuestionHandler;
+        _mediator = mediator;
     }
 
-    /// <summary>
-    /// Get answers for a question
-    /// </summary>
     [HttpGet("question/{questionId:int}")]
     [ProducesResponseType(typeof(PaginatedResponse<AnswerDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedResponse<AnswerDto>>> GetAnswersByQuestion(
@@ -55,21 +31,17 @@ public class AnswersController : ControllerBase
     {
         _logger.LogInformation("Getting answers for question {QuestionId}", questionId);
 
-        var query = new GetAnswersByQuestionQuery
+        var result = await _mediator.Send(new GetAnswersByQuestionQuery
         {
             QuestionId = questionId,
+            CurrentUserId = GetCurrentUserId(),
             Sort = sort,
             Page = page,
             PageSize = pageSize
-        };
-
-        var result = await _getAnswersByQuestionHandler.HandleAsync(query, cancellationToken);
+        }, cancellationToken);
         return Ok(result);
     }
 
-    /// <summary>
-    /// Get answer by ID
-    /// </summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(AnswerDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -77,8 +49,7 @@ public class AnswersController : ControllerBase
     {
         _logger.LogInformation("Getting answer {AnswerId}", id);
 
-        var query = new GetAnswerByIdQuery { AnswerId = id };
-        var result = await _getAnswerByIdHandler.HandleAsync(query, cancellationToken);
+        var result = await _mediator.Send(new GetAnswerByIdQuery { AnswerId = id }, cancellationToken);
 
         if (result == null)
             return NotFound(new { message = $"Answer with ID {id} not found" });
@@ -86,9 +57,6 @@ public class AnswersController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Create a new answer
-    /// </summary>
     [HttpPost]
     [Authorize]
     [ProducesResponseType(typeof(AnswerDto), StatusCodes.Status201Created)]
@@ -104,8 +72,7 @@ public class AnswersController : ControllerBase
         _logger.LogInformation("Creating answer for question {QuestionId}", command.QuestionId);
 
         command.UserId = GetCurrentUserId();
-
-        var result = await _createHandler.HandleAsync(command, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (result == null)
             return NotFound(new { message = "Question not found" });
@@ -113,9 +80,6 @@ public class AnswersController : ControllerBase
         return CreatedAtAction(nameof(GetAnswer), new { id = result.AnswerId }, result);
     }
 
-    /// <summary>
-    /// Update an answer
-    /// </summary>
     [HttpPut("{id:int}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -134,7 +98,7 @@ public class AnswersController : ControllerBase
 
         _logger.LogInformation("Updating answer {AnswerId}", id);
 
-        var success = await _updateHandler.HandleAsync(command, cancellationToken);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
             return NotFound();
@@ -142,9 +106,6 @@ public class AnswersController : ControllerBase
         return Ok(new { message = "Answer updated successfully" });
     }
 
-    /// <summary>
-    /// Delete an answer
-    /// </summary>
     [HttpDelete("{id:int}")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -153,9 +114,7 @@ public class AnswersController : ControllerBase
     {
         _logger.LogInformation("Deleting answer {AnswerId}", id);
 
-        var command = new DeleteAnswerCommand { AnswerId = id, UserId = GetCurrentUserId() };
-
-        var success = await _deleteHandler.HandleAsync(command, cancellationToken);
+        var success = await _mediator.Send(new DeleteAnswerCommand { AnswerId = id, UserId = GetCurrentUserId() }, cancellationToken);
 
         if (!success)
             return NotFound();
@@ -163,9 +122,6 @@ public class AnswersController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>
-    /// Accept an answer (for question author only)
-    /// </summary>
     [HttpPost("{id:int}/accept")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -178,14 +134,12 @@ public class AnswersController : ControllerBase
     {
         _logger.LogInformation("Accepting answer {AnswerId} for question {QuestionId}", id, questionId);
 
-        var command = new AcceptAnswerCommand
+        var result = await _mediator.Send(new AcceptAnswerCommand
         {
             AnswerId = id,
             QuestionId = questionId,
             UserId = GetCurrentUserId()
-        };
-
-        var result = await _acceptHandler.HandleAsync(command, cancellationToken);
+        }, cancellationToken);
 
         if (!result.Success)
             return BadRequest(new { message = result.Message });

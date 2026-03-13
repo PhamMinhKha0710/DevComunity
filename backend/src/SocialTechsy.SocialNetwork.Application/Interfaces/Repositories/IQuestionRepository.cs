@@ -8,7 +8,6 @@ namespace SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 public interface IQuestionRepository
 {
     Task<Question?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-    Task<IEnumerable<Question>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<(IEnumerable<Question> Items, int TotalCount)> GetPaginatedAsync(
         int page, 
         int pageSize, 
@@ -21,5 +20,6 @@ public interface IQuestionRepository
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default);
     Task IncrementViewCountAsync(int id, CancellationToken cancellationToken = default);
+    Task IncrementViewCountByDeltaAsync(int id, long delta, CancellationToken cancellationToken = default);
     Task<(IEnumerable<Question> Items, int TotalCount)> GetByUserIdAsync(int userId, int page, int pageSize, CancellationToken cancellationToken = default);
 }

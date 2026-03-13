@@ -1,9 +1,12 @@
+using MediatR;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+
 namespace SocialTechsy.SocialNetwork.Application.Queries.Tags;
 
 /// <summary>
 /// Query for getting paginated tags
 /// </summary>
-public class GetTagsQuery
+public class GetTagsQuery : IRequest<PaginatedResponse<TagDto>>
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 36;
@@ -14,7 +17,7 @@ public class GetTagsQuery
 /// <summary>
 /// Query for getting a tag by name
 /// </summary>
-public class GetTagByNameQuery
+public class GetTagByNameQuery : IRequest<TagDto?>
 {
     public string TagName { get; set; } = null!;
 }

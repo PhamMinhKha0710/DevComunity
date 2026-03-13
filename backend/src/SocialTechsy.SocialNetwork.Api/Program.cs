@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-<<<<<<< HEAD
 using Microsoft.AspNetCore.RateLimiting;
-=======
 using Microsoft.AspNetCore.ResponseCompression;
->>>>>>> optimize/response-compression
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IO.Compression;
@@ -12,16 +9,80 @@ using System.Threading.RateLimiting;
 using SocialTechsy.SocialNetwork.Application;
 using SocialTechsy.SocialNetwork.Infrastructure;
 using SocialTechsy.SocialNetwork.Api;
+using OpenTelemetry.Trace;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+
+// Serilog structured logging
+builder.Host.UseSerilog((context, loggerConfig) =>
+{
+    loggerConfig
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "SocialTechsy")
+        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+        .WriteTo.File("logs/socialtechsy-.log",
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 30);
+});
+
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase));
+    });
 builder.Services.AddMemoryCache();
+builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.EntityNotFoundExceptionHandler>();
+builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.UnauthorizedCommandExceptionHandler>();
 
 // Add Application and Infrastructure services
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// SignalR-based handlers (needs API layer for hub contexts)
+builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.ILikeNotificationHandler,
+    SocialTechsy.SocialNetwork.Api.Services.SignalRLikeNotificationHandler>();
+builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IChatPushHandler,
+    SocialTechsy.SocialNetwork.Api.Services.SignalRChatPushHandler>();
+
+// Health checks
+var healthChecksBuilder = builder.Services.AddHealthChecks()
+    .AddSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection")!,
+        name: "sqlserver",
+        tags: new[] { "db", "sql" });
+
+var mongoConnStr = builder.Configuration["MongoDB:ConnectionString"];
+if (!string.IsNullOrEmpty(mongoConnStr))
+{
+    healthChecksBuilder.AddMongoDb(
+        mongodbConnectionString: mongoConnStr,
+        name: "mongodb",
+        tags: new[] { "db", "mongo" });
+}
+
+if (builder.Configuration.GetValue<bool>("Redis:Enabled"))
+{
+    healthChecksBuilder.AddRedis(
+        builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379",
+        name: "redis",
+        tags: new[] { "cache" });
+}
+
+if (builder.Configuration.GetSection("RabbitMQ").GetValue<bool>("Enabled"))
+{
+    var rabbitConnStr = $"amqp://{builder.Configuration["RabbitMQ:UserName"] ?? "guest"}:{builder.Configuration["RabbitMQ:Password"] ?? "guest"}@{builder.Configuration["RabbitMQ:HostName"] ?? "localhost"}:{builder.Configuration["RabbitMQ:Port"] ?? "5672"}{builder.Configuration["RabbitMQ:VirtualHost"] ?? "/"}";
+    healthChecksBuilder.AddRabbitMQ(
+        rabbitConnectionString: rabbitConnStr,
+        name: "rabbitmq",
+        tags: new[] { "messaging" });
+}
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -81,8 +142,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-<<<<<<< HEAD
-<<<<<<< HEAD
+
 // Configure rate limiting
 builder.Services.AddRateLimiter(options =>
 {
@@ -103,7 +163,7 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
 });
-=======
+
 // Configure response compression
 builder.Services.AddResponseCompression(options =>
 {
@@ -114,14 +174,23 @@ builder.Services.AddResponseCompression(options =>
 });
 builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
 builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.SmallestSize);
->>>>>>> optimize/response-compression
 
-// Configure SignalR
-builder.Services.AddSignalR(options =>
-=======
+// OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation();
+        
+        if (builder.Environment.IsDevelopment())
+        {
+            tracing.AddConsoleExporter();
+        }
+    });
+
 // Configure SignalR (with optional Redis backplane for multi-instance scaling)
 var signalRBuilder = builder.Services.AddSignalR(options =>
->>>>>>> optimize/redis-signalr-backplane
 {
     options.EnableDetailedErrors = builder.Environment.IsDevelopment();
 });
@@ -185,14 +254,18 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseExceptionHandler(_ => { });
 app.UseResponseCompression();
+app.UseStaticFiles();
 app.UseHttpsRedirection();
+app.UseSerilogRequestLogging();
 app.UseCors("ReactApp");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 // Map SignalR hubs
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.ChatHub>("/hubs/chat");
@@ -200,11 +273,20 @@ app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.NotificationHub>("/hubs/notificat
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.QuestionHub>("/hubs/question");
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.PresenceHub>("/hubs/presence");
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.ActivityHub>("/hubs/activity");
+app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.CallHub>("/hubs/call");
 
 // Initialize Database
 if (app.Environment.IsDevelopment())
 {
     await app.InitialiseDatabaseAsync();
+}
+
+// Sync Redis sequences from MongoDB counters on startup to prevent duplicate IDs
+var redisCacheService = app.Services.GetService<SocialTechsy.SocialNetwork.Infrastructure.Redis.RedisChatCacheService>();
+var mongoDb = app.Services.GetService<MongoDB.Driver.IMongoDatabase>();
+if (redisCacheService != null && mongoDb != null)
+{
+    await redisCacheService.EnsureSequenceSyncedAsync(mongoDb);
 }
 
 app.Run();

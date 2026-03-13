@@ -126,8 +126,11 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
             .HasForeignKey(p => p.GroupId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(p => p.CreatedAt);
-        builder.HasIndex(p => p.AuthorId);
-        builder.HasIndex(p => p.GroupId);
+        // Composite: newsfeed (WHERE AuthorId IN (...) ORDER BY CreatedAt DESC)
+        builder.HasIndex(p => new { p.AuthorId, p.CreatedAt })
+            .IsDescending(false, true);
+        // Composite: group feed (WHERE GroupId = X ORDER BY CreatedAt DESC)
+        builder.HasIndex(p => new { p.GroupId, p.CreatedAt })
+            .IsDescending(false, true);
     }
 }

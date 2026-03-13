@@ -21,11 +21,14 @@ public class VoteConfiguration : IEntityTypeConfiguration<Vote>
         builder.Property(v => v.CreatedDate)
             .HasDefaultValueSql("GETUTCDATE()");
 
-        // Indexes (removed problematic filtered unique index)
         builder.HasIndex(v => v.QuestionId);
         builder.HasIndex(v => v.AnswerId);
-        builder.HasIndex(v => new { v.UserId, v.QuestionId }).HasFilter("[QuestionId] IS NOT NULL");
-        builder.HasIndex(v => new { v.UserId, v.AnswerId }).HasFilter("[AnswerId] IS NOT NULL");
+        builder.HasIndex(v => new { v.UserId, v.QuestionId })
+            .IsUnique()
+            .HasFilter("[QuestionId] IS NOT NULL");
+        builder.HasIndex(v => new { v.UserId, v.AnswerId })
+            .IsUnique()
+            .HasFilter("[AnswerId] IS NOT NULL");
 
         // Relationships
         builder.HasOne(v => v.User)

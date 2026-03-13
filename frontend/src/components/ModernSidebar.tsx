@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useChatContext } from '@/lib/contexts/ChatContext';
 
 interface NavItem {
     name: string;
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
 export default function ModernSidebar() {
     const pathname = usePathname();
     const { user, isAuthenticated } = useAuth();
+    const { totalUnreadChats } = useChatContext();
 
     const isActive = (href: string) => {
         if (href === '/') return pathname === '/';
@@ -58,13 +60,20 @@ export default function ModernSidebar() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${active
+                            className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${active
                                 ? 'bg-[var(--primary)]/10 text-[var(--primary)] font-semibold'
                                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                                 }`}
                         >
-                            <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
-                            <span className="text-sm">{item.name}</span>
+                            <div className="flex items-center gap-3">
+                                <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                                <span className="text-sm">{item.name}</span>
+                            </div>
+                            {item.href === '/chat' && totalUnreadChats > 0 && (
+                                <span className="bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    {totalUnreadChats > 9 ? '9+' : totalUnreadChats}
+                                </span>
+                            )}
                         </Link>
                     );
                 })}

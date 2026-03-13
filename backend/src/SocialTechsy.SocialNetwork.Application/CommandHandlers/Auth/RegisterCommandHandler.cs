@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -6,7 +7,7 @@ using SocialTechsy.SocialNetwork.Domain.Entities;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 
-public class RegisterCommandHandler
+public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthResponse>
 {
     private readonly IUserRepository _userRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
@@ -25,9 +26,9 @@ public class RegisterCommandHandler
         _tokenService = tokenService;
     }
 
-    public async Task<AuthResponse> HandleAsync(RegisterCommand command, CancellationToken cancellationToken = default)
+    public async Task<AuthResponse> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        if (await _userRepository.EmailExistsAsync(command.Email, cancellationToken))
+        if (await _userRepository.EmailExistsAsync(request.Email, cancellationToken))
         {
             return new AuthResponse
             {
@@ -36,7 +37,7 @@ public class RegisterCommandHandler
             };
         }
 
-        if (await _userRepository.UsernameExistsAsync(command.Username, cancellationToken))
+        if (await _userRepository.UsernameExistsAsync(request.Username, cancellationToken))
         {
             return new AuthResponse
             {
@@ -47,10 +48,10 @@ public class RegisterCommandHandler
 
         var user = new User
         {
-            Username = command.Username,
-            Email = command.Email,
-            PasswordHash = _passwordHasher.HashPassword(command.Password),
-            DisplayName = command.DisplayName ?? command.Username,
+            Username = request.Username,
+            Email = request.Email,
+            PasswordHash = _passwordHasher.HashPassword(request.Password),
+            DisplayName = request.DisplayName ?? request.Username,
             CreatedDate = DateTime.UtcNow,
             ReputationPoints = 1,
             IsEmailVerified = false

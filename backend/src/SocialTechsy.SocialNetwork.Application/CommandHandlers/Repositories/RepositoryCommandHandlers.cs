@@ -1,3 +1,4 @@
+using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Entities;
@@ -7,7 +8,7 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Repositories;
 /// <summary>
 /// Command for creating a repository
 /// </summary>
-public class CreateRepositoryCommand
+public class CreateRepositoryCommand : IRequest<RepositoryDto>
 {
     public int OwnerId { get; set; }
     public string Name { get; set; } = null!;
@@ -18,7 +19,7 @@ public class CreateRepositoryCommand
 /// <summary>
 /// Handler for creating a repository
 /// </summary>
-public class CreateRepositoryCommandHandler
+public class CreateRepositoryCommandHandler : IRequestHandler<CreateRepositoryCommand, RepositoryDto>
 {
     private readonly ICodeRepository _codeRepository;
 
@@ -27,14 +28,14 @@ public class CreateRepositoryCommandHandler
         _codeRepository = codeRepository;
     }
 
-    public async Task<RepositoryDto> HandleAsync(CreateRepositoryCommand command, CancellationToken cancellationToken)
+    public async Task<RepositoryDto> Handle(CreateRepositoryCommand request, CancellationToken cancellationToken)
     {
         var repository = new Repository
         {
-            OwnerId = command.OwnerId,
-            Name = command.Name,
-            Description = command.Description,
-            IsPrivate = command.IsPrivate,
+            OwnerId = request.OwnerId,
+            Name = request.Name,
+            Description = request.Description,
+            IsPrivate = request.IsPrivate,
             DefaultBranch = "main",
             CreatedDate = DateTime.UtcNow,
             StarCount = 0,
@@ -62,7 +63,7 @@ public class CreateRepositoryCommandHandler
 /// <summary>
 /// Command for updating a repository
 /// </summary>
-public class UpdateRepositoryCommand
+public class UpdateRepositoryCommand : IRequest<bool>
 {
     public int RepositoryId { get; set; }
     public int UserId { get; set; }
@@ -73,7 +74,7 @@ public class UpdateRepositoryCommand
 /// <summary>
 /// Handler for updating a repository
 /// </summary>
-public class UpdateRepositoryCommandHandler
+public class UpdateRepositoryCommandHandler : IRequestHandler<UpdateRepositoryCommand, bool>
 {
     private readonly ICodeRepository _codeRepository;
 
@@ -82,16 +83,16 @@ public class UpdateRepositoryCommandHandler
         _codeRepository = codeRepository;
     }
 
-    public async Task<bool> HandleAsync(UpdateRepositoryCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(UpdateRepositoryCommand request, CancellationToken cancellationToken)
     {
-        var repository = await _codeRepository.GetByIdAsync(command.RepositoryId, cancellationToken);
-        if (repository == null || repository.OwnerId != command.UserId)
+        var repository = await _codeRepository.GetByIdAsync(request.RepositoryId, cancellationToken);
+        if (repository == null || repository.OwnerId != request.UserId)
             return false;
 
-        if (command.Description != null)
-            repository.Description = command.Description;
-        if (command.IsPrivate.HasValue)
-            repository.IsPrivate = command.IsPrivate.Value;
+        if (request.Description != null)
+            repository.Description = request.Description;
+        if (request.IsPrivate.HasValue)
+            repository.IsPrivate = request.IsPrivate.Value;
 
         repository.LastUpdatedDate = DateTime.UtcNow;
 
@@ -103,7 +104,7 @@ public class UpdateRepositoryCommandHandler
 /// <summary>
 /// Command for deleting a repository
 /// </summary>
-public class DeleteRepositoryCommand
+public class DeleteRepositoryCommand : IRequest<bool>
 {
     public int RepositoryId { get; set; }
     public int UserId { get; set; }
@@ -112,7 +113,7 @@ public class DeleteRepositoryCommand
 /// <summary>
 /// Handler for deleting a repository
 /// </summary>
-public class DeleteRepositoryCommandHandler
+public class DeleteRepositoryCommandHandler : IRequestHandler<DeleteRepositoryCommand, bool>
 {
     private readonly ICodeRepository _codeRepository;
 
@@ -121,13 +122,13 @@ public class DeleteRepositoryCommandHandler
         _codeRepository = codeRepository;
     }
 
-    public async Task<bool> HandleAsync(DeleteRepositoryCommand command, CancellationToken cancellationToken)
+    public async Task<bool> Handle(DeleteRepositoryCommand request, CancellationToken cancellationToken)
     {
-        var repository = await _codeRepository.GetByIdAsync(command.RepositoryId, cancellationToken);
-        if (repository == null || repository.OwnerId != command.UserId)
+        var repository = await _codeRepository.GetByIdAsync(request.RepositoryId, cancellationToken);
+        if (repository == null || repository.OwnerId != request.UserId)
             return false;
 
-        await _codeRepository.DeleteAsync(command.RepositoryId, cancellationToken);
+        await _codeRepository.DeleteAsync(request.RepositoryId, cancellationToken);
         return true;
     }
 }
