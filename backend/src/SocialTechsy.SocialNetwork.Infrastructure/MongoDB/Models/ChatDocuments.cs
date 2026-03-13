@@ -40,7 +40,7 @@ public class ParticipantEmbed
 public class MessageDocument
 {
     [BsonId]
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int ConversationId { get; set; }
     public int SenderId { get; set; }
     public UserInfoEmbed Sender { get; set; } = null!;
@@ -52,7 +52,7 @@ public class MessageDocument
     public string? AttachmentUrl { get; set; }
     public string? AttachmentFileName { get; set; }
     public long? AttachmentSize { get; set; }
-    public int? ReplyToMessageId { get; set; }
+    public long? ReplyToMessageId { get; set; }
     public List<ReactionEmbed> Reactions { get; set; } = new();
 }
 

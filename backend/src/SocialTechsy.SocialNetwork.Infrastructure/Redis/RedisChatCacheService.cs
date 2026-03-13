@@ -67,7 +67,7 @@ public class RedisChatCacheService
         IMongoCollection<CounterDocument> counters,
         HashSet<string> knownSequences,
         string collectionName,
-        Func<T, int> idSelector)
+        Func<T, long> idSelector)
     {
         if (knownSequences.Contains(collectionName)) return;
 

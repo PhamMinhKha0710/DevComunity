@@ -157,7 +157,7 @@ public class SendMessageCommand : IRequest<SendMessageResult?>
     public int ConversationId { get; set; }
     public int SenderId { get; set; }
     public string Content { get; set; } = null!;
-    public int? ReplyToMessageId { get; set; }
+    public long? ReplyToMessageId { get; set; }
     public MessageType MessageType { get; set; } = MessageType.Text;
     public string? AttachmentUrl { get; set; }
     public string? AttachmentFileName { get; set; }
@@ -345,7 +345,7 @@ public class LeaveConversationCommandHandler : IRequestHandler<LeaveConversation
 
 public class AddReactionCommand : IRequest<MessageReactionDto?>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
     public ReactionType ReactionType { get; set; }
 }
@@ -418,7 +418,7 @@ public class AddReactionCommandHandler : IRequestHandler<AddReactionCommand, Mes
 
 public class AcknowledgeDeliveryCommand : IRequest<bool>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
     public DeliveryStatus Status { get; set; }
 }
@@ -451,7 +451,7 @@ public class AcknowledgeDeliveryCommandHandler : IRequestHandler<AcknowledgeDeli
 
 public class RemoveReactionCommand : IRequest<bool>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
 }
 

@@ -15,6 +15,7 @@ using SocialTechsy.SocialNetwork.Infrastructure.Persistence;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Repositories;
 using SocialTechsy.SocialNetwork.Infrastructure.RabbitMQ;
 using SocialTechsy.SocialNetwork.Infrastructure.Redis;
+using SocialTechsy.SocialNetwork.Infrastructure.IdGeneration;
 using SocialTechsy.SocialNetwork.Infrastructure.Resilience;
 using SocialTechsy.SocialNetwork.Infrastructure.Services;
 
@@ -69,6 +70,10 @@ public static class DependencyInjection
             services.AddHostedService<ViewSyncBackgroundService>();
         }
 
+        // ========== SNOWFLAKE ID GENERATOR ==========
+        var serverId = configuration.GetValue("Snowflake:ServerId", 0);
+        services.AddSingleton(new SnowflakeIdGenerator(serverId));
+
         // ========== CHAT REPOSITORY (MongoDB + Redis cache) ==========
         var mongoSection = configuration.GetSection(MongoDbSettings.SectionName);
         if (mongoSection.Exists() && !string.IsNullOrEmpty(mongoSection["ConnectionString"]))
@@ -90,8 +95,9 @@ public static class DependencyInjection
                 var client = sp.GetRequiredService<MongoClient>();
                 var database = sp.GetRequiredService<IMongoDatabase>();
                 var userRepo = sp.GetRequiredService<IUserRepository>();
+                var snowflake = sp.GetRequiredService<SnowflakeIdGenerator>();
                 var cache = sp.GetService<RedisChatCacheService>();
-                return new MongoChatRepository(client, database, userRepo, cache);
+                return new MongoChatRepository(client, database, userRepo, snowflake, cache);
             });
             services.AddSingleton<IActivityLogService>(sp =>
             {
