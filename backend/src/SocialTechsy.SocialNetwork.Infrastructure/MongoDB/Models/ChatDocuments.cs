@@ -62,7 +62,13 @@ public class MessageDocument
     public string? AttachmentUrl { get; set; }
     public string? AttachmentFileName { get; set; }
     public long? AttachmentSize { get; set; }
+    public string? AttachmentContentType { get; set; }
     public long? ReplyToMessageId { get; set; }
+    public long? ThreadRootMessageId { get; set; }
+    public int ThreadReplyCount { get; set; }
+    public bool IsEdited { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? EditedDate { get; set; }
     public List<ReactionEmbed> Reactions { get; set; } = new();
 }
 

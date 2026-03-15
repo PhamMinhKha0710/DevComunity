@@ -140,6 +140,18 @@ public class ChatRepository : IChatRepository
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.IsRead, true), cancellationToken);
     }
 
+    public async Task UpdateReadWatermarkAsync(int conversationId, int userId, int lastReadMessageId, CancellationToken cancellationToken = default)
+    {
+        // SQL fallback: mark all messages as read
+        await MarkMessagesAsReadAsync(conversationId, userId, cancellationToken);
+    }
+
+    public async Task<int> GetUnreadCountAsync(int conversationId, int userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Messages
+            .CountAsync(m => m.ConversationId == conversationId && m.SenderId != userId && !m.IsRead, cancellationToken);
+    }
+
     public async Task UpdateDeliveryStatusAsync(long messageId, DeliveryStatus status, CancellationToken cancellationToken = default)
     {
         await _context.Messages
