@@ -128,6 +128,21 @@ public class ChatHub : Hub
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
+
+        if (_chatCache != null)
+        {
+            if (isTyping)
+            {
+                var allowed = await _chatCache.SetTypingThrottleAsync(userId, conversationId, TypingThrottleWindow);
+                if (!allowed) return;
+                await _chatCache.SetTypingAsync(userId, conversationId, TypingTtl);
+            }
+            else
+            {
+                await _chatCache.ClearTypingAsync(userId, conversationId);
+            }
+        }
+
         await Clients.OthersInGroup($"conversation_{conversationId}")
             .SendAsync("UserTyping", new { userId = userId.ToString(), isTyping });
     }
@@ -247,6 +262,20 @@ public class ChatHub : Hub
 
     private async Task BroadcastMessageAsync(int conversationId, SendMessageResult result)
     {
+        if (result.GroupTier == "large")
+        {
+            var badgeNotification = new
+            {
+                conversationId,
+                type = "new_activity",
+                senderName = result.SenderDisplayName
+            };
+            var tasks = result.OtherParticipantUserIds
+                .Select(uid => Clients.Group($"user_{uid}").SendAsync("NewActivityNotification", badgeNotification));
+            await Task.WhenAll(tasks);
+            return;
+        }
+
         await Clients.Group($"conversation_{conversationId}")
             .SendAsync("ReceiveMessage", result.Message);
 
@@ -256,9 +285,9 @@ public class ChatHub : Hub
             messagePreview = result.NotificationPreview,
             senderName = result.SenderDisplayName
         };
-        var tasks = result.OtherParticipantUserIds
+        var notifTasks = result.OtherParticipantUserIds
             .Select(uid => Clients.Group($"user_{uid}").SendAsync("NewMessageNotification", notification));
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(notifTasks);
     }
 
     private async Task<bool> IsRateLimitAllowedAsync(int userId) =>
