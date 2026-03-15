@@ -18,6 +18,7 @@ public class SendMessageResult
     public List<int> OtherParticipantUserIds { get; set; } = new();
     public string? SenderDisplayName { get; set; }
     public string NotificationPreview { get; set; } = null!;
+    public string GroupTier { get; set; } = "small";
 }
 
 #endregion
@@ -157,7 +158,7 @@ public class SendMessageCommand : IRequest<SendMessageResult?>
     public int ConversationId { get; set; }
     public int SenderId { get; set; }
     public string Content { get; set; } = null!;
-    public int? ReplyToMessageId { get; set; }
+    public long? ReplyToMessageId { get; set; }
     public MessageType MessageType { get; set; } = MessageType.Text;
     public string? AttachmentUrl { get; set; }
     public string? AttachmentFileName { get; set; }
@@ -260,13 +261,20 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Sen
         }
 
         var participantIds = conversation.Participants.Select(p => p.UserId).ToList();
+        var groupTier = participantIds.Count switch
+        {
+            <= 50 => "small",
+            <= 500 => "medium",
+            _ => "large"
+        };
 
         return new SendMessageResult
         {
             Message = messageDto,
             OtherParticipantUserIds = participantIds.Where(id => id != request.SenderId).ToList(),
             SenderDisplayName = senderDisplayName,
-            NotificationPreview = notificationPreview
+            NotificationPreview = notificationPreview,
+            GroupTier = groupTier
         };
     }
 }
@@ -354,7 +362,7 @@ public class LeaveConversationCommandHandler : IRequestHandler<LeaveConversation
 
 public class AddReactionCommand : IRequest<MessageReactionDto?>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
     public ReactionType ReactionType { get; set; }
 }
@@ -427,7 +435,7 @@ public class AddReactionCommandHandler : IRequestHandler<AddReactionCommand, Mes
 
 public class AcknowledgeDeliveryCommand : IRequest<bool>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
     public DeliveryStatus Status { get; set; }
 }
@@ -460,7 +468,7 @@ public class AcknowledgeDeliveryCommandHandler : IRequestHandler<AcknowledgeDeli
 
 public class RemoveReactionCommand : IRequest<bool>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
 }
 
