@@ -493,3 +493,67 @@ public class RemoveReactionCommandHandler : IRequestHandler<RemoveReactionComman
 }
 
 #endregion
+
+#region Edit Message
+
+public class EditMessageCommand : IRequest<bool>
+{
+    public int MessageId { get; set; }
+    public int UserId { get; set; }
+    public string NewContent { get; set; } = null!;
+}
+
+public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, bool>
+{
+    private readonly IChatRepository _chatRepository;
+    private static readonly TimeSpan EditWindow = TimeSpan.FromMinutes(15);
+
+    public EditMessageCommandHandler(IChatRepository chatRepository)
+    {
+        _chatRepository = chatRepository;
+    }
+
+    public async Task<bool> Handle(EditMessageCommand request, CancellationToken cancellationToken)
+    {
+        var message = await _chatRepository.GetMessageByIdAsync(request.MessageId, cancellationToken);
+        if (message == null || message.SenderId != request.UserId)
+            return false;
+
+        if (DateTime.UtcNow - message.SentDate > EditWindow)
+            return false;
+
+        message.Content = request.NewContent;
+        return true;
+    }
+}
+
+#endregion
+
+#region Delete Message
+
+public class DeleteMessageCommand : IRequest<bool>
+{
+    public int MessageId { get; set; }
+    public int UserId { get; set; }
+}
+
+public class DeleteMessageCommandHandler : IRequestHandler<DeleteMessageCommand, bool>
+{
+    private readonly IChatRepository _chatRepository;
+
+    public DeleteMessageCommandHandler(IChatRepository chatRepository)
+    {
+        _chatRepository = chatRepository;
+    }
+
+    public async Task<bool> Handle(DeleteMessageCommand request, CancellationToken cancellationToken)
+    {
+        var message = await _chatRepository.GetMessageByIdAsync(request.MessageId, cancellationToken);
+        if (message == null || message.SenderId != request.UserId)
+            return false;
+
+        return true;
+    }
+}
+
+#endregion

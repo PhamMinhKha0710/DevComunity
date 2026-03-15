@@ -203,6 +203,48 @@ public class ChatHub : Hub
             .SendAsync("RemoveReaction", new { messageId, userId });
     }
 
+    public async Task EditMessage(int conversationId, int messageId, string newContent)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return;
+
+        if (string.IsNullOrWhiteSpace(newContent))
+        { await SendError("Message content cannot be empty"); return; }
+        if (newContent.Length > MaxMessageLength)
+        { await SendError($"Message exceeds maximum length of {MaxMessageLength} characters"); return; }
+
+        var result = await _mediator.Send(new EditMessageCommand
+        {
+            MessageId = messageId,
+            UserId = userId,
+            NewContent = System.Text.Encodings.Web.HtmlEncoder.Default.Encode(newContent)
+        });
+
+        if (!result)
+        { await SendError("Cannot edit this message. You may not be the sender or the edit window has expired."); return; }
+
+        await Clients.Group($"conversation_{conversationId}")
+            .SendAsync("MessageEdited", new { messageId, newContent, editedDate = DateTime.UtcNow });
+    }
+
+    public async Task DeleteMessage(int conversationId, int messageId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return;
+
+        var result = await _mediator.Send(new DeleteMessageCommand
+        {
+            MessageId = messageId,
+            UserId = userId
+        });
+
+        if (!result)
+        { await SendError("Cannot delete this message."); return; }
+
+        await Clients.Group($"conversation_{conversationId}")
+            .SendAsync("MessageDeleted", new { messageId, deletedAt = DateTime.UtcNow });
+    }
+
     private async Task BroadcastMessageAsync(int conversationId, SendMessageResult result)
     {
         await Clients.Group($"conversation_{conversationId}")
