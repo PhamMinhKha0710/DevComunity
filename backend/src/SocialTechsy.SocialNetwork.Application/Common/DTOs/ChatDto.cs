@@ -1,8 +1,7 @@
+using System.Text.Json.Serialization;
+
 namespace SocialTechsy.SocialNetwork.Application.Common.DTOs;
 
-/// <summary>
-/// DTO for conversation list response
-/// </summary>
 public class ConversationDto
 {
     public int ConversationId { get; set; }
@@ -15,9 +14,6 @@ public class ConversationDto
     public List<ConversationParticipantDto> Participants { get; set; } = new();
 }
 
-/// <summary>
-/// DTO for conversation participant
-/// </summary>
 public class ConversationParticipantDto
 {
     public int UserId { get; set; }
@@ -26,12 +22,10 @@ public class ConversationParticipantDto
     public string? ProfilePicture { get; set; }
 }
 
-/// <summary>
-/// DTO for message response
-/// </summary>
 public class MessageDto
 {
-    public int MessageId { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+    public long MessageId { get; set; }
     public int ConversationId { get; set; }
     public int SenderId { get; set; }
     public string SenderUsername { get; set; } = null!;
@@ -41,52 +35,25 @@ public class MessageDto
     public bool IsRead { get; set; }
     public string MessageType { get; set; } = "text";
     public string DeliveryStatus { get; set; } = "sent";
-    
-    /// <summary>
-    /// URL to the attachment (for media messages)
-    /// </summary>
     public string? AttachmentUrl { get; set; }
-    
-    /// <summary>
-    /// Original filename of the attachment
-    /// </summary>
     public string? AttachmentFileName { get; set; }
-    
-    /// <summary>
-    /// Size of the attachment in bytes
-    /// </summary>
     public long? AttachmentSize { get; set; }
-    
-    /// <summary>
-    /// Reply/Quote - ID of message being replied to (null if not a reply)
-    /// </summary>
-    public int? ReplyToMessageId { get; set; }
-    
-    /// <summary>
-    /// Reply/Quote - Info about the message being replied to
-    /// </summary>
+
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+    public long? ReplyToMessageId { get; set; }
     public ReplyToMessageDto? ReplyToMessage { get; set; }
-    
-    /// <summary>
-    /// Reactions on this message - Instagram/Facebook style
-    /// </summary>
     public List<MessageReactionDto> Reactions { get; set; } = new();
 }
 
-/// <summary>
-/// DTO for the message being replied to (simplified)
-/// </summary>
 public class ReplyToMessageDto
 {
-    public int MessageId { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+    public long MessageId { get; set; }
     public int SenderId { get; set; }
     public string SenderUsername { get; set; } = null!;
     public string Content { get; set; } = null!;
 }
 
-/// <summary>
-/// DTO for message reaction
-/// </summary>
 public class MessageReactionDto
 {
     public int MessageReactionId { get; set; }
@@ -97,20 +64,11 @@ public class MessageReactionDto
     public DateTime CreatedAt { get; set; }
 }
 
-/// <summary>
-/// DTO for adding a reaction to a message
-/// </summary>
 public class AddReactionDto
 {
-    /// <summary>
-    /// Reaction type: like, love, haha, wow, sad, angry
-    /// </summary>
     public string ReactionType { get; set; } = null!;
 }
 
-/// <summary>
-/// DTO for reaction summary (grouped by type)
-/// </summary>
 public class ReactionSummaryDto
 {
     public string ReactionType { get; set; } = null!;
