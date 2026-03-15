@@ -22,15 +22,12 @@ public class ConversationDocument
     [BsonId]
     public int ConversationId { get; set; }
     public string? Title { get; set; }
-    public string? AvatarUrl { get; set; }
     public bool IsGroupChat { get; set; }
     public string GroupTier { get; set; } = "small";
     public int ParticipantCount { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? LastMessageDate { get; set; }
-    public string? LastMessagePreview { get; set; }
     public List<ParticipantEmbed> Participants { get; set; } = new();
-    public ConversationSettingsEmbed Settings { get; set; } = new();
 
     public static string DetermineGroupTier(int participantCount) => participantCount switch
     {
@@ -40,29 +37,20 @@ public class ConversationDocument
     };
 }
 
-public class ConversationSettingsEmbed
-{
-    public bool OnlyAdminsCanPost { get; set; }
-    public int MaxParticipants { get; set; } = 256;
-}
-
 public class ParticipantEmbed
 {
     public int ConversationParticipantId { get; set; }
     public int UserId { get; set; }
-    public string Role { get; set; } = "member";
     public DateTime JoinedDate { get; set; }
     public DateTime? LastReadDate { get; set; }
     public int LastReadMessageId { get; set; }
-    public bool Muted { get; set; }
-    public bool Pinned { get; set; }
     public UserInfoEmbed User { get; set; } = null!;
 }
 
 public class MessageDocument
 {
     [BsonId]
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int ConversationId { get; set; }
     public int SenderId { get; set; }
     public UserInfoEmbed Sender { get; set; } = null!;
@@ -73,12 +61,8 @@ public class MessageDocument
     public int DeliveryStatus { get; set; } = 0;
     public string? AttachmentUrl { get; set; }
     public string? AttachmentFileName { get; set; }
-    public string? AttachmentContentType { get; set; }
     public long? AttachmentSize { get; set; }
-    public int? ReplyToMessageId { get; set; }
-    public bool IsEdited { get; set; }
-    public bool IsDeleted { get; set; }
-    public DateTime? EditedDate { get; set; }
+    public long? ReplyToMessageId { get; set; }
     public List<ReactionEmbed> Reactions { get; set; } = new();
 }
 

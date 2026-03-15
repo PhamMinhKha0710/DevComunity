@@ -128,10 +128,10 @@ public class ChatController : ControllerBase
         return Created($"/api/chat/conversations/{id}/messages/{result.Message.MessageId}", result.Message);
     }
 
-    [HttpGet("conversations/{id:int}/messages/since/{sinceMessageId:int}")]
+    [HttpGet("conversations/{id:int}/messages/since/{sinceMessageId:long}")]
     [ProducesResponseType(typeof(List<MessageDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<MessageDto>>> GetMessagesSince(
-        int id, int sinceMessageId,
+        int id, long sinceMessageId,
         [FromQuery] int limit = 200,
         CancellationToken cancellationToken = default)
     {
@@ -186,12 +186,12 @@ public class ChatController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("messages/{messageId:int}/reactions")]
+    [HttpPost("messages/{messageId:long}/reactions")]
     [ProducesResponseType(typeof(MessageReactionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MessageReactionDto>> AddReaction(
-        int messageId,
+        long messageId,
         [FromBody] AddReactionDto request,
         CancellationToken cancellationToken)
     {
@@ -248,10 +248,10 @@ public class ChatController : ControllerBase
         return Ok(new { message = "Call event logged" });
     }
 
-    [HttpDelete("messages/{messageId:int}/reactions")]
+    [HttpDelete("messages/{messageId:long}/reactions")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> RemoveReaction(int messageId, CancellationToken cancellationToken)
+    public async Task<IActionResult> RemoveReaction(long messageId, CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
