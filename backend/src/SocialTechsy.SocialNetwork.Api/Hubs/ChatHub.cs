@@ -14,16 +14,21 @@ public class ChatHub : Hub
 {
     private const int MaxMessageLength = 10_000;
     private const int MaxMessagesPerMinute = 30;
+    private static readonly TimeSpan TypingThrottleWindow = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan TypingTtl = TimeSpan.FromSeconds(5);
 
     private readonly IMediator _mediator;
     private readonly ILogger<ChatHub> _logger;
     private readonly RedisChatRateLimiter? _rateLimiter;
+    private readonly RedisChatCacheService? _chatCache;
 
-    public ChatHub(IMediator mediator, ILogger<ChatHub> logger, RedisChatRateLimiter? rateLimiter = null)
+    public ChatHub(IMediator mediator, ILogger<ChatHub> logger,
+        RedisChatRateLimiter? rateLimiter = null, RedisChatCacheService? chatCache = null)
     {
         _mediator = mediator;
         _logger = logger;
         _rateLimiter = rateLimiter;
+        _chatCache = chatCache;
     }
 
     private int GetCurrentUserId() =>
@@ -49,7 +54,7 @@ public class ChatHub : Hub
     public Task LeaveConversation(int conversationId) =>
         Groups.RemoveFromGroupAsync(Context.ConnectionId, $"conversation_{conversationId}");
 
-    public async Task SendMessage(int conversationId, string content, int? replyToMessageId = null)
+    public async Task SendMessage(int conversationId, string content, long? replyToMessageId = null)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -74,7 +79,7 @@ public class ChatHub : Hub
     }
 
     public async Task SendMediaMessage(int conversationId, string messageType, string attachmentUrl,
-        string attachmentFileName, long attachmentSize, string? caption = null, int? replyToMessageId = null)
+        string attachmentFileName, long attachmentSize, string? caption = null, long? replyToMessageId = null)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -104,7 +109,7 @@ public class ChatHub : Hub
         await BroadcastMessageAsync(conversationId, result);
     }
 
-    public async Task SyncMessages(int conversationId, int lastMessageId)
+    public async Task SyncMessages(int conversationId, long lastMessageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -123,11 +128,26 @@ public class ChatHub : Hub
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
+
+        if (_chatCache != null)
+        {
+            if (isTyping)
+            {
+                var allowed = await _chatCache.SetTypingThrottleAsync(userId, conversationId, TypingThrottleWindow);
+                if (!allowed) return;
+                await _chatCache.SetTypingAsync(userId, conversationId, TypingTtl);
+            }
+            else
+            {
+                await _chatCache.ClearTypingAsync(userId, conversationId);
+            }
+        }
+
         await Clients.OthersInGroup($"conversation_{conversationId}")
             .SendAsync("UserTyping", new { userId = userId.ToString(), isTyping });
     }
 
-    public async Task MarkAsRead(int conversationId, int lastMessageId)
+    public async Task MarkAsRead(int conversationId, long lastMessageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -142,7 +162,7 @@ public class ChatHub : Hub
             .SendAsync("MessagesRead", new { userId, lastMessageId });
     }
 
-    public async Task AddReaction(int conversationId, int messageId, string reactionType)
+    public async Task AddReaction(int conversationId, long messageId, string reactionType)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -162,7 +182,7 @@ public class ChatHub : Hub
             .SendAsync("ReceiveReaction", result);
     }
 
-    public async Task AcknowledgeDelivery(int conversationId, int messageId, string status)
+    public async Task AcknowledgeDelivery(int conversationId, long messageId, string status)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -182,7 +202,7 @@ public class ChatHub : Hub
             .SendAsync("DeliveryStatusUpdated", new { messageId, userId, status = status.ToLower() });
     }
 
-    public async Task RemoveReaction(int conversationId, int messageId)
+    public async Task RemoveReaction(int conversationId, long messageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -198,8 +218,64 @@ public class ChatHub : Hub
             .SendAsync("RemoveReaction", new { messageId, userId });
     }
 
+    public async Task EditMessage(int conversationId, int messageId, string newContent)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return;
+
+        if (string.IsNullOrWhiteSpace(newContent))
+        { await SendError("Message content cannot be empty"); return; }
+        if (newContent.Length > MaxMessageLength)
+        { await SendError($"Message exceeds maximum length of {MaxMessageLength} characters"); return; }
+
+        var result = await _mediator.Send(new EditMessageCommand
+        {
+            MessageId = messageId,
+            UserId = userId,
+            NewContent = System.Text.Encodings.Web.HtmlEncoder.Default.Encode(newContent)
+        });
+
+        if (!result)
+        { await SendError("Cannot edit this message. You may not be the sender or the edit window has expired."); return; }
+
+        await Clients.Group($"conversation_{conversationId}")
+            .SendAsync("MessageEdited", new { messageId, newContent, editedDate = DateTime.UtcNow });
+    }
+
+    public async Task DeleteMessage(int conversationId, int messageId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return;
+
+        var result = await _mediator.Send(new DeleteMessageCommand
+        {
+            MessageId = messageId,
+            UserId = userId
+        });
+
+        if (!result)
+        { await SendError("Cannot delete this message."); return; }
+
+        await Clients.Group($"conversation_{conversationId}")
+            .SendAsync("MessageDeleted", new { messageId, deletedAt = DateTime.UtcNow });
+    }
+
     private async Task BroadcastMessageAsync(int conversationId, SendMessageResult result)
     {
+        if (result.GroupTier == "large")
+        {
+            var badgeNotification = new
+            {
+                conversationId,
+                type = "new_activity",
+                senderName = result.SenderDisplayName
+            };
+            var tasks = result.OtherParticipantUserIds
+                .Select(uid => Clients.Group($"user_{uid}").SendAsync("NewActivityNotification", badgeNotification));
+            await Task.WhenAll(tasks);
+            return;
+        }
+
         await Clients.Group($"conversation_{conversationId}")
             .SendAsync("ReceiveMessage", result.Message);
 
@@ -209,9 +285,9 @@ public class ChatHub : Hub
             messagePreview = result.NotificationPreview,
             senderName = result.SenderDisplayName
         };
-        var tasks = result.OtherParticipantUserIds
+        var notifTasks = result.OtherParticipantUserIds
             .Select(uid => Clients.Group($"user_{uid}").SendAsync("NewMessageNotification", notification));
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(notifTasks);
     }
 
     private async Task<bool> IsRateLimitAllowedAsync(int userId) =>
