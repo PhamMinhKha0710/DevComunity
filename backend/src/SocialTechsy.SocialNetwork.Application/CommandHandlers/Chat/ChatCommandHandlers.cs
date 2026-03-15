@@ -287,6 +287,7 @@ public class MarkConversationReadCommand : IRequest
 {
     public int ConversationId { get; set; }
     public int UserId { get; set; }
+    public int LastReadMessageId { get; set; }
 }
 
 public class MarkConversationReadCommandHandler : IRequestHandler<MarkConversationReadCommand>
@@ -302,7 +303,15 @@ public class MarkConversationReadCommandHandler : IRequestHandler<MarkConversati
 
     public async Task Handle(MarkConversationReadCommand request, CancellationToken cancellationToken)
     {
-        await _chatRepository.MarkMessagesAsReadAsync(request.ConversationId, request.UserId, cancellationToken);
+        if (request.LastReadMessageId > 0)
+        {
+            await _chatRepository.UpdateReadWatermarkAsync(
+                request.ConversationId, request.UserId, request.LastReadMessageId, cancellationToken);
+        }
+        else
+        {
+            await _chatRepository.MarkMessagesAsReadAsync(request.ConversationId, request.UserId, cancellationToken);
+        }
 
         if (_broker == null) return;
         try
