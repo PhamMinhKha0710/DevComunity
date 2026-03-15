@@ -8,13 +8,13 @@ public class MessageReaction
     public string ReactionType { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
 
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
 
     public virtual Message Message { get; set; } = null!;
     public virtual User User { get; set; } = null!;
 
-    public static MessageReaction Create(int messageId, int userId, string reactionType)
+    public static MessageReaction Create(long messageId, int userId, string reactionType)
     {
         var normalized = reactionType.ToLower();
         if (!ValidReactionTypes.Contains(normalized))
