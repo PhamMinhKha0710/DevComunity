@@ -67,7 +67,7 @@ public class RedisChatCacheService
         IMongoCollection<CounterDocument> counters,
         HashSet<string> knownSequences,
         string collectionName,
-        Func<T, int> idSelector)
+        Func<T, long> idSelector)
     {
         if (knownSequences.Contains(collectionName)) return;
 
@@ -154,5 +154,29 @@ public class RedisChatCacheService
     {
         var val = await _db.StringGetAsync($"chat:unread:{userId}:{conversationId}");
         return val.HasValue ? (long)val : 0;
+    }
+
+    // ========== TYPING INDICATOR THROTTLE + TTL ==========
+
+    /// <summary>
+    /// Returns true if the throttle key was set (i.e. event should be broadcast).
+    /// Returns false if the key already exists (throttled, skip broadcast).
+    /// </summary>
+    public async Task<bool> SetTypingThrottleAsync(int userId, int conversationId, TimeSpan window)
+    {
+        var key = $"chat:typing:throttle:{userId}:{conversationId}";
+        return await _db.StringSetAsync(key, "1", window, when: When.NotExists);
+    }
+
+    public async Task SetTypingAsync(int userId, int conversationId, TimeSpan ttl)
+    {
+        var key = $"chat:typing:active:{userId}:{conversationId}";
+        await _db.StringSetAsync(key, "1", ttl);
+    }
+
+    public async Task ClearTypingAsync(int userId, int conversationId)
+    {
+        await _db.KeyDeleteAsync($"chat:typing:active:{userId}:{conversationId}");
+        await _db.KeyDeleteAsync($"chat:typing:throttle:{userId}:{conversationId}");
     }
 }
