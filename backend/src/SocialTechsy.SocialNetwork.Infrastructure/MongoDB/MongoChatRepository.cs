@@ -3,6 +3,7 @@ using MongoDB.Driver;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Infrastructure.IdGeneration;
 using SocialTechsy.SocialNetwork.Infrastructure.MongoDB.Models;
 using SocialTechsy.SocialNetwork.Infrastructure.Redis;
 
@@ -17,6 +18,7 @@ public class MongoChatRepository : IChatRepository
     private readonly IMongoCollection<OutboxDocument> _outbox;
     private readonly IUserRepository _userRepository;
     private readonly RedisChatCacheService? _cache;
+    private readonly SnowflakeIdGenerator _snowflake;
 
     private static bool _indexesCreated;
     private static readonly object _indexLock = new();
@@ -25,6 +27,7 @@ public class MongoChatRepository : IChatRepository
         MongoClient client,
         IMongoDatabase database,
         IUserRepository userRepository,
+        SnowflakeIdGenerator snowflake,
         RedisChatCacheService? cache = null)
     {
         _client = client;
@@ -33,6 +36,7 @@ public class MongoChatRepository : IChatRepository
         _counters = database.GetCollection<CounterDocument>("counters");
         _outbox = database.GetCollection<OutboxDocument>("outbox");
         _userRepository = userRepository;
+        _snowflake = snowflake;
         _cache = cache;
 
         EnsureIndexes();
@@ -47,6 +51,10 @@ public class MongoChatRepository : IChatRepository
 
             _messages.Indexes.CreateMany(new[]
             {
+                new CreateIndexModel<MessageDocument>(
+                    Builders<MessageDocument>.IndexKeys
+                        .Ascending(m => m.ConversationId)
+                        .Descending(m => m.MessageId)),
                 new CreateIndexModel<MessageDocument>(
                     Builders<MessageDocument>.IndexKeys
                         .Ascending(m => m.ConversationId)
@@ -65,8 +73,6 @@ public class MongoChatRepository : IChatRepository
         }
     }
 
-    // Redis INCR (~1ms) with MongoDB fallback (~5-20ms)
-    // Returns int with checked cast; throws OverflowException if sequence exceeds int.MaxValue
     private async Task<int> GetNextSequenceAsync(string sequenceName)
     {
         if (_cache != null)
@@ -85,7 +91,6 @@ public class MongoChatRepository : IChatRepository
         return checked((int)counter.SequenceValue);
     }
 
-    // Redis cache (~1ms) with SQL Server fallback (~10ms)
     private async Task<UserInfoEmbed> GetUserInfoAsync(int userId)
     {
         if (_cache != null)
@@ -153,7 +158,6 @@ public class MongoChatRepository : IChatRepository
 
         var conversationIds = docs.Select(d => d.ConversationId).ToList();
 
-        // Aggregation pipeline: get only the latest message per conversation (not all messages)
         var lastMessages = await _messages.Aggregate()
             .Match(Builders<MessageDocument>.Filter.In(m => m.ConversationId, conversationIds))
             .SortByDescending(m => m.SentDate)
@@ -220,6 +224,8 @@ public class MongoChatRepository : IChatRepository
             ConversationId = conversationId,
             Title = conversation.Title,
             IsGroupChat = conversation.IsGroupChat,
+            ParticipantCount = participants.Count,
+            GroupTier = ConversationDocument.DetermineGroupTier(participants.Count),
             CreatedDate = conversation.CreatedDate,
             LastMessageDate = conversation.LastMessageDate,
             Participants = participants
@@ -245,7 +251,7 @@ public class MongoChatRepository : IChatRepository
 
     // ========== MESSAGES ==========
 
-    public async Task<Message?> GetMessageByIdAsync(int messageId, CancellationToken cancellationToken = default)
+    public async Task<Message?> GetMessageByIdAsync(long messageId, CancellationToken cancellationToken = default)
     {
         var doc = await _messages.Find(m => m.MessageId == messageId).FirstOrDefaultAsync(cancellationToken);
         if (doc == null) return null;
@@ -287,7 +293,7 @@ public class MongoChatRepository : IChatRepository
             .Distinct()
             .ToList();
 
-        var replyDocs = new Dictionary<int, MessageDocument>();
+        var replyDocs = new Dictionary<long, MessageDocument>();
         if (replyIds.Count > 0)
         {
             var replyFilter = Builders<MessageDocument>.Filter.In(m => m.MessageId, replyIds);
@@ -310,7 +316,7 @@ public class MongoChatRepository : IChatRepository
     }
 
     public async Task<IEnumerable<Message>> GetMessagesCursorAsync(
-        int conversationId, int? afterMessageId, int limit, CancellationToken cancellationToken = default)
+        int conversationId, long? afterMessageId, int limit, CancellationToken cancellationToken = default)
     {
         var filter = Builders<MessageDocument>.Filter.Eq(m => m.ConversationId, conversationId);
         if (afterMessageId.HasValue)
@@ -330,7 +336,7 @@ public class MongoChatRepository : IChatRepository
             .Distinct()
             .ToList();
 
-        var replyDocs = new Dictionary<int, MessageDocument>();
+        var replyDocs = new Dictionary<long, MessageDocument>();
         if (replyIds.Count > 0)
         {
             var replyFilter = Builders<MessageDocument>.Filter.In(m => m.MessageId, replyIds);
@@ -352,7 +358,7 @@ public class MongoChatRepository : IChatRepository
 
     public async Task<Message> AddMessageAsync(Message message, CancellationToken cancellationToken = default)
     {
-        var messageId = await GetNextSequenceAsync("messages");
+        var messageId = _snowflake.NextId();
         var senderInfo = await GetUserInfoAsync(message.SenderId);
 
         var doc = new MessageDocument
@@ -373,13 +379,11 @@ public class MongoChatRepository : IChatRepository
             Reactions = new List<ReactionEmbed>()
         };
 
-        // Fetch participant list before the write so the outbox payload is complete
         var convDoc = await _conversations
             .Find(c => c.ConversationId == message.ConversationId)
             .FirstOrDefaultAsync(cancellationToken);
         var participantIds = convDoc?.Participants.Select(p => p.UserId).ToList() ?? new List<int>();
 
-        // Build outbox event so message insert + outbox insert are atomic
         var outboxDoc = new OutboxDocument
         {
             EventType = ChatEventTypes.NewMessage,
@@ -394,7 +398,6 @@ public class MongoChatRepository : IChatRepository
             CreatedAt = DateTime.UtcNow
         };
 
-        // Try session-based transaction; fall back to non-transactional if replica set unavailable
         try
         {
             using var session = await _client.StartSessionAsync(cancellationToken: cancellationToken);
@@ -408,7 +411,6 @@ public class MongoChatRepository : IChatRepository
         }
         catch (NotSupportedException)
         {
-            // Standalone MongoDB -- no transaction support; write sequentially
             await _messages.InsertOneAsync(doc, cancellationToken: cancellationToken);
             await _outbox.InsertOneAsync(outboxDoc, cancellationToken: cancellationToken);
             var convFilter = Builders<ConversationDocument>.Filter.Eq(c => c.ConversationId, message.ConversationId);
@@ -467,14 +469,14 @@ public class MongoChatRepository : IChatRepository
         }
     }
 
-    public async Task UpdateDeliveryStatusAsync(int messageId, DeliveryStatus status, CancellationToken cancellationToken = default)
+    public async Task UpdateDeliveryStatusAsync(long messageId, DeliveryStatus status, CancellationToken cancellationToken = default)
     {
         var filter = Builders<MessageDocument>.Filter.Eq(m => m.MessageId, messageId);
         var update = Builders<MessageDocument>.Update.Set(m => m.DeliveryStatus, (int)status);
         await _messages.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
     }
 
-    public async Task<IEnumerable<Message>> GetMessagesSinceAsync(int conversationId, int sinceMessageId, int limit = 200, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<Message>> GetMessagesSinceAsync(int conversationId, long sinceMessageId, int limit = 200, CancellationToken cancellationToken = default)
     {
         var filter = Builders<MessageDocument>.Filter.And(
             Builders<MessageDocument>.Filter.Eq(m => m.ConversationId, conversationId),
@@ -492,7 +494,7 @@ public class MongoChatRepository : IChatRepository
             .Distinct()
             .ToList();
 
-        var replyDocs = new Dictionary<int, MessageDocument>();
+        var replyDocs = new Dictionary<long, MessageDocument>();
         if (replyIds.Count > 0)
         {
             var replyFilter = Builders<MessageDocument>.Filter.In(m => m.MessageId, replyIds);
@@ -514,14 +516,14 @@ public class MongoChatRepository : IChatRepository
 
     // ========== REACTIONS ==========
 
-    public async Task<MessageReaction?> GetReactionAsync(int messageId, int userId, CancellationToken cancellationToken = default)
+    public async Task<MessageReaction?> GetReactionAsync(long messageId, int userId, CancellationToken cancellationToken = default)
     {
         var doc = await _messages.Find(m => m.MessageId == messageId).FirstOrDefaultAsync(cancellationToken);
         var reaction = doc?.Reactions.FirstOrDefault(r => r.UserId == userId);
         return reaction == null ? null : MapToMessageReaction(reaction, messageId);
     }
 
-    public async Task<IEnumerable<MessageReaction>> GetMessageReactionsAsync(int messageId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<MessageReaction>> GetMessageReactionsAsync(long messageId, CancellationToken cancellationToken = default)
     {
         var doc = await _messages.Find(m => m.MessageId == messageId).FirstOrDefaultAsync(cancellationToken);
         if (doc == null) return Enumerable.Empty<MessageReaction>();
@@ -645,7 +647,7 @@ public class MongoChatRepository : IChatRepository
         };
     }
 
-    private static MessageReaction MapToMessageReaction(ReactionEmbed embed, int messageId)
+    private static MessageReaction MapToMessageReaction(ReactionEmbed embed, long messageId)
     {
         return new MessageReaction
         {
