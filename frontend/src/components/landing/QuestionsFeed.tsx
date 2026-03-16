@@ -89,7 +89,7 @@ export default function QuestionsFeed() {
               </div>
               <div className="landing-question-content">
                 <Link
-                  href={q.questionId > 0 ? `/questions/${q.questionId}` : '/register'}
+                  href={q.questionId > 0 ? `/questions/${q.questionId}` : '/auth?mode=register'}
                   className="landing-question-title"
                 >
                   {q.title}

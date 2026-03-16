@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import apiClient from '@/lib/api/client';
 import MediaPicker from '@/components/chat/MediaPicker';
 import MediaPreview from '@/components/chat/MediaPreview';
-import type { RealtimeMessage } from './types';
+import { decodeHtmlEntities, type RealtimeMessage } from './types';
 
 interface MessageInputProps {
     replyingTo: RealtimeMessage | null;
@@ -107,7 +107,7 @@ export default function MessageInput({ replyingTo, onCancelReply, onSend, onSend
                             Replying to {replyingTo.senderUsername}
                         </div>
                         <div className="text-sm text-slate-500 truncate">
-                            {replyingTo.content}
+                            {decodeHtmlEntities(replyingTo.content)}
                         </div>
                     </div>
                     <button

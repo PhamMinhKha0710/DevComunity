@@ -22,8 +22,8 @@ export default function LandingHeader() {
         </nav>
 
         <div className="landing-header-actions">
-          <Link href="/login" className="landing-btn-text">Log In</Link>
-          <Link href="/register" className="landing-btn-primary">Sign Up</Link>
+          <Link href="/auth?mode=login" className="landing-btn-text">Log In</Link>
+          <Link href="/auth?mode=register" className="landing-btn-primary">Sign Up</Link>
         </div>
       </div>
     </header>

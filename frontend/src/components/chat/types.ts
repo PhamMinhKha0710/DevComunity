@@ -6,6 +6,51 @@ export interface RealtimeMessage extends ChatMessage {
     senderDisplayName?: string;
 }
 
+/**
+ * Normalise numeric-like fields from strings to numbers where it is safe.
+ * IMPORTANT: We deliberately do NOT coerce messageId / ReplyToMessageId here
+ * to avoid losing precision for 64‑bit IDs. Those stay as strings.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizeMessage<T>(msg: T): T {
+    const result = { ...(msg as any) };
+    if (result.conversationId != null) result.conversationId = Number(result.conversationId);
+    if (result.senderId != null) result.senderId = Number(result.senderId);
+    if (result.attachmentSize != null) result.attachmentSize = Number(result.attachmentSize);
+    return result as T;
+}
+
+/**
+ * Decode HTML entities (&#xE0; &#225; &lt; etc.) back to Unicode.
+ * Needed because old messages were stored with HtmlEncoder.Default.Encode
+ * which converts Vietnamese diacritics to numeric HTML entities.
+ */
+export function decodeHtmlEntities(text: string): string {
+    if (typeof document === 'undefined' || !text) return text || '';
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+}
+
+/**
+ * Format a call-event JSON string into a human-readable preview.
+ * Call messages store JSON like {"type":"ended","callType":"audio","duration":5}
+ */
+export function formatCallPreview(text: string): string {
+    try {
+        const parsed = JSON.parse(text);
+        const labels: Record<string, string> = {
+            ended: 'Cuộc gọi đã kết thúc',
+            rejected: 'Cuộc gọi đã từ chối',
+            missed: 'Cuộc gọi nhỡ',
+            cancelled: 'Cuộc gọi đã hủy',
+        };
+        return labels[parsed.type] ?? 'Cuộc gọi';
+    } catch {
+        return text;
+    }
+}
+
 export interface SearchUser {
     userId: number;
     username: string;

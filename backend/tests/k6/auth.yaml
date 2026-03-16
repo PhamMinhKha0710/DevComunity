@@ -1,0 +1,192 @@
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Rate, Trend } from 'k6/metrics';
+
+// Custom metrics
+const authErrorRate = new Rate('auth_errors');
+const loginDuration = new Trend('login_duration');
+const registerDuration = new Trend('register_duration');
+const refreshDuration = new Trend('refresh_duration');
+
+export const options = {
+  scenarios: {
+    // Login test - 50 VU, 5 min duration
+    login_test: {
+      executor: 'constant-vus',
+      vus: 50,
+      duration: '5m',
+      tags: { test_type: 'login' },
+    },
+    // Register test - 30 VU, 3 min duration
+    register_test: {
+      executor: 'constant-vus',
+      vus: 30,
+      duration: '3m',
+      tags: { test_type: 'register' },
+      startTime: '30s',
+    },
+    // Refresh token test - 200 VU, 5 min duration
+    refresh_test: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        { duration: '30s', target: 200 },
+        { duration: '4m', target: 200 },
+        { duration: '30s', target: 0 },
+      ],
+      tags: { test_type: 'refresh' },
+      startTime: '1m',
+    },
+  },
+  thresholds: {
+    // SLA thresholds based on plan
+    http_req_duration: ['p(95)<800'],  // Auth endpoints max 800ms
+    'http_req_duration{test_type:login}': ['p(95)<800'],
+    'http_req_duration{test_type:register}': ['p(95)<800'],
+    'http_req_duration{test_type:refresh}': ['p(95)<100'], // Refresh should be faster
+    auth_errors: ['rate<0.01'], // <1% error rate
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5122';
+const API_BASE = `${BASE_URL}/api`;
+
+export default function () {
+  // Test login endpoint
+  testLogin();
+
+  // Test register endpoint
+  testRegister();
+
+  // Test refresh token
+  testRefreshToken();
+
+  sleep(1);
+}
+
+function testLogin() {
+  const payload = JSON.stringify({
+    email: `user${__VU}@test.com`,
+    password: 'TestPassword123!',
+  });
+
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const startTime = new Date();
+  const res = http.post(`${API_BASE}/auth/login`, payload, params);
+  const duration = new Date() - startTime;
+
+  loginDuration.add(duration);
+
+  const success = check(res, {
+    'login status is 200 or 401': (r) => r.status === 200 || r.status === 401,
+    'login has token': (r) => r.status === 200 && r.json('token') !== undefined,
+  });
+
+  authErrorRate.add(!success);
+
+  if (res.status === 200) {
+    // Store token for refresh test
+    const token = res.json('refreshToken');
+    if (token) {
+      __ENV.REFRESH_TOKEN = token;
+    }
+  }
+}
+
+function testRegister() {
+  const timestamp = Date.now();
+  const payload = JSON.stringify({
+    email: `loadtest_${timestamp}_${__VU}@test.com`,
+    password: 'TestPassword123!',
+    displayName: `LoadTestUser${__VU}`,
+  });
+
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const startTime = new Date();
+  const res = http.post(`${API_BASE}/auth/register`, payload, params);
+  const duration = new Date() - startTime;
+
+  registerDuration.add(duration);
+
+  const success = check(res, {
+    'register status is 200 or 400': (r) => r.status === 200 || r.status === 400,
+  });
+
+  authErrorRate.add(!success);
+}
+
+function testRefreshToken() {
+  const refreshToken = __ENV.REFRESH_TOKEN;
+  if (!refreshToken) {
+    return; // Skip if no token
+  }
+
+  const payload = JSON.stringify({
+    refreshToken: refreshToken,
+  });
+
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const startTime = new Date();
+  const res = http.post(`${API_BASE}/auth/refresh-token`, payload, params);
+  const duration = new Date() - startTime;
+
+  refreshDuration.add(duration);
+
+  const success = check(res, {
+    'refresh status is 200': (r) => r.status === 200,
+    'refresh has new token': (r) => r.status === 200 && r.json('token') !== undefined,
+  });
+
+  authErrorRate.add(!success);
+
+  if (res.status === 200) {
+    const newToken = res.json('refreshToken');
+    if (newToken) {
+      __ENV.REFRESH_TOKEN = newToken;
+    }
+  }
+}
+
+export function handleSummary(data) {
+  return {
+    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
+    'results/auth-summary.json': JSON.stringify(data.metrics, null, 2),
+  };
+}
+
+function textSummary(data, options) {
+  const indent = options.indent || '';
+  const enableColors = options.enableColors || false;
+
+  let output = '\n' + indent + '=== Auth Load Test Results ===\n\n';
+
+  const httpReqDuration = data.metrics.http_req_duration;
+  if (httpReqDuration) {
+    output += indent + `HTTP Request Duration:\n`;
+    output += indent + `  p95: ${httpReqDuration.values['p(95)']?.toFixed(2)}ms\n`;
+    output += indent + `  p99: ${httpReqDuration.values['p(99)']?.toFixed(2)}ms\n`;
+    output += indent + `  avg: ${httpReqDuration.values.avg?.toFixed(2)}ms\n\n`;
+  }
+
+  const authErrors = data.metrics.auth_errors;
+  if (authErrors) {
+    output += indent + `Auth Error Rate: ${(authErrors.values.rate * 100).toFixed(2)}%\n`;
+  }
+
+  return output;
+}

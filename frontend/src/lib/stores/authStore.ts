@@ -19,6 +19,7 @@ interface AuthState {
     login: (data: LoginRequest) => Promise<AuthResponse>;
     register: (data: RegisterRequest) => Promise<AuthResponse>;
     logout: () => void;
+    externalLogin: (provider: 'google' | 'github' | 'facebook') => Promise<AuthResponse>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -75,6 +76,16 @@ export const useAuthStore = create<AuthState>((set) => ({
             }
         }
         return response.data;
+    },
+
+    externalLogin: async (provider) => {
+        // Redirect to backend OAuth endpoint
+        window.location.href = `/api/auth/external-login/${provider}`;
+        // This won't return since the page will redirect
+        return new Promise<AuthResponse>((resolve) => {
+            // Placeholder - will never execute
+            resolve({ success: false, message: 'Redirecting...' });
+        });
     },
 
     logout: () => {

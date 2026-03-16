@@ -72,9 +72,6 @@ html.dark {
 }
 
 /* Base Styles */
-html {
-  scroll-behavior: smooth;
-}
 
 body {
   font-family: var(--font-inter);
@@ -99,10 +96,6 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-
-  html {
-    scroll-behavior: auto;
   }
 }
 
@@ -536,4 +529,185 @@ pre code {
 /* Facebook Messenger gradient */
 .messenger-gradient {
   background: linear-gradient(135deg, #0084ff 0%, #00c6ff 100%);
+}
+
+/* ================================================================
+   Markdown Editor (@uiw/react-md-editor) Theme Overrides
+   ================================================================ */
+
+/* Xóa mọi background xanh từ prettylights/token - sửa lỗi blue highlight */
+.ask-question-editor .wmde-markdown .token,
+.ask-question-editor .wmde-markdown [class*="token"],
+.prose-preview .wmde-markdown .token,
+.prose-preview .wmde-markdown [class*="token"] {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+.ask-question-editor .wmde-markdown,
+.prose-preview .wmde-markdown {
+  --color-prettylights-syntax-markup-ignored-bg: transparent !important;
+  --color-prettylights-syntax-markup-inserted-bg: transparent !important;
+  --color-prettylights-syntax-markup-deleted-bg: transparent !important;
+  --color-prettylights-syntax-markup-changed-bg: transparent !important;
+}
+
+/* Đảm bảo heading, bold, list render đúng */
+.ask-question-editor .wmde-markdown h1,
+.prose-preview .wmde-markdown h1 {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+}
+.ask-question-editor .wmde-markdown h2,
+.prose-preview .wmde-markdown h2 {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+}
+.ask-question-editor .wmde-markdown h3,
+.prose-preview .wmde-markdown h3 {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+}
+.ask-question-editor .wmde-markdown strong,
+.prose-preview .wmde-markdown strong {
+  font-weight: 700 !important;
+}
+.ask-question-editor .wmde-markdown ul,
+.prose-preview .wmde-markdown ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+}
+.ask-question-editor .wmde-markdown ol,
+.prose-preview .wmde-markdown ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+}
+
+/* Font tiếng Việt đẹp */
+.ask-question-editor .wmde-markdown,
+.prose-preview .wmde-markdown {
+  font-family: var(--font-inter), 'Inter', sans-serif !important;
+}
+
+/* Editor wrapper - dùng cho cả ask-question-editor và md-editor-wrapper (backward compat) */
+.ask-question-editor .w-md-editor,
+.md-editor-wrapper .w-md-editor {
+  --color-border-default: var(--border-color) !important;
+  --color-fg-default: var(--text-primary) !important;
+  --color-canvas-default: var(--bg-primary) !important;
+  --color-canvas-subtle: var(--bg-tertiary) !important;
+  background-color: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 0.75rem !important;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+
+.ask-question-editor .w-md-editor:focus-within,
+.md-editor-wrapper .w-md-editor:focus-within {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15) !important;
+}
+
+.ask-question-editor .w-md-editor-toolbar,
+.md-editor-wrapper .w-md-editor-toolbar {
+  background-color: var(--bg-secondary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 6px 8px !important;
+}
+
+.ask-question-editor .w-md-editor-toolbar li > button,
+.md-editor-wrapper .w-md-editor-toolbar li > button {
+  color: var(--text-secondary) !important;
+}
+
+.ask-question-editor .w-md-editor-toolbar li > button:hover,
+.md-editor-wrapper .w-md-editor-toolbar li > button:hover {
+  color: var(--primary) !important;
+  background-color: rgba(var(--primary-rgb), 0.1) !important;
+}
+
+.ask-question-editor .w-md-editor-content,
+.md-editor-wrapper .w-md-editor-content {
+  background-color: var(--bg-primary) !important;
+  
+}
+
+.ask-question-editor .w-md-editor-text-pre,
+.ask-question-editor .w-md-editor-text-input,
+.ask-question-editor .w-md-editor-text,
+.md-editor-wrapper .w-md-editor-text-pre,
+.md-editor-wrapper .w-md-editor-text-input,
+.md-editor-wrapper .w-md-editor-text {
+  color: var(--text-primary) !important;
+  font-size: 0.9375rem !important;
+  line-height: 1.7 !important;
+  min-height: 384px !important;
+}
+
+.ask-question-editor .w-md-editor-preview,
+.ask-question-editor .wmde-markdown,
+.md-editor-wrapper .w-md-editor-preview,
+.prose-preview .wmde-markdown {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.9375rem !important;
+  line-height: 1.7 !important;
+}
+
+.ask-question-editor .wmde-markdown hr,
+.md-editor-wrapper .w-md-editor-preview .wmde-markdown hr,
+.prose-preview .wmde-markdown hr {
+  border-color: var(--border-color) !important;
+}
+
+.ask-question-editor .wmde-markdown code,
+.md-editor-wrapper .wmde-markdown code,
+.prose-preview .wmde-markdown code {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+}
+
+.ask-question-editor .wmde-markdown pre,
+.md-editor-wrapper .wmde-markdown pre,
+.prose-preview .wmde-markdown pre {
+  background-color: var(--code-bg) !important;
+  color: var(--code-color) !important;
+  border-radius: 0.5rem;
+}
+
+.ask-question-editor .wmde-markdown pre code,
+.md-editor-wrapper .wmde-markdown pre code,
+.prose-preview .wmde-markdown pre code {
+  background-color: transparent !important;
+  color: inherit !important;
+  padding: 0;
+}
+
+.ask-question-editor .wmde-markdown blockquote,
+.md-editor-wrapper .wmde-markdown blockquote,
+.prose-preview .wmde-markdown blockquote {
+  border-left: 4px solid var(--primary) !important;
+  color: var(--text-muted) !important;
+}
+
+.ask-question-editor .wmde-markdown a,
+.md-editor-wrapper .wmde-markdown a,
+.prose-preview .wmde-markdown a {
+  color: var(--primary) !important;
+}
+
+.ask-question-editor .wmde-markdown table th,
+.ask-question-editor .wmde-markdown table td,
+.md-editor-wrapper .wmde-markdown table th,
+.md-editor-wrapper .wmde-markdown table td,
+.prose-preview .wmde-markdown table th,
+.prose-preview .wmde-markdown table td {
+  border-color: var(--border-color) !important;
+}
+
+.ask-question-editor .w-md-editor-bar,
+.md-editor-wrapper .w-md-editor-bar {
+  background-color: var(--bg-tertiary) !important;
 }

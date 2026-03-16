@@ -11,6 +11,7 @@ interface AuthContextType {
     login: (data: LoginRequest) => Promise<AuthResponse>;
     register: (data: RegisterRequest) => Promise<AuthResponse>;
     logout: () => void;
+    externalLogin: (provider: 'google' | 'github' | 'facebook') => Promise<AuthResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 login: store.login,
                 register: store.register,
                 logout: store.logout,
+                externalLogin: store.externalLogin,
             }}
         >
             {children}

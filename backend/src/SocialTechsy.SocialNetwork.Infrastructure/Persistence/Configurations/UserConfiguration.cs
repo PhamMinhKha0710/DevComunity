@@ -51,12 +51,27 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedDate)
             .HasDefaultValueSql("GETUTCDATE()");
 
+        // External login (OAuth) properties
+        builder.Property(u => u.ExternalProvider)
+            .HasMaxLength(50);
+
+        builder.Property(u => u.ExternalProviderId)
+            .HasMaxLength(255);
+
+        builder.Property(u => u.ExternalProviderAvatar)
+            .HasMaxLength(500);
+
         // Indexes
         builder.HasIndex(u => u.Email)
             .IsUnique();
 
         builder.HasIndex(u => u.Username)
             .IsUnique();
+
+        // Index for external login lookups
+        builder.HasIndex(u => new { u.ExternalProvider, u.ExternalProviderId })
+            .IsUnique()
+            .HasFilter("[ExternalProvider] IS NOT NULL AND [ExternalProviderId] IS NOT NULL");
 
         // Relationships
         builder.HasMany(u => u.Questions)

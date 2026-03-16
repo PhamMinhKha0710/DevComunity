@@ -136,13 +136,13 @@ export default function Navbar() {
                         ) : (
                             <>
                                 <Link
-                                    href="/login"
+                                    href="/auth?mode=login"
                                     className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-orange-500 transition font-medium"
                                 >
                                     Log in
                                 </Link>
                                 <Link
-                                    href="/register"
+                                    href="/auth?mode=register"
                                     className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-medium"
                                 >
                                     Sign up
@@ -195,10 +195,10 @@ export default function Navbar() {
 
                             {!isAuthenticated && (
                                 <div className="flex gap-2 pt-4">
-                                    <Link href="/login" className="flex-1 text-center py-2 border border-orange-500 text-orange-500 rounded-lg">
+                                    <Link href="/auth?mode=login" className="flex-1 text-center py-2 border border-orange-500 text-orange-500 rounded-lg">
                                         Log in
                                     </Link>
-                                    <Link href="/register" className="flex-1 text-center py-2 bg-orange-500 text-white rounded-lg">
+                                    <Link href="/auth?mode=register" className="flex-1 text-center py-2 bg-orange-500 text-white rounded-lg">
                                         Sign up
                                     </Link>
                                 </div>
