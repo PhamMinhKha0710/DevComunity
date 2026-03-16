@@ -36,6 +36,12 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
     }
 
+    public async Task<User?> GetByExternalProviderAsync(string provider, string providerId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .FirstOrDefaultAsync(u => u.ExternalProvider == provider && u.ExternalProviderId == providerId, cancellationToken);
+    }
+
     public async Task<User> AddAsync(User user, CancellationToken cancellationToken = default)
     {
         await _context.Users.AddAsync(user, cancellationToken);

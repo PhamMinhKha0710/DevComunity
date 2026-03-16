@@ -47,7 +47,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (!user) return;
 
-        const handleNewMessage = () => incrementUnread();
+        const handleNewMessage = () => { incrementUnread(); fetchUnreadChats(); };
         const handleMessagesRead = () => fetchUnreadChats();
         const handleReceiveMessage = () => fetchUnreadChats();
 

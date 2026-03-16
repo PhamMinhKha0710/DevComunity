@@ -19,6 +19,11 @@ public class User
     public DateTime CreatedDate { get; set; }
     public DateTime? LastLoginDate { get; set; }
 
+    // External login (OAuth) fields
+    public string? ExternalProvider { get; set; }
+    public string? ExternalProviderId { get; set; }
+    public string? ExternalProviderAvatar { get; set; }
+
     // Navigation properties
     public virtual ICollection<Question> Questions { get; set; } = new List<Question>();
     public virtual ICollection<Answer> Answers { get; set; } = new List<Answer>();

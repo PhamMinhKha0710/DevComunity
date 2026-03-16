@@ -1,0 +1,110 @@
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Rate, Trend } from 'k6/metrics';
+
+// Custom metrics
+const chatErrorRate = new Rate('chat_errors');
+const getMessagesDuration = new Trend('get_messages_duration');
+const sendMessageDuration = new Trend('send_message_duration');
+
+export const options = {
+  scenarios: {
+    get_messages: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        { duration: '30s', target: 30 },
+        { duration: '4m', target: 30 },
+        { duration: '30s', target: 0 },
+      ],
+      tags: { test_type: 'get_messages' },
+    },
+  },
+  thresholds: {
+    'http_req_duration{test_type:get_messages}': ['p(95)<200', 'p(99)<500'],
+    chat_errors: ['rate<0.01'],
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5122';
+const API_BASE = `${BASE_URL}/api`;
+
+let authToken = '';
+const testConversationIds = [1, 2, 3, 4, 5];
+
+export default function () {
+  if (!authToken) {
+    authToken = getAuthToken();
+  }
+
+  testGetMessages();
+  sleep(1);
+}
+
+function getAuthToken() {
+  const payload = JSON.stringify({
+    email: 'testuser@test.com',
+    password: 'TestPassword123!',
+  });
+
+  const params = {
+    headers: { 'Content-Type': 'application/json' },
+  };
+
+  const res = http.post(`${API_BASE}/auth/login`, payload, params);
+  if (res.status === 200) {
+    return res.json('token');
+  }
+  return '';
+}
+
+function testGetMessages() {
+  const conversationId = testConversationIds[__VU % testConversationIds.length];
+  const url = `${API_BASE}/chat/conversations/${conversationId}/messages?page=1&pageSize=20`;
+
+  const params = {
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const startTime = new Date();
+  const res = http.get(url, params);
+  const duration = new Date() - startTime;
+
+  getMessagesDuration.add(duration);
+
+  const success = check(res, {
+    'get messages status is 200': (r) => r.status === 200,
+    'get messages has items': (r) => r.status === 200 && r.json('items') !== undefined,
+  });
+
+  chatErrorRate.add(!success);
+}
+
+export function handleSummary(data) {
+  return {
+    'stdout': textSummary(data),
+    'results/chat-summary.json': JSON.stringify(data.metrics, null, 2),
+  };
+}
+
+function textSummary(data) {
+  let output = '\n=== Chat Load Test Results ===\n\n';
+
+  const getMessagesMetric = data.metrics.get_messages_duration;
+  if (getMessagesMetric) {
+    output += `Get Messages:\n`;
+    output += `  p95: ${getMessagesMetric.values['p(95)']?.toFixed(2)}ms\n`;
+    output += `  p99: ${getMessagesMetric.values['p(99)']?.toFixed(2)}ms\n`;
+    output += `  avg: ${getMessagesMetric.values.avg?.toFixed(2)}ms\n\n`;
+  }
+
+  const chatErrors = data.metrics.chat_errors;
+  if (chatErrors) {
+    output += `Chat Error Rate: ${(chatErrors.values.rate * 100).toFixed(2)}%\n`;
+  }
+
+  return output;
+}

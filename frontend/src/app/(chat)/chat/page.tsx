@@ -19,7 +19,7 @@ import ConversationInfoPanel from '@/components/chat/ConversationInfoPanel';
 import CallOverlay from '@/components/chat/CallOverlay';
 import { useWebRTC } from '@/lib/webrtc/useWebRTC';
 import type { CallType } from '@/lib/webrtc/useWebRTC';
-import type { RealtimeMessage, ConnectionStatus } from '@/components/chat/types';
+import { normalizeMessage, type RealtimeMessage, type ConnectionStatus } from '@/components/chat/types';
 
 function ChatContent() {
     const { user, isLoading: authLoading } = useAuth();
@@ -63,7 +63,7 @@ function ChatContent() {
     const fetchMessages = useCallback(async (convId: number) => {
         try {
             const data = await chatApi.getMessages(convId);
-            setMessages(((data as { items: RealtimeMessage[] }).items || []).map((m: RealtimeMessage) => ({ ...m, status: 'delivered' as const })));
+            setMessages(((data as { items: RealtimeMessage[] }).items || []).map((m: RealtimeMessage) => normalizeMessage({ ...m, status: 'delivered' as const })));
             await chatApi.markAsRead(convId);
         } catch (err) { console.error('Failed to fetch messages:', err); }
     }, []);
@@ -73,16 +73,17 @@ function ChatContent() {
     useEffect(() => {
         if (chatHub.connectionState !== HubConnectionState.Connected) return;
 
-        const onReceiveMessage = (msg: RealtimeMessage) => {
+        const onReceiveMessage = (raw: RealtimeMessage) => {
+            const msg: RealtimeMessage = { ...normalizeMessage(raw), status: 'delivered' };
             if (msg.senderId === userRef.current?.userId) {
                 setMessages(prev => prev.map(m =>
                     (m.status === 'sending' || m.status === 'sent') && m.content === msg.content && m.senderId === msg.senderId
-                        ? { ...msg, status: 'delivered' } : m
+                        ? msg : m
                 ));
                 return;
             }
             if (selectedConvRef.current && msg.conversationId === selectedConvRef.current) {
-                setMessages(prev => prev.some(m => m.messageId === msg.messageId) ? prev : [...prev, { ...msg, status: 'delivered' }]);
+                setMessages(prev => prev.some(m => m.messageId === msg.messageId) ? prev : [...prev, msg]);
             }
             fetchConversations();
         };
@@ -92,15 +93,17 @@ function ChatContent() {
             setTimeout(() => setTypingUsers(prev => prev.filter(u => u !== data.userId)), 3000);
         };
 
-        const onMessagesRead = (data: { userId: string; lastMessageId: number }) => {
+        const onMessagesRead = (data: { userId: string; lastMessageId: number | string }) => {
+            const lastId = Number(data.lastMessageId);
             setMessages(prev => prev.map(m =>
-                typeof m.messageId === 'number' && m.messageId <= data.lastMessageId ? { ...m, status: 'read', isRead: true } : m
+                Number(m.messageId) <= lastId ? { ...m, status: 'read', isRead: true } : m
             ));
         };
 
-        const onReceiveReaction = (r: { messageId: number; userId: number; username: string; profilePicture?: string; reactionType: string; createdAt: string }) => {
+        const onReceiveReaction = (r: { messageId: number | string; userId: number; username: string; profilePicture?: string; reactionType: string; createdAt: string }) => {
+            const rMsgId = Number(r.messageId);
             setMessages(prev => prev.map(m => {
-                if (m.messageId !== r.messageId) return m;
+                if (Number(m.messageId) !== rMsgId) return m;
                 const existing = m.reactions || [];
                 const idx = existing.findIndex(x => x.userId === r.userId);
                 const updated: MessageReaction[] = idx >= 0
@@ -110,10 +113,15 @@ function ChatContent() {
             }));
         };
 
-        const onRemoveReaction = (data: { messageId: number; userId: number }) => {
+        const onRemoveReaction = (data: { messageId: number | string; userId: number }) => {
+            const dataMsgId = Number(data.messageId);
             setMessages(prev => prev.map(m =>
-                m.messageId === data.messageId ? { ...m, reactions: (m.reactions || []).filter(r => r.userId !== data.userId) } : m
+                Number(m.messageId) === dataMsgId ? { ...m, reactions: (m.reactions || []).filter(r => r.userId !== data.userId) } : m
             ));
+        };
+
+        const onNewMessageNotification = () => {
+            fetchConversations();
         };
 
         chatHub.on('ReceiveMessage', onReceiveMessage);
@@ -121,12 +129,14 @@ function ChatContent() {
         chatHub.on('MessagesRead', onMessagesRead);
         chatHub.on('ReceiveReaction', onReceiveReaction);
         chatHub.on('RemoveReaction', onRemoveReaction);
+        chatHub.on('NewMessageNotification', onNewMessageNotification);
         return () => {
             chatHub.off('ReceiveMessage', onReceiveMessage);
             chatHub.off('UserTyping', onTyping);
             chatHub.off('MessagesRead', onMessagesRead);
             chatHub.off('ReceiveReaction', onReceiveReaction);
             chatHub.off('RemoveReaction', onRemoveReaction);
+            chatHub.off('NewMessageNotification', onNewMessageNotification);
         };
     }, [chatHub.connectionState, fetchConversations]);
 
@@ -137,8 +147,8 @@ function ChatContent() {
             const convId = selectedConvRef.current;
             if (!convId) return;
             const lastMsg = messages[messages.length - 1];
-            if (lastMsg?.messageId && typeof lastMsg.messageId === 'number') {
-                chatHub.invoke('SyncMessages', convId, lastMsg.messageId)
+            if (lastMsg?.messageId != null) {
+                chatHub.invoke('SyncMessages', convId, Number(lastMsg.messageId))
                     .catch(err => console.error('[ChatSync] Failed to sync on reconnect:', err));
             }
             fetchConversations();
@@ -154,9 +164,33 @@ function ChatContent() {
 
     useEffect(() => {
         if (presenceHub.connectionState !== HubConnectionState.Connected) return;
-        presenceHub.invoke('GetOnlineFriends')
-            .then((list: unknown) => setOnlineUsers(new Set(list as string[])))
-            .catch(console.error);
+        let aborted = false;
+
+        const checkAllParticipants = async () => {
+            const friendsList = await presenceHub.invoke('GetOnlineFriends') as string[];
+            const onlineSet = new Set<string>(friendsList);
+
+            const participantIds = new Set<string>();
+            for (const conv of conversations) {
+                for (const p of conv.participants) {
+                    if (p.userId !== user?.userId) participantIds.add(String(p.userId));
+                }
+            }
+
+            const checks = Array.from(participantIds)
+                .filter(id => !onlineSet.has(id))
+                .map(async (id) => {
+                    try {
+                        const isOnline = await presenceHub.invoke('IsUserOnline', id) as boolean;
+                        if (isOnline) onlineSet.add(id);
+                    } catch { /* ignore individual failures */ }
+                });
+            await Promise.all(checks);
+
+            if (!aborted) setOnlineUsers(onlineSet);
+        };
+
+        checkAllParticipants().catch(console.error);
 
         const onOnline = (id: unknown) => setOnlineUsers(prev => new Set([...prev, String(id)]));
         const onOffline = (id: unknown) => { setOnlineUsers(prev => { const s = new Set(prev); s.delete(String(id)); return s; }); };
@@ -165,22 +199,44 @@ function ChatContent() {
         presenceHub.on('UserOffline', onOffline);
         presenceHub.on('PendingNotifications', onPendingNotifications);
         return () => {
+            aborted = true;
             presenceHub.off('UserOnline', onOnline);
             presenceHub.off('UserOffline', onOffline);
             presenceHub.off('PendingNotifications', onPendingNotifications);
         };
-    }, [presenceHub.connectionState]);
+    }, [presenceHub.connectionState, conversations, user?.userId]);
+
+    const conversationsRef = useRef(conversations);
+    useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
     useEffect(() => {
-        const onVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && presenceHubRef.current.connectionState === HubConnectionState.Connected) {
-                presenceHubRef.current.invoke('GetOnlineFriends')
-                    .then((list: unknown) => setOnlineUsers(new Set(list as string[])))
-                    .catch(console.error);
-            }
+        let aborted = false;
+        const onVisibilityChange = async () => {
+            if (aborted || document.visibilityState !== 'visible' || presenceHubRef.current.connectionState !== HubConnectionState.Connected) return;
+            try {
+                const friendsList = await presenceHubRef.current.invoke('GetOnlineFriends') as string[];
+                const onlineSet = new Set<string>(friendsList);
+
+                const participantIds = new Set<string>();
+                for (const conv of conversationsRef.current) {
+                    for (const p of conv.participants) {
+                        if (p.userId !== userRef.current?.userId) participantIds.add(String(p.userId));
+                    }
+                }
+                const checks = Array.from(participantIds)
+                    .filter(id => !onlineSet.has(id))
+                    .map(async (id) => {
+                        try {
+                            const isOnline = await presenceHubRef.current.invoke('IsUserOnline', id) as boolean;
+                            if (isOnline) onlineSet.add(id);
+                        } catch { /* ignore */ }
+                    });
+                await Promise.all(checks);
+                if (!aborted) setOnlineUsers(onlineSet);
+            } catch (err) { console.error('Failed to refresh online status:', err); }
         };
         document.addEventListener('visibilitychange', onVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+        return () => { aborted = true; document.removeEventListener('visibilitychange', onVisibilityChange); };
     }, []);
 
     const selectedConv = conversations.find(c => c.conversationId === selectedConversation);
@@ -311,7 +367,7 @@ function ChatContent() {
     // ── Auth guard & init ──
 
     useEffect(() => {
-        if (!authLoading && !user) router.push('/login');
+        if (!authLoading && !user) router.push('/auth?mode=login');
         else if (user) fetchConversations();
     }, [user, authLoading, router, fetchConversations]);
 
@@ -323,22 +379,22 @@ function ChatContent() {
 
     const handleSendMessage = async (content: string) => {
         if (!selectedConversation || !user) return;
-        const replyToId = replyingTo?.messageId;
+        const replyToId = replyingTo ? String(replyingTo.messageId) : null;
         const replyInfo = replyingTo;
         const tempId = Date.now();
 
         const optimistic: RealtimeMessage = {
             messageId: tempId, conversationId: selectedConversation, senderId: user.userId,
             senderUsername: user.username, content, sentDate: new Date().toISOString(),
-            isRead: false, status: 'sending', replyToMessageId: replyToId,
-            replyToMessage: replyInfo ? { messageId: replyInfo.messageId, senderId: replyInfo.senderId, senderUsername: replyInfo.senderUsername || '', content: replyInfo.content } : undefined,
+            isRead: false, status: 'sending', replyToMessageId: replyToId != null ? Number(replyToId) : undefined,
+            replyToMessage: replyInfo ? { messageId: Number(replyInfo.messageId), senderId: replyInfo.senderId, senderUsername: replyInfo.senderUsername || '', content: replyInfo.content } : undefined,
         };
         setMessages(prev => [...prev, optimistic]);
         setReplyingTo(null);
 
         try {
             if (chatHub.connectionState === HubConnectionState.Connected) {
-                await chatHub.invoke('SendMessage', selectedConversation, content, replyToId || null);
+                await chatHub.invoke('SendMessage', selectedConversation, content, replyToId);
             } else {
                 await apiClient.post(`/chat/conversations/${selectedConversation}/messages`, { content, replyToMessageId: replyToId });
             }
@@ -354,7 +410,7 @@ function ChatContent() {
 
     const handleSendMedia = async (upload: { url: string; fileName: string; fileSize: number; messageType: string }, caption: string) => {
         if (!selectedConversation || !user) return;
-        const replyToId = replyingTo?.messageId;
+        const replyToId = replyingTo ? String(replyingTo.messageId) : null;
         const replyInfo = replyingTo;
         const tempId = Date.now();
 
@@ -364,15 +420,15 @@ function ChatContent() {
             messageType: upload.messageType as 'image' | 'video' | 'audio' | 'file',
             attachmentUrl: upload.url, attachmentFileName: upload.fileName, attachmentSize: upload.fileSize,
             sentDate: new Date().toISOString(), isRead: false, status: 'sending',
-            replyToMessageId: replyToId,
-            replyToMessage: replyInfo ? { messageId: replyInfo.messageId, senderId: replyInfo.senderId, senderUsername: replyInfo.senderUsername || '', content: replyInfo.content } : undefined,
+            replyToMessageId: replyToId != null ? Number(replyToId) : undefined,
+            replyToMessage: replyInfo ? { messageId: Number(replyInfo.messageId), senderId: replyInfo.senderId, senderUsername: replyInfo.senderUsername || '', content: replyInfo.content } : undefined,
         };
         setMessages(prev => [...prev, optimistic]);
         setReplyingTo(null);
 
         try {
             if (chatHub.connectionState === HubConnectionState.Connected) {
-                await chatHub.invoke('SendMediaMessage', selectedConversation, upload.messageType, upload.url, upload.fileName, upload.fileSize, caption || null, replyToId || null);
+                await chatHub.invoke('SendMediaMessage', selectedConversation, upload.messageType, upload.url, upload.fileName, upload.fileSize, caption || null, replyToId);
             }
             setMessages(prev => prev.map(m => m.messageId === tempId ? { ...m, status: 'sent' } : m));
             fetchConversations();
@@ -383,13 +439,38 @@ function ChatContent() {
     };
 
     const handleToggleReaction = async (messageId: number, reactionType: string) => {
-        if (chatHub.connectionState !== HubConnectionState.Connected || !selectedConversation) return;
-        const msg = messages.find(m => m.messageId === messageId);
-        const existing = msg?.reactions?.find(r => r.userId === user?.userId);
+        if (chatHub.connectionState !== HubConnectionState.Connected || !selectedConversation || !user) return;
+        const numericId = Number(messageId);
+        const msg = messages.find(m => m.messageId === numericId || Number(m.messageId) === numericId);
+        const existing = msg?.reactions?.find(r => r.userId === user.userId);
+
+        const messageIdStr = String(msg?.messageId ?? messageId);
+
+        const prevMessages = messages;
+        setMessages(prev =>
+            prev.map(m => {
+                if (m.messageId !== numericId && Number(m.messageId) !== numericId) return m;
+                const reactions = m.reactions || [];
+                if (existing?.reactionType === reactionType) {
+                    return { ...m, reactions: reactions.filter(r => r.userId !== user.userId) };
+                }
+                const updated = existing
+                    ? reactions.map(r => (r.userId === user.userId ? { ...r, reactionType } : r))
+                    : [...reactions, { messageReactionId: Date.now(), userId: user.userId, username: user.username ?? '', reactionType, createdAt: new Date().toISOString() }];
+                return { ...m, reactions: updated };
+            })
+        );
+
         try {
-            if (existing?.reactionType === reactionType) await chatHub.invoke('RemoveReaction', selectedConversation, messageId);
-            else await chatHub.invoke('AddReaction', selectedConversation, messageId, reactionType);
-        } catch (err) { console.error('Reaction failed:', err); }
+            if (existing?.reactionType === reactionType) {
+                await chatHub.invoke('RemoveReaction', selectedConversation, messageIdStr);
+            } else {
+                await chatHub.invoke('AddReaction', selectedConversation, messageIdStr, reactionType);
+            }
+        } catch (err) {
+            console.error('Reaction failed:', err);
+            setMessages(prevMessages);
+        }
     };
 
     const handleTyping = useCallback(() => {

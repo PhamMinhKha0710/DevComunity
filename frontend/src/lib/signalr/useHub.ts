@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { signalRManager, type HubName } from './connectionManager';
 import { useAuth } from '@/lib/contexts/AuthContext';
@@ -14,9 +14,17 @@ export interface SignalRConnection {
 export function useHub(hubName: HubName) {
     const { user } = useAuth();
     const [connectionState, setConnectionState] = useState<signalR.HubConnectionState>(
-        signalR.HubConnectionState.Disconnected
+        () => signalRManager.getState(hubName)
     );
     const connectedRef = useRef(false);
+
+    useEffect(() => {
+        const handleStateChange = (name: HubName, state: signalR.HubConnectionState) => {
+            if (name === hubName) setConnectionState(state);
+        };
+        signalRManager.onStateChange(handleStateChange);
+        return () => { signalRManager.offStateChange(handleStateChange); };
+    }, [hubName]);
 
     useEffect(() => {
         if (!user) return;
@@ -33,16 +41,6 @@ export function useHub(hubName: HubName) {
                 }
                 connectedRef.current = true;
                 setConnectionState(conn.state);
-
-                conn.onreconnecting(() => {
-                    if (mounted) setConnectionState(signalR.HubConnectionState.Reconnecting);
-                });
-                conn.onreconnected(() => {
-                    if (mounted) setConnectionState(signalR.HubConnectionState.Connected);
-                });
-                conn.onclose(() => {
-                    if (mounted) setConnectionState(signalR.HubConnectionState.Disconnected);
-                });
             } catch (err) {
                 console.error(`[useHub] Failed to connect to ${hubName} (attempt ${attempt + 1}):`, err);
                 if (mounted && attempt < 5) {
@@ -66,7 +64,7 @@ export function useHub(hubName: HubName) {
         };
     }, [hubName, user]);
 
-    return {
+    return useMemo(() => ({
         on: (event: string, handler: (...args: any[]) => void) =>
             signalRManager.on(hubName, event, handler as (...args: unknown[]) => void),
         off: (event: string, handler: (...args: any[]) => void) =>
@@ -76,5 +74,5 @@ export function useHub(hubName: HubName) {
         onReconnected: (cb: () => void) => signalRManager.onReconnected(hubName, cb),
         offReconnected: (cb: () => void) => signalRManager.offReconnected(hubName, cb),
         connectionState,
-    };
+    }), [hubName, connectionState]);
 }

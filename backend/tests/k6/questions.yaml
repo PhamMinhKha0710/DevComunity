@@ -1,0 +1,233 @@
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Rate, Trend } from 'k6/metrics';
+
+// Custom metrics
+const questionsErrorRate = new Rate('questions_errors');
+const getQuestionsListDuration = new Trend('get_questions_list_duration');
+const getQuestionDetailDuration = new Trend('get_question_detail_duration');
+const createQuestionDuration = new Trend('create_question_duration');
+
+// SLA thresholds from plan:
+// - GET /api/questions: ≤50ms cache hit, ≤200ms cache miss
+// - GET /api/questions/{id}: ≤50ms cache hit
+// - POST /api/questions: ≤300ms
+
+export const options = {
+  scenarios: {
+    // GET questions list - 100 VU
+    questions_list: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        { duration: '30s', target: 100 },
+        { duration: '4m', target: 100 },
+        { duration: '30s', target: 0 },
+      ],
+      tags: { test_type: 'questions_list' },
+    },
+    // GET question detail - 50 VU
+    question_detail: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        { duration: '30s', target: 50 },
+        { duration: '4m', target: 50 },
+        { duration: '30s', target: 0 },
+      ],
+      tags: { test_type: 'question_detail' },
+      startTime: '30s',
+    },
+    // POST create question - 20 VU
+    create_question: {
+      executor: 'constant-vus',
+      vus: 20,
+      duration: '3m',
+      tags: { test_type: 'create_question' },
+      startTime: '1m',
+    },
+  },
+  thresholds: {
+    // SLA: p95 ≤200ms for questions list (cache miss), ≤50ms cache hit
+    'http_req_duration{test_type:questions_list}': ['p(95)<200', 'p(99)<500'],
+    // SLA: p95 ≤50ms for question detail
+    'http_req_duration{test_type:question_detail}': ['p(95)<50', 'p(99)<200'],
+    // SLA: p95 ≤300ms for create
+    'http_req_duration{test_type:create_question}': ['p(95)<300', 'p(99)<800'],
+    questions_errors: ['rate<0.01'], // <1% error rate
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5122';
+const API_BASE = `${BASE_URL}/api`;
+
+// Test data
+const TEST_QUESTION_IDS = [1, 2, 3, 4, 5, 10, 20, 50, 100];
+let authToken = '';
+let questionIds = [];
+
+export default function () {
+  // Get auth token on first iteration
+  if (!authToken) {
+    authToken = getAuthToken();
+  }
+
+  // Test GET questions list
+  testGetQuestionsList();
+
+  // Test GET question detail
+  testGetQuestionDetail();
+
+  // Test POST create question
+  if (authToken) {
+    testCreateQuestion();
+  }
+
+  sleep(1);
+}
+
+function getAuthToken() {
+  const payload = JSON.stringify({
+    email: 'john.doe@example.com',
+    password: 'User@123',
+  });
+
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const res = http.post(`${API_BASE}/auth/login`, payload, params);
+  if (res.status === 200) {
+    return res.json('token');
+  }
+  return '';
+}
+
+function testGetQuestionsList() {
+  const url = `${API_BASE}/questions?page=1&pageSize=20&sort=newest`;
+  
+  const params = {
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+    },
+  };
+
+  const startTime = new Date();
+  const res = http.get(url, params);
+  const duration = new Date() - startTime;
+
+  getQuestionsListDuration.add(duration);
+
+  const success = check(res, {
+    'questions list status is 200': (r) => r.status === 200,
+    'questions list has items': (r) => r.status === 200 && r.json('items') !== undefined,
+  });
+
+  questionsErrorRate.add(!success);
+
+  // Store question IDs for detail test
+  if (res.status === 200) {
+    const items = res.json('items');
+    if (items && items.length > 0) {
+      questionIds = items.map(q => q.questionId).slice(0, 10);
+    }
+  }
+}
+
+function testGetQuestionDetail() {
+  // Use rotating question IDs or from list
+  const questionId = TEST_QUESTION_IDS[__VU % TEST_QUESTION_IDS.length];
+  const url = `${API_BASE}/questions/${questionId}`;
+  
+  const params = {
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+    },
+  };
+
+  const startTime = new Date();
+  const res = http.get(url, params);
+  const duration = new Date() - startTime;
+
+  getQuestionDetailDuration.add(duration);
+
+  const success = check(res, {
+    'question detail status is 200 or 404': (r) => r.status === 200 || r.status === 404,
+    'question detail has data when 200': (r) => r.status === 200 && r.json('questionId') !== undefined,
+  });
+
+  questionsErrorRate.add(!success);
+}
+
+function testCreateQuestion() {
+  const payload = JSON.stringify({
+    title: `Load Test Question ${Date.now()} ${__VU}`,
+    body: 'This is a load test question body. It contains enough text to test the create endpoint.',
+    tags: ['loadtest', 'performance'],
+  });
+
+  const params = {
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const startTime = new Date();
+  const res = http.post(`${API_BASE}/questions`, payload, params);
+  const duration = new Date() - startTime;
+
+  createQuestionDuration.add(duration);
+
+  const success = check(res, {
+    'create question status is 201 or 400': (r) => r.status === 201 || r.status === 400,
+  });
+
+  questionsErrorRate.add(!success);
+}
+
+export function handleSummary(data) {
+  return {
+    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
+    'results/questions-summary.json': JSON.stringify(data.metrics, null, 2),
+  };
+}
+
+function textSummary(data, options) {
+  const indent = options.indent || '';
+
+  let output = '\n' + indent + '=== Questions Load Test Results ===\n\n';
+
+  const getQuestionsList = data.metrics['get_questions_list_duration'];
+  if (getQuestionsList) {
+    output += indent + `GET Questions List:\n`;
+    output += indent + `  p95: ${getQuestionsList.values['p(95)']?.toFixed(2)}ms\n`;
+    output += indent + `  p99: ${getQuestionsList.values['p(99)']?.toFixed(2)}ms\n`;
+    output += indent + `  avg: ${getQuestionsList.values.avg?.toFixed(2)}ms\n\n`;
+  }
+
+  const getQuestionDetail = data.metrics['get_question_detail_duration'];
+  if (getQuestionDetail) {
+    output += indent + `GET Question Detail:\n`;
+    output += indent + `  p95: ${getQuestionDetail.values['p(95)']?.toFixed(2)}ms\n`;
+    output += indent + `  p99: ${getQuestionDetail.values['p(99)']?.toFixed(2)}ms\n`;
+    output += indent + `  avg: ${getQuestionDetail.values.avg?.toFixed(2)}ms\n\n`;
+  }
+
+  const createQuestion = data.metrics['create_question_duration'];
+  if (createQuestion) {
+    output += indent + `POST Create Question:\n`;
+    output += indent + `  p95: ${createQuestion.values['p(95)']?.toFixed(2)}ms\n`;
+    output += indent + `  p99: ${createQuestion.values['p(99)']?.toFixed(2)}ms\n`;
+    output += indent + `  avg: ${createQuestion.values.avg?.toFixed(2)}ms\n\n`;
+  }
+
+  const questionsErrors = data.metrics.questions_errors;
+  if (questionsErrors) {
+    output += indent + `Questions Error Rate: ${(questionsErrors.values.rate * 100).toFixed(2)}%\n`;
+  }
+
+  return output;
+}

@@ -1,0 +1,86 @@
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Rate, Trend } from 'k6/metrics';
+
+// Custom metrics
+const searchErrorRate = new Rate('search_errors');
+const searchDuration = new Trend('search_duration');
+
+// SLA: GET /api/search ≤300ms
+export const options = {
+  scenarios: {
+    search_test: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        { duration: '30s', target: 50 },
+        { duration: '4m', target: 50 },
+        { duration: '30s', target: 0 },
+      ],
+      tags: { test_type: 'search' },
+    },
+  },
+  thresholds: {
+    'http_req_duration{test_type:search}': ['p(95)<300', 'p(99)<800'],
+    search_errors: ['rate<0.01'],
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5122';
+const API_BASE = `${BASE_URL}/api`;
+
+export default function () {
+  testSearch();
+  sleep(1);
+}
+
+function testSearch() {
+  const queries = ['javascript', 'react', 'python', 'docker', 'api'];
+  const query = queries[__VU % queries.length];
+  const url = `${API_BASE}/search?q=${query}&maxResults=5`;
+
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const startTime = new Date();
+  const res = http.get(url, params);
+  const duration = new Date() - startTime;
+
+  searchDuration.add(duration);
+
+  const success = check(res, {
+    'search status is 200': (r) => r.status === 200,
+    'search has results': (r) => r.status === 200 && r.json() !== null,
+  });
+
+  searchErrorRate.add(!success);
+}
+
+export function handleSummary(data) {
+  return {
+    'stdout': textSummary(data),
+    'results/search-summary.json': JSON.stringify(data.metrics, null, 2),
+  };
+}
+
+function textSummary(data) {
+  let output = '\n=== Search Load Test Results ===\n\n';
+
+  const searchDurationMetric = data.metrics.search_duration;
+  if (searchDurationMetric) {
+    output += `Search:\n`;
+    output += `  p95: ${searchDurationMetric.values['p(95)']?.toFixed(2)}ms\n`;
+    output += `  p99: ${searchDurationMetric.values['p(99)']?.toFixed(2)}ms\n`;
+    output += `  avg: ${searchDurationMetric.values.avg?.toFixed(2)}ms\n\n`;
+  }
+
+  const searchErrors = data.metrics.search_errors;
+  if (searchErrors) {
+    output += `Search Error Rate: ${(searchErrors.values.rate * 100).toFixed(2)}%\n`;
+  }
+
+  return output;
+}

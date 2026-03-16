@@ -29,7 +29,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            router.push('/login');
+            router.push('/auth?mode=login');
         } else if (user) {
             // Initialize from auth context first
             setProfile({

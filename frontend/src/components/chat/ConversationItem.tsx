@@ -1,7 +1,7 @@
 'use client';
 
 import type { Conversation } from '@/types';
-import { formatTime, getParticipantName, getParticipantAvatar, isParticipantOnline } from './types';
+import { formatTime, getParticipantName, getParticipantAvatar, isParticipantOnline, decodeHtmlEntities, formatCallPreview } from './types';
 
 interface ConversationItemProps {
     conversation: Conversation;
@@ -55,7 +55,11 @@ export default function ConversationItem({
                 </div>
                 <div className="flex justify-between items-center gap-2">
                     <p className={`text-xs truncate ${isActive ? 'text-[var(--primary)] font-semibold' : hasUnread ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500'}`}>
-                        {conv.lastMessagePreview || 'No messages yet'}
+                        {conv.lastMessagePreview
+                            ? conv.lastMessagePreview.trimStart().startsWith('{')
+                                ? formatCallPreview(conv.lastMessagePreview)
+                                : decodeHtmlEntities(conv.lastMessagePreview)
+                            : 'No messages yet'}
                     </p>
                     {hasUnread && (
                         <span className="size-4 flex items-center justify-center bg-[var(--primary)] text-white text-[10px] rounded-full shrink-0">

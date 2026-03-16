@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const publicRoutes = ['/auth', '/login', '/register', '/forgot-password', '/reset-password'];
+const publicRoutes = ['/auth'];
 
 const publicPrefixes = ['/api', '/_next', '/favicon', '/images', '/logo'];
 

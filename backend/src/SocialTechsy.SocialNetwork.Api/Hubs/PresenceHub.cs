@@ -11,14 +11,17 @@ public class PresenceHub : Hub
     private readonly ILogger<PresenceHub> _logger;
     private readonly RedisPresenceService? _presence;
     private readonly IFriendshipRepository _friendshipRepository;
+    private readonly IChatRepository _chatRepository;
 
     public PresenceHub(
         ILogger<PresenceHub> logger,
         IFriendshipRepository friendshipRepository,
+        IChatRepository chatRepository,
         RedisPresenceService? presence = null)
     {
         _logger = logger;
         _friendshipRepository = friendshipRepository;
+        _chatRepository = chatRepository;
         _presence = presence;
     }
 
@@ -40,12 +43,14 @@ public class PresenceHub : Hub
                 if (wasOffline)
                 {
                     await Clients.Group($"friends_of_{userId}").SendAsync("UserOnline", userId);
+                    await NotifyConversationParticipantsAsync(userId, uid, "UserOnline");
                     await DrainPendingPushAsync(userId);
                 }
             }
             else
             {
                 await Clients.Group($"friends_of_{userId}").SendAsync("UserOnline", userId);
+                await NotifyConversationParticipantsAsync(userId, uid, "UserOnline");
             }
             _logger.LogInformation("User {UserId} is now online", userId);
         }
@@ -56,7 +61,7 @@ public class PresenceHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var userId = Context.UserIdentifier;
-        if (!string.IsNullOrEmpty(userId))
+        if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var uid))
         {
             if (_presence != null)
             {
@@ -65,12 +70,14 @@ public class PresenceHub : Hub
                 if (!stillOnline)
                 {
                     await Clients.Group($"friends_of_{userId}").SendAsync("UserOffline", userId);
+                    await NotifyConversationParticipantsAsync(userId, uid, "UserOffline");
                     _logger.LogInformation("User {UserId} is now offline", userId);
                 }
             }
             else
             {
                 await Clients.Group($"friends_of_{userId}").SendAsync("UserOffline", userId);
+                await NotifyConversationParticipantsAsync(userId, uid, "UserOffline");
                 _logger.LogInformation("User {UserId} is now offline", userId);
             }
 
@@ -180,5 +187,26 @@ public class PresenceHub : Hub
             await _presence.CacheFriendIdsAsync(userId, friendIds);
 
         return friendIds.Select(id => id.ToString()).ToArray();
+    }
+
+    private async Task NotifyConversationParticipantsAsync(string userId, int uid, string eventName)
+    {
+        try
+        {
+            var (conversations, _) = await _chatRepository.GetUserConversationsAsync(uid, 1, 100);
+            var participantIds = conversations
+                .SelectMany(c => c.Participants)
+                .Where(p => p.UserId != uid)
+                .Select(p => p.UserId.ToString())
+                .Distinct();
+
+            var tasks = participantIds
+                .Select(pid => Clients.Group($"user_{pid}").SendAsync(eventName, userId));
+            await Task.WhenAll(tasks);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to notify conversation participants for user {UserId}", userId);
+        }
     }
 }

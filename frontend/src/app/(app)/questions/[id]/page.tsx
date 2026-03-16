@@ -322,13 +322,29 @@ export default function QuestionDetailPage() {
             <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--text-muted)]">
               <span className="flex items-center gap-1">
                 <i className="bi bi-clock"></i>
-              <RelativeTime value={question.createdDate} fallback={formatDate(question.createdDate)} />
+                <RelativeTime value={question.createdDate} fallback={formatDate(question.createdDate)} />
               </span>
               <span className="flex items-center gap-1">
                 <i className="bi bi-eye"></i>
                 {question.viewCount} views
               </span>
             </div>
+
+            {/* Tags - ngay dưới meta, dễ thấy */}
+            {(question.tags?.length ?? 0) > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-[var(--text-muted)] mr-1">Tags:</span>
+                {question.tags.map((tag) => (
+                  <Link
+                    key={tag.tagId}
+                    href={`/questions?tag=${tag.tagName}`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-md text-sm font-medium hover:bg-[var(--primary)] hover:text-white transition"
+                  >
+                    #{tag.tagName}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
@@ -336,18 +352,6 @@ export default function QuestionDetailPage() {
               content={question.body}
               className="mb-6 text-[var(--text-secondary)]"
             />
-
-            <div className="flex flex-wrap gap-2 mb-6">
-              {question.tags?.map((tag) => (
-                <Link
-                  key={tag.tagId}
-                  href={`/tags?search=${tag.tagName}`}
-                  className="px-3 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-sm font-medium hover:bg-[var(--primary)] hover:text-white transition"
-                >
-                  #{tag.tagName}
-                </Link>
-              ))}
-            </div>
 
             {/* Like count */}
             {question.score > 0 && (
@@ -633,13 +637,13 @@ export default function QuestionDetailPage() {
             </p>
             <div className="flex justify-center gap-4">
               <Link
-                href="/login"
+                href="/auth?mode=login"
                 className="px-6 py-2 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition"
               >
                 Log In
               </Link>
               <Link
-                href="/register"
+                href="/auth?mode=register"
                 className="px-6 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium border border-[var(--border-color)] hover:border-[var(--primary)] transition"
               >
                 Sign Up

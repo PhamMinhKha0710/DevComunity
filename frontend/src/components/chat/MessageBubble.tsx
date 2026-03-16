@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { formatFileSize } from './types';
+import { formatFileSize, decodeHtmlEntities } from './types';
 import type { RealtimeMessage } from './types';
 
 const REACTION_EMOJI_MAP: Record<string, string> = {
@@ -97,7 +97,7 @@ export default function MessageBubble({
                         {msg.replyToMessage.senderUsername}
                     </div>
                     <div className={`truncate ${isSent ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>
-                        {msg.replyToMessage.content}
+                        {decodeHtmlEntities(msg.replyToMessage.content)}
                     </div>
                 </div>
             )}
@@ -150,7 +150,7 @@ export default function MessageBubble({
                 </a>
             )}
 
-            {msg.content && <p className="break-words text-sm leading-relaxed">{msg.content}</p>}
+            {msg.content && <p className="break-words text-sm leading-relaxed">{decodeHtmlEntities(msg.content)}</p>}
 
             <div className={`absolute ${isSent ? '-left-16' : '-right-16'} top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
                 <button

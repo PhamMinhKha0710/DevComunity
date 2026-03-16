@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IQuestionRepository>(sp =>
             new QuestionRepository(
                 sp.GetRequiredService<SocialTechsySocialNetworkDbContext>(),
+                sp.GetRequiredService<ITagRepository>(),
                 fullTextEnabled));
         services.AddScoped<IAnswerRepository, AnswerRepository>();
         services.AddScoped<IUserRepository, UserRepository>();

@@ -105,7 +105,7 @@ export default function FriendsPage() {
                     <p className="text-slate-500 mb-6 max-w-md">
                         Please login to view and manage your connections.
                     </p>
-                    <Link href="/login" className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)]/90 transition">
+                    <Link href="/auth?mode=login" className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)]/90 transition">
                         Login Now
                     </Link>
                 </div>

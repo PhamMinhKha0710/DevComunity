@@ -181,7 +181,7 @@ export interface ConversationParticipant {
 }
 
 export interface ChatMessage {
-    messageId: number;
+    messageId: string | number;
     conversationId: number;
     senderId: number;
     senderUsername: string;
@@ -199,7 +199,7 @@ export interface ChatMessage {
 }
 
 export interface ReplyToMessage {
-    messageId: number;
+    messageId: string | number;
     senderId: number;
     senderUsername: string;
     content: string;
