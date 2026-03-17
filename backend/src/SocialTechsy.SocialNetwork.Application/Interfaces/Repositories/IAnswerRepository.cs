@@ -14,4 +14,9 @@ public interface IAnswerRepository
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
     Task<bool> AcceptAnswerAsync(int answerId, int questionId, CancellationToken cancellationToken = default);
     Task<(IEnumerable<Answer> Items, int TotalCount)> GetByUserIdAsync(int userId, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets answer count and has-accepted flag per question id (for list display).
+    /// </summary>
+    Task<Dictionary<int, (int Count, bool HasAccepted)>> GetAnswerCountsAndAcceptedByQuestionIdsAsync(int[] questionIds, CancellationToken cancellationToken = default);
 }
