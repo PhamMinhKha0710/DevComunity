@@ -25,7 +25,7 @@ export default function HeroSection() {
         </div>
 
         <div className="landing-hero-buttons">
-          <Link href="/register" className="landing-btn-hero-primary">
+          <Link href="/auth?mode=register" className="landing-btn-hero-primary">
             Get Started
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
           </Link>

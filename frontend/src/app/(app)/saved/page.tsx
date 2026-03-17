@@ -24,7 +24,7 @@ export default function SavedItemsPage() {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            router.push('/login');
+            router.push('/auth?mode=login');
         }
     }, [user, authLoading, router]);
 
@@ -35,6 +35,8 @@ export default function SavedItemsPage() {
     });
 
     const savedItems: SavedItem[] = savedItemsData?.items || [];
+
+    const itemType = (item: SavedItem) => (item.type || item.targetType || '').toLowerCase();
 
     const removeMutation = useMutation({
         mutationFn: (id: number) => savedItemsApi.remove(id),
@@ -50,9 +52,10 @@ export default function SavedItemsPage() {
     };
 
     const filteredItems = savedItems.filter(item => {
+        const t = itemType(item);
         if (filter === 'all') return true;
-        if (filter === 'questions') return item.targetType === 'Question';
-        if (filter === 'answers') return item.targetType === 'Answer';
+        if (filter === 'questions') return t === 'question';
+        if (filter === 'answers') return t === 'answer';
         return true;
     });
 
@@ -98,7 +101,7 @@ export default function SavedItemsPage() {
                         }`}
                 >
                     <span className="material-symbols-outlined">help</span>
-                    Questions ({savedItems.filter(i => i.targetType === 'Question').length})
+                    Questions ({savedItems.filter(i => itemType(i) === 'question').length})
                 </button>
                 <button
                     onClick={() => setFilter('answers')}
@@ -108,67 +111,71 @@ export default function SavedItemsPage() {
                         }`}
                 >
                     <span className="material-symbols-outlined">chat</span>
-                    Answers ({savedItems.filter(i => i.targetType === 'Answer').length})
+                    Answers ({savedItems.filter(i => itemType(i) === 'answer').length})
                 </button>
             </div>
 
             {/* Saved Items List */}
             {filteredItems.length > 0 ? (
                 <div className="space-y-4">
-                    {filteredItems.map((item) => (
-                        <Link
-                            key={item.savedItemId}
-                            href={item.targetType === 'Question' && item.question ? `/questions/${item.question.questionId}` : item.targetType === 'Answer' && item.answer ? `/questions/${item.answer.questionId}#answer-${item.answer.answerId}` : '#'}
-                            className="block bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--primary)]/50 transition group"
-                        >
-                            <div className="flex items-start gap-4">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${item.targetType === 'Question'
-                                        ? 'bg-blue-500/10 text-blue-500'
-                                        : 'bg-green-500/10 text-green-500'
-                                    }`}>
-                                    <span className="material-symbols-outlined">{item.targetType === 'Question' ? 'help' : 'chat'}</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold mb-2 ${item.targetType === 'Question' ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'
-                                                }`}>
-                                                {item.targetType}
-                                            </span>
-                                            <h3 className="font-bold text-[var(--text-primary)] mb-1 group-hover:text-[var(--primary)] line-clamp-1">
-                                                {item.targetType === 'Question' && item.question ? (
-                                                    item.question.title
-                                                ) : item.targetType === 'Answer' && item.answer ? (
-                                                    'Answer to a question'
-                                                ) : (
-                                                    'Saved item'
-                                                )}
-                                            </h3>
+                    {filteredItems.map((item) => {
+                        const isQuestion = itemType(item) === 'question';
+                        const href = isQuestion && item.questionId
+                            ? `/questions/${item.questionId}`
+                            : !isQuestion && item.relatedQuestionId != null && item.answerId != null
+                                ? `/questions/${item.relatedQuestionId}#answer-${item.answerId}`
+                                : '#';
+                        const title = isQuestion
+                            ? (item.questionTitle ?? item.question?.title ?? 'Saved question')
+                            : (item.relatedQuestionTitle ? `Answer: ${item.relatedQuestionTitle}` : item.answer?.body ? 'Answer to a question' : 'Saved answer');
+                        const bodySnippet = isQuestion
+                            ? (item.question?.body ? stripHtml(item.question.body) : '')
+                            : (item.answerBody ?? item.answer?.body ? stripHtml(item.answer?.body ?? '') : '');
+                        return (
+                            <Link
+                                key={item.savedItemId}
+                                href={href}
+                                className="block bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--primary)]/50 transition group"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${isQuestion
+                                            ? 'bg-blue-500/10 text-blue-500'
+                                            : 'bg-green-500/10 text-green-500'
+                                        }`}>
+                                        <span className="material-symbols-outlined">{isQuestion ? 'help' : 'chat'}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold mb-2 ${isQuestion ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'}`}>
+                                                    {isQuestion ? 'Question' : 'Answer'}
+                                                </span>
+                                                <h3 className="font-bold text-[var(--text-primary)] mb-1 group-hover:text-[var(--primary)] line-clamp-1">
+                                                    {title}
+                                                </h3>
+                                            </div>
+                                            <button
+                                                onClick={(e) => removeSavedItem(e, item.savedItemId)}
+                                                className="p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition"
+                                                title="Remove from saved"
+                                            >
+                                                <span className="material-symbols-outlined text-lg">bookmark_remove</span>
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={(e) => removeSavedItem(e, item.savedItemId)}
-                                            className="p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition"
-                                            title="Remove from saved"
-                                        >
-                                            <span className="material-symbols-outlined text-lg">bookmark_remove</span>
-                                        </button>
-                                    </div>
-                                    <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
-                                        {item.targetType === 'Question' && item.question
-                                            ? stripHtml(item.question.body)
-                                            : item.targetType === 'Answer' && item.answer
-                                                ? stripHtml(item.answer.body)
-                                                : ''
-                                        }
-                                    </p>
-                                    <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
-                                        <span className="material-symbols-outlined">schedule</span>
-                                        <RelativeTime value={item.createdDate} prefix="Saved on " />
+                                        {bodySnippet && (
+                                            <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
+                                                {bodySnippet}
+                                            </p>
+                                        )}
+                                        <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                                            <span className="material-symbols-outlined">schedule</span>
+                                            <RelativeTime value={item.createdDate} prefix="Saved on " />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </Link>
-                    ))}
+                            </Link>
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-12 text-center">

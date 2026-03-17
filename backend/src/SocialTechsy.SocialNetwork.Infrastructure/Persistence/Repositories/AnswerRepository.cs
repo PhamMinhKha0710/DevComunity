@@ -109,4 +109,21 @@ public class AnswerRepository : IAnswerRepository
 
         return (items, totalCount);
     }
+
+    public async Task<Dictionary<int, (int Count, bool HasAccepted)>> GetAnswerCountsAndAcceptedByQuestionIdsAsync(int[] questionIds, CancellationToken cancellationToken = default)
+    {
+        if (questionIds == null || questionIds.Length == 0)
+            return new Dictionary<int, (int Count, bool HasAccepted)>();
+
+        var topLevel = _context.Answers.Where(a => a.ParentAnswerId == null && questionIds.Contains(a.QuestionId));
+        var grouped = await topLevel
+            .GroupBy(a => a.QuestionId)
+            .Select(g => new { QuestionId = g.Key, Count = g.Count(), HasAccepted = g.Any(a => a.IsAccepted) })
+            .ToListAsync(cancellationToken);
+
+        var result = new Dictionary<int, (int Count, bool HasAccepted)>();
+        foreach (var qid in questionIds.Distinct())
+            result[qid] = grouped.FirstOrDefault(x => x.QuestionId == qid) is { } x ? (x.Count, x.HasAccepted) : (0, false);
+        return result;
+    }
 }

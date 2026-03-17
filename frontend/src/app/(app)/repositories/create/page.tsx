@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import type { CreateRepositoryRequest } from '@/types';
 import apiClient from '@/lib/api/client';
 import AppLayout from '@/components/AppLayout';
+import { authorInitial } from '@/lib/utils';
 
 export default function CreateRepositoryPage() {
     const { user, isLoading: authLoading } = useAuth();
@@ -30,7 +31,7 @@ export default function CreateRepositoryPage() {
     }
 
     if (!user) {
-        router.push('/login');
+        router.push('/auth?mode=login');
         return null;
     }
 
@@ -84,7 +85,7 @@ export default function CreateRepositoryPage() {
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-2 bg-[#f1f5f9] dark:bg-[var(--bg-tertiary)] rounded-full px-4 py-2.5 shrink-0">
                                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                                        {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
+                                        {authorInitial(user.displayName || user.username)}
                                     </div>
                                     <span className="text-sm font-medium text-[#0f172a] dark:text-white">{user.username}</span>
                                 </div>

@@ -22,4 +22,13 @@ export const authApi = {
 
     changePassword: (data: { currentPassword: string; newPassword: string }) =>
         apiClient.post('/auth/change-password', data).then(r => r.data),
+
+    externalLogin: (provider: 'google' | 'github' | 'facebook') => {
+        // Redirect to backend OAuth endpoint
+        window.location.href = `/api/auth/external-login/${provider}`;
+        return Promise.resolve({ success: true, message: 'Redirecting...' });
+    },
+
+    exchangeCode: (code: string) =>
+        apiClient.post<AuthResponse>('/auth/exchange', { code }).then(r => r.data),
 };

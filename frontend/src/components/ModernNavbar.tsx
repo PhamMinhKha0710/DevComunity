@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useChatContext } from '@/lib/contexts/ChatContext';
+import { authorInitial } from '@/lib/utils';
 
 export default function ModernNavbar() {
     const router = useRouter();
@@ -196,7 +197,7 @@ export default function ModernNavbar() {
                                 {user?.profilePicture ? (
                                     <img src={user.profilePicture} alt={user.displayName || user.username} className="size-full object-cover" />
                                 ) : (
-                                    user?.username?.charAt(0).toUpperCase() || 'U'
+                                    authorInitial(user?.username)
                                 )}
                             </button>
 
@@ -226,10 +227,10 @@ export default function ModernNavbar() {
                     </>
                 ) : (
                     <div className="flex gap-2">
-                        <Link href="/login" className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-[var(--primary)] transition font-semibold text-sm">
+                        <Link href="/auth?mode=login" className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-[var(--primary)] transition font-semibold text-sm">
                             Login
                         </Link>
-                        <Link href="/register" className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition font-bold text-sm shadow-sm">
+                        <Link href="/auth?mode=register" className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition font-bold text-sm shadow-sm">
                             Sign Up
                         </Link>
                     </div>

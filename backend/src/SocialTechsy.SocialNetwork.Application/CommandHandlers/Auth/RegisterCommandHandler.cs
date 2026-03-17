@@ -10,20 +10,17 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthResponse>
 {
     private readonly IUserRepository _userRepository;
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly IJwtTokenService _tokenService;
+    private readonly IAuthTokenIssuer _authTokenIssuer;
 
     public RegisterCommandHandler(
         IUserRepository userRepository,
-        IRefreshTokenRepository refreshTokenRepository,
         IPasswordHasher passwordHasher,
-        IJwtTokenService tokenService)
+        IAuthTokenIssuer authTokenIssuer)
     {
         _userRepository = userRepository;
-        _refreshTokenRepository = refreshTokenRepository;
         _passwordHasher = passwordHasher;
-        _tokenService = tokenService;
+        _authTokenIssuer = authTokenIssuer;
     }
 
     public async Task<AuthResponse> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -59,17 +56,8 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
 
         var createdUser = await _userRepository.AddAsync(user, cancellationToken);
 
-        var accessToken = _tokenService.GenerateAccessToken(createdUser.UserId, createdUser.Email, createdUser.Username);
-        var refreshTokenString = _tokenService.GenerateRefreshToken();
-
-        var refreshToken = new RefreshToken
-        {
-            Token = refreshTokenString,
-            UserId = createdUser.UserId,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            CreatedAt = DateTime.UtcNow
-        };
-        await _refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+        var (accessToken, refreshTokenString) =
+            await _authTokenIssuer.IssueTokensAsync(createdUser, 7, cancellationToken);
 
         return new AuthResponse
         {

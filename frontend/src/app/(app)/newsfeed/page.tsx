@@ -1,14 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { HubConnectionState } from '@microsoft/signalr';
+import toast from 'react-hot-toast';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { newsfeedApi } from '@/lib/api/newsfeed.api';
+import { votesApi } from '@/lib/api/votes.api';
+import { savedItemsApi } from '@/lib/api/savedItems.api';
+import { commentsApi } from '@/lib/api/comments.api';
 import { useHub } from '@/lib/signalr/useHub';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 interface Post {
     postId: number;
@@ -22,13 +27,19 @@ interface Post {
     groupName: string | null;
     content: string;
     createdAt: string;
+    likeCount?: number;
+    commentCount?: number;
+    userLiked?: boolean;
+    userSaved?: boolean;
 }
 
 export default function NewsfeedPage() {
     const { isAuthenticated, user: currentUser } = useAuth();
     const queryClient = useQueryClient();
     const [newPostContent, setNewPostContent] = useState('');
-    const [activeTab, setActiveTab] = useState('all');
+    const [activeTab, setActiveTab] = useState<'all' | 'following' | 'community'>('all');
+    const [commentOpenPostId, setCommentOpenPostId] = useState<number | null>(null);
+    const [commentTextByPostId, setCommentTextByPostId] = useState<Record<number, string>>({});
     const activityHub = useHub('activity');
 
     const { data: postsData, isLoading: loading } = useQuery({
@@ -38,6 +49,20 @@ export default function NewsfeedPage() {
     });
 
     const posts: Post[] = postsData?.items || [];
+
+    // Filter posts based on active tab
+    const filteredPosts = useMemo(() => {
+        if (activeTab === 'all') {
+            return posts;
+        } else if (activeTab === 'following') {
+            // Following = posts not in groups (personal posts from users you follow)
+            return posts.filter(p => p.groupId === null);
+        } else if (activeTab === 'community') {
+            // Community = posts from groups
+            return posts.filter(p => p.groupId !== null);
+        }
+        return posts;
+    }, [posts, activeTab]);
 
     const handleNewPost = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
@@ -63,6 +88,72 @@ export default function NewsfeedPage() {
         },
     });
 
+    const likePostMutation = useMutation({
+        mutationFn: ({ postId, isLiked }: { postId: number; isLiked: boolean }) =>
+            isLiked ? votesApi.removePostVote(postId) : votesApi.votePost(postId, { voteType: 'up' }),
+        onMutate: async ({ postId, isLiked }) => {
+            await queryClient.cancelQueries({ queryKey: ['newsfeed'] });
+            const prev = queryClient.getQueryData(['newsfeed']);
+            queryClient.setQueryData(['newsfeed'], (old: any) => {
+                if (!old?.items) return old;
+                return {
+                    ...old,
+                    items: old.items.map((p: Post) =>
+                        p.postId === postId
+                            ? {
+                                ...p,
+                                userLiked: !isLiked,
+                                likeCount: (p.likeCount ?? 0) + (isLiked ? -1 : 1)
+                            }
+                            : p
+                    )
+                };
+            });
+            return { prev };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.prev) queryClient.setQueryData(['newsfeed'], context.prev);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
+        },
+    });
+
+    const savePostMutation = useMutation({
+        mutationFn: ({ postId, isSaved }: { postId: number; isSaved: boolean }) =>
+            isSaved ? savedItemsApi.unsavePost(postId) : savedItemsApi.savePost(postId),
+        onMutate: async ({ postId, isSaved }) => {
+            await queryClient.cancelQueries({ queryKey: ['newsfeed'] });
+            const prev = queryClient.getQueryData(['newsfeed']);
+            queryClient.setQueryData(['newsfeed'], (old: any) => {
+                if (!old?.items) return old;
+                return {
+                    ...old,
+                    items: old.items.map((p: Post) =>
+                        p.postId === postId
+                            ? { ...p, userSaved: !isSaved }
+                            : p
+                    )
+                };
+            });
+            return { prev };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.prev) queryClient.setQueryData(['newsfeed'], context.prev);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
+        },
+    });
+
+    const commentMutation = useMutation({
+        mutationFn: ({ postId, body }: { postId: number; body: string }) =>
+            commentsApi.addToPost(postId, body),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
+        },
+    });
+
     const posting = createPostMutation.isPending;
 
     const handleCreatePost = (e: React.FormEvent) => {
@@ -82,7 +173,7 @@ export default function NewsfeedPage() {
                     <p className="text-slate-500 mb-6 max-w-md">
                         Please login to view your personalized newsfeed and connect with other developers.
                     </p>
-                    <Link href="/login" className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)]/90 transition">
+                    <Link href="/auth?mode=login" className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)]/90 transition">
                         Login Now
                     </Link>
                 </div>
@@ -110,7 +201,7 @@ export default function NewsfeedPage() {
                                         <img src={currentUser.profilePicture} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                                            {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
+                                            {authorInitial(currentUser?.displayName || currentUser?.username)}
                                         </div>
                                     )}
                                 </div>
@@ -155,7 +246,7 @@ export default function NewsfeedPage() {
                         {tabs.map((tab) => (
                             <button
                                 key={tab.key}
-                                onClick={() => setActiveTab(tab.key)}
+                                onClick={() => setActiveTab(tab.key as 'all' | 'following' | 'community')}
                                 className={`pb-3 border-b-2 text-sm font-bold transition-colors ${activeTab === tab.key
                                     ? 'border-[var(--primary)] text-[var(--primary)]'
                                     : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -174,12 +265,16 @@ export default function NewsfeedPage() {
                     ) : posts.length === 0 ? (
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center">
                             <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">inbox</span>
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No posts yet</h3>
-                            <p className="text-slate-500">Be the first to share something or follow more users!</p>
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                                {activeTab === 'community' ? 'No community posts' : activeTab === 'following' ? 'No posts from following' : 'No posts yet'}
+                            </h3>
+                            <p className="text-slate-500">
+                                {activeTab === 'community' ? 'Join groups to see community posts!' : activeTab === 'following' ? 'Follow more users to see their posts!' : 'Be the first to share something or follow more users!'}
+                            </p>
                         </div>
                     ) : (
                         <div className="flex flex-col gap-6">
-                            {posts.map((post) => (
+                            {filteredPosts.map((post) => (
                                 <div key={post.postId} className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-800 transition-all hover:shadow-md">
                                     {/* Post Header */}
                                     <div className="p-5 flex items-center justify-between">
@@ -189,7 +284,7 @@ export default function NewsfeedPage() {
                                                     <img src={post.author.profilePicture} alt="" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
-                                                        {post.author.username?.charAt(0).toUpperCase() || 'U'}
+                                                        {authorInitial(post.author.displayName || post.author.username)}
                                                     </div>
                                                 )}
                                             </div>
@@ -219,26 +314,115 @@ export default function NewsfeedPage() {
                                         </p>
                                     </div>
 
-                                    {/* Post Actions */}
-                                    <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                        <div className="flex items-center gap-6">
-                                            <button className="flex items-center gap-2 text-slate-500 hover:text-[var(--primary)] transition-colors">
-                                                <span className="material-symbols-outlined text-xl">favorite</span>
-                                                <span className="text-xs font-semibold">0</span>
-                                            </button>
-                                            <button className="flex items-center gap-2 text-slate-500 hover:text-[var(--primary)] transition-colors">
-                                                <span className="material-symbols-outlined text-xl">chat_bubble</span>
-                                                <span className="text-xs font-semibold">0</span>
-                                            </button>
-                                            <button className="flex items-center gap-2 text-slate-500 hover:text-[var(--primary)] transition-colors">
-                                                <span className="material-symbols-outlined text-xl">share</span>
-                                                <span className="text-xs font-semibold">0</span>
-                                            </button>
+                                    {/* Like count - same as question */}
+                                    {(post.likeCount ?? 0) > 0 && (
+                                        <div className="flex items-center gap-1.5 px-5 pb-2 text-sm text-slate-500">
+                                            <span className="w-5 h-5 rounded-full bg-[var(--primary)] flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-white text-xs">thumb_up</span>
+                                            </span>
+                                            {post.likeCount}
                                         </div>
-                                        <button className="text-slate-400 hover:text-[var(--primary)]">
-                                            <span className="material-symbols-outlined text-xl">bookmark</span>
+                                    )}
+
+                                    {/* Post Actions - same layout as question (Thích, Bình luận, Lưu) */}
+                                    <div className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (likePostMutation.isPending || !currentUser) return;
+                                                likePostMutation.mutate({ postId: post.postId, isLiked: post.userLiked ?? false });
+                                            }}
+                                            disabled={likePostMutation.isPending}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60 ${
+                                                post.userLiked ? 'text-[var(--primary)]' : 'text-slate-500'
+                                            }`}
+                                        >
+                                            <span className="material-symbols-outlined text-xl">
+                                                {post.userLiked ? 'thumb_up' : 'thumb_up_off_alt'}
+                                            </span>
+                                            Thích
+                                            {(post.likeCount ?? 0) > 0 && (
+                                                <span className="text-xs">({post.likeCount})</span>
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCommentOpenPostId(commentOpenPostId === post.postId ? null : post.postId)}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                                                commentOpenPostId === post.postId ? 'text-[var(--primary)]' : 'text-slate-500'
+                                            }`}
+                                        >
+                                            <span className="material-symbols-outlined text-xl">comment</span>
+                                            Bình luận
+                                            {(post.commentCount ?? 0) > 0 && (
+                                                <span className="text-xs">({post.commentCount})</span>
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (savePostMutation.isPending || !currentUser) return;
+                                                savePostMutation.mutate({ postId: post.postId, isSaved: post.userSaved ?? false });
+                                            }}
+                                            disabled={savePostMutation.isPending}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60 ${
+                                                post.userSaved ? 'text-[var(--primary)]' : 'text-slate-500'
+                                            }`}
+                                        >
+                                            <span className="material-symbols-outlined text-xl">
+                                                {post.userSaved ? 'bookmark' : 'bookmark_border'}
+                                            </span>
+                                            {post.userSaved ? 'Đã lưu' : 'Lưu'}
                                         </button>
                                     </div>
+
+                                    {/* Comment section - same style as question answers/comments */}
+                                    {commentOpenPostId === post.postId && (
+                                        <div className="px-5 pb-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                            <div className="ml-0 pl-0 space-y-3">
+                                                <p className="text-sm text-slate-500">Chưa có bình luận.</p>
+                                                {currentUser && (
+                                                    <div className="flex gap-2.5">
+                                                        {currentUser.profilePicture ? (
+                                                            <img
+                                                                src={currentUser.profilePicture}
+                                                                alt=""
+                                                                className="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-1"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-1">
+                                                                {authorInitial(currentUser.displayName || currentUser.username)}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex-1">
+                                                            <textarea
+                                                                value={commentTextByPostId[post.postId] ?? ''}
+                                                                onChange={(e) => setCommentTextByPostId(prev => ({ ...prev, [post.postId]: e.target.value }))}
+                                                                rows={2}
+                                                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/20 transition resize-none"
+                                                                placeholder="Viết bình luận... (Enter để gửi)"
+                                                            />
+                                                            <div className="flex justify-end mt-1.5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const text = commentTextByPostId[post.postId]?.trim();
+                                                                        if (!text || commentMutation.isPending) return;
+                                                                        commentMutation.mutate({ postId: post.postId, body: text });
+                                                                        setCommentTextByPostId(prev => ({ ...prev, [post.postId]: '' }));
+                                                                    }}
+                                                                    className="px-3 py-1.5 text-xs font-medium bg-[var(--primary)] text-white rounded-lg hover:opacity-90 transition disabled:opacity-50"
+                                                                    disabled={!(commentTextByPostId[post.postId]?.trim()) || commentMutation.isPending}
+                                                                >
+                                                                    {commentMutation.isPending ? 'Đang gửi...' : 'Gửi'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -280,7 +464,7 @@ export default function NewsfeedPage() {
                                 <div key={person.name} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
-                                            {person.name.charAt(0)}
+                                            {authorInitial(person.name)}
                                         </div>
                                         <div>
                                             <p className="text-xs font-bold text-slate-900 dark:text-white">{person.name}</p>

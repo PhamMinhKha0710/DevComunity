@@ -9,4 +9,10 @@ export const newsfeedApi = {
 
     createPost: (data: { content: string; groupId?: number | null }) =>
         apiClient.post('/Newsfeed/posts', data).then(r => r.data),
+
+    likePost: (postId: number) =>
+        apiClient.post(`/Newsfeed/posts/${postId}/like`).then(r => r.data),
+
+    unlikePost: (postId: number) =>
+        apiClient.delete(`/Newsfeed/posts/${postId}/like`).then(r => r.data),
 };

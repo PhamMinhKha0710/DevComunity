@@ -57,7 +57,7 @@ apiClient.interceptors.response.use(
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('refreshToken');
                     document.cookie = 'accessToken=; path=/; max-age=0';
-                    window.location.href = '/login';
+                    window.location.href = '/auth?mode=login';
                 }
                 return Promise.reject(refreshError);
             }

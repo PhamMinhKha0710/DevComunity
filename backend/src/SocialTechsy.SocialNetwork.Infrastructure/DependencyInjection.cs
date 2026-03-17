@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IQuestionRepository>(sp =>
             new QuestionRepository(
                 sp.GetRequiredService<SocialTechsySocialNetworkDbContext>(),
+                sp.GetRequiredService<ITagRepository>(),
                 fullTextEnabled));
         services.AddScoped<IAnswerRepository, AnswerRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
@@ -51,7 +52,6 @@ public static class DependencyInjection
         services.AddScoped<ISavedItemRepository, SavedItemRepository>();
         services.AddScoped<IBadgeRepository, BadgeRepository>();
         services.AddScoped<ICodeRepository, CodeRepository>();
-        services.AddScoped<IOutboxRepository, OutboxRepository>();
 
         // ========== REDIS CACHE ==========
         var redisEnabled = configuration.GetValue<bool>("Redis:Enabled");
@@ -147,11 +147,15 @@ public static class DependencyInjection
                 sp.GetRequiredService<ILogger<LikeNotificationConsumer>>(),
                 sp.GetService<IConnectionMultiplexer>()));
             services.AddHostedService<SocialTechsy.SocialNetwork.Infrastructure.MongoDB.OutboxProcessor>();
+            // SQL Outbox processor for publishing vote events to RabbitMQ
             services.AddHostedService(sp => new SqlOutboxProcessor(
                 sp,
                 sp.GetRequiredService<IConnection>(),
                 sp.GetRequiredService<ILogger<SqlOutboxProcessor>>()));
         }
+
+        // SQL Outbox repository (always needed for vote events)
+        services.AddScoped<IOutboxRepository, OutboxRepository>();
 
         // Social Networking repositories
         services.AddScoped<IFriendshipRepository, FriendshipRepository>();
@@ -162,11 +166,13 @@ public static class DependencyInjection
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
 
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IOAuthLoginSessionRepository, OAuthLoginSessionRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Register services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IAuthTokenIssuer, AuthTokenIssuer>();
         services.AddScoped<DataSeeder>();
         services.AddSingleton<ICacheService>(sp =>
             new CacheService(

@@ -12,10 +12,15 @@ public class QuestionRepository : IQuestionRepository
 {
     private readonly SocialTechsySocialNetworkDbContext _context;
     private readonly bool _fullTextEnabled;
+    private readonly ITagRepository _tagRepository;
 
-    public QuestionRepository(SocialTechsySocialNetworkDbContext context, bool fullTextEnabled = false)
+    public QuestionRepository(
+        SocialTechsySocialNetworkDbContext context,
+        ITagRepository tagRepository,
+        bool fullTextEnabled = false)
     {
         _context = context;
+        _tagRepository = tagRepository;
         _fullTextEnabled = fullTextEnabled;
     }
 
@@ -27,6 +32,15 @@ public class QuestionRepository : IQuestionRepository
             .Include(q => q.QuestionTags)
                 .ThenInclude(qt => qt.Tag)
             .Include(q => q.Comments)
+            .FirstOrDefaultAsync(q => q.QuestionId == id, cancellationToken);
+    }
+
+    public async Task<Question?> GetByIdForUpdateAsync(int id, CancellationToken cancellationToken = default)
+    {
+        // For update operations, we only need the Question entity itself.
+        // This avoids EF Core tracking the entire graph (User, Answers, QuestionTags, Comments),
+        // which would cause conflicts when updating question and tags in the same request.
+        return await _context.Questions
             .FirstOrDefaultAsync(q => q.QuestionId == id, cancellationToken);
     }
 
@@ -45,6 +59,56 @@ public class QuestionRepository : IQuestionRepository
                 .ThenInclude(qt => qt.Tag)
             .AsQueryable();
 
+        query = ApplyFilters(query, searchTerm, tag, sort);
+
+        // Execute sequentially - DbContext cannot be used concurrently
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    /// <summary>
+    /// Optimized paginated query with minimal includes for better performance.
+    /// Does NOT include Answers - just Author and Tags.
+    /// </summary>
+    public async Task<(IEnumerable<Question> Items, int TotalCount)> GetPaginatedOptimizedAsync(
+        int page,
+        int pageSize,
+        string? searchTerm = null,
+        string? tag = null,
+        string sort = "newest",
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Questions
+            .Include(q => q.User)
+            .Include(q => q.QuestionTags)
+                .ThenInclude(qt => qt.Tag)
+            .AsQueryable();
+
+        query = ApplyFilters(query, searchTerm, tag, sort);
+
+        // Execute sequentially - DbContext cannot be used concurrently
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    private IQueryable<Question> ApplyFilters(
+        IQueryable<Question> query,
+        string? searchTerm,
+        string? tag,
+        string sort)
+    {
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             var term = searchTerm.Trim();
@@ -65,27 +129,57 @@ public class QuestionRepository : IQuestionRepository
         // Filter by tag
         if (!string.IsNullOrWhiteSpace(tag))
         {
-            query = query.Where(q => 
+            query = query.Where(q =>
                 q.QuestionTags.Any(qt => qt.Tag.TagName == tag));
         }
 
         // Sort
-        query = sort switch
+        return sort switch
         {
             "active" => query.OrderByDescending(q => q.UpdatedDate ?? q.CreatedDate),
             "votes" => query.OrderByDescending(q => q.Score),
             "unanswered" => query.Where(q => !q.Answers.Any()).OrderByDescending(q => q.CreatedDate),
             _ => query.OrderByDescending(q => q.CreatedDate) // newest
         };
+    }
 
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+    public async Task SetTagsForQuestionAsync(int questionId, IReadOnlyList<string> tagNames, CancellationToken cancellationToken = default)
+    {
+        // Remove existing tags
+        var existing = await _context.QuestionTags
+            .Where(qt => qt.QuestionId == questionId)
             .ToListAsync(cancellationToken);
+        _context.QuestionTags.RemoveRange(existing);
 
-        return (items, totalCount);
+        var names = (tagNames ?? Array.Empty<string>())
+            .Select(s => s?.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (names.Count == 0)
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        // Batch: Get or create all tags at once
+        var tags = new List<Domain.Entities.Tag>();
+        foreach (var name in names)
+        {
+            var tag = await _tagRepository.GetOrCreateAsync(name!, cancellationToken);
+            tags.Add(tag);
+        }
+
+        // Batch add all QuestionTags
+        var questionTags = tags.Select(t => new QuestionTag
+        {
+            QuestionId = questionId,
+            TagId = t.TagId
+        }).ToList();
+
+        await _context.QuestionTags.AddRangeAsync(questionTags, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Question> AddAsync(Question question, CancellationToken cancellationToken = default)
@@ -97,7 +191,14 @@ public class QuestionRepository : IQuestionRepository
 
     public async Task UpdateAsync(Question question, CancellationToken cancellationToken = default)
     {
-        _context.Questions.Update(question);
+        // If the entity was loaded in this context (e.g. via GetByIdAsync), it is already tracked.
+        // Calling Update() would mark the entire graph (User, Answers, QuestionTags, Comments) as Modified
+        // and can cause 500 errors on SaveChanges. Only attach/update when detached.
+        var entry = _context.Entry(question);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Questions.Update(question);
+        }
         await _context.SaveChangesAsync(cancellationToken);
     }
 

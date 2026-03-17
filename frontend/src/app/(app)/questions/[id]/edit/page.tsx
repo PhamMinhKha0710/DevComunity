@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +8,8 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import type { Question } from '@/types';
 import { questionsApi } from '@/lib/api/questions.api';
 import AppLayout from '@/components/AppLayout';
+
+const MAX_TAGS = 5;
 
 export default function EditQuestionPage() {
     const params = useParams();
@@ -20,8 +22,10 @@ export default function EditQuestionPage() {
     const [formData, setFormData] = useState({
         title: '',
         body: '',
-        tags: '',
     });
+    const [tagList, setTagList] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState('');
+    const tagInputRef = useRef<HTMLInputElement>(null);
 
     const { data: questionData, isLoading, error: queryError } = useQuery<Question>({
         queryKey: ['question', questionId],
@@ -30,7 +34,6 @@ export default function EditQuestionPage() {
 
     useEffect(() => {
         if (questionData) {
-            // Nếu không phải chủ câu hỏi thì quay lại trang detail
             if (user && questionData.authorId && user.userId !== questionData.authorId) {
                 router.replace(`/questions/${questionId}`);
                 return;
@@ -39,8 +42,8 @@ export default function EditQuestionPage() {
             setFormData({
                 title: questionData.title,
                 body: questionData.body,
-                tags: questionData.tags?.map((t: { tagName: string }) => t.tagName).join(', ') || '',
             });
+            setTagList(questionData.tags?.map((t: { tagName: string }) => t.tagName) || []);
         } else if (queryError) {
             setError('Failed to load question');
         }
@@ -61,13 +64,38 @@ export default function EditQuestionPage() {
 
     const isSubmitting = updateMutation.isPending;
 
+    const addTag = (raw: string) => {
+        const name = raw.trim().replace(/^#+/, '');
+        if (!name || tagList.length >= MAX_TAGS) return;
+        if (tagList.some(t => t.toLowerCase() === name.toLowerCase())) return;
+        setTagList(prev => [...prev, name]);
+        setTagInput('');
+    };
+
+    const removeTag = (index: number) => {
+        setTagList(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === ',' || e.key === 'Enter') {
+            e.preventDefault();
+            addTag(tagInput);
+        } else if (e.key === 'Backspace' && !tagInput && tagList.length > 0) {
+            removeTag(tagList.length - 1);
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        const lastTag = tagInput.trim().replace(/^#+/, '');
+        const finalTags = lastTag && tagList.length < MAX_TAGS && !tagList.some(t => t.toLowerCase() === lastTag.toLowerCase())
+            ? [...tagList, lastTag]
+            : tagList;
         updateMutation.mutate({
             title: formData.title,
             body: formData.body,
-            tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+            tags: finalTags,
         });
     };
 
@@ -86,10 +114,13 @@ export default function EditQuestionPage() {
         if (selection) {
             if (syntax.includes('**')) {
                 newText = before + `**${selection}**` + after;
-            } else if (syntax.includes('*')) {
+            } else if (syntax.includes('*') && !syntax.startsWith('#')) {
                 newText = before + `*${selection}*` + after;
             } else if (syntax.includes('`')) {
                 newText = before + `\`${selection}\`` + after;
+            } else if (syntax === '> ') {
+                const quoted = selection.split('\n').map(line => '> ' + line).join('\n');
+                newText = before + quoted + after;
             } else {
                 newText = before + syntax + selection + after;
             }
@@ -107,6 +138,7 @@ export default function EditQuestionPage() {
         { icon: 'title', action: '## ', title: 'Heading 2' },
         { icon: 'code', action: '`code`', title: 'Code' },
         { icon: 'link', action: '[Link](url)', title: 'Link' },
+        { icon: 'format_quote', action: '> ', title: 'Đoạn trích dẫn (Blockquote)' },
         { icon: 'format_list_bulleted', action: '- ', title: 'Bullet List' },
         { icon: 'format_list_numbered', action: '1. ', title: 'Numbered List' },
     ];
@@ -205,26 +237,46 @@ export default function EditQuestionPage() {
                                     </p>
                                 </div>
 
-                                {/* Tags */}
+                                {/* Tags: chip hiển thị ngay, gõ xong Enter hoặc dấu phẩy là thành tag */}
                                 <div>
                                     <label className="block text-sm font-bold text-[#334155] dark:text-[var(--text-secondary)] mb-2 flex items-center gap-1">
                                         <span className="material-symbols-outlined text-[#137fec] text-base">sell</span>Tags
                                     </label>
-                                    <div className="flex items-center gap-0 border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-xl overflow-hidden">
-                                        <span className="px-3 py-3 bg-[#f8fafc] dark:bg-[var(--bg-tertiary)] text-[#94a3b8] border-r border-[#e2e8f0] dark:border-[var(--border-color)]">
+                                    <div className="flex flex-wrap items-center gap-2 p-2 min-h-[48px] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-xl focus-within:border-[#137fec] focus-within:ring-2 focus-within:ring-[rgba(19,127,236,0.1)] transition">
+                                        <span className="pl-2 pr-1 py-2 text-[#94a3b8] flex-shrink-0">
                                             <span className="material-symbols-outlined text-lg">sell</span>
                                         </span>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. javascript, react, node.js (comma separated)"
-                                            value={formData.tags}
-                                            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                            className="flex-1 px-4 py-3 bg-transparent text-[var(--text-primary)] placeholder-[#94a3b8] outline-none"
-                                        />
+                                        {tagList.map((tag, i) => (
+                                            <span
+                                                key={`${tag}-${i}`}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#137fec]/15 text-[#137fec] rounded-lg text-sm font-medium"
+                                            >
+                                                {tag}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeTag(i)}
+                                                    className="p-0.5 rounded hover:bg-[#137fec]/30 transition"
+                                                    aria-label="Xóa tag"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">close</span>
+                                                </button>
+                                            </span>
+                                        ))}
+                                        {tagList.length < MAX_TAGS && (
+                                            <input
+                                                ref={tagInputRef}
+                                                type="text"
+                                                value={tagInput}
+                                                onChange={(e) => setTagInput(e.target.value)}
+                                                onKeyDown={handleTagKeyDown}
+                                                placeholder={tagList.length === 0 ? "e.g. javascript, react, node.js" : "Thêm tag..."}
+                                                className="flex-1 min-w-[100px] px-2 py-2 bg-transparent text-[var(--text-primary)] placeholder-[#94a3b8] outline-none"
+                                            />
+                                        )}
                                     </div>
                                     <p className="text-xs text-[#94a3b8] mt-2 flex items-center gap-1">
                                         <span className="material-symbols-outlined text-[#137fec] text-sm">info</span>
-                                        Add up to 5 tags to describe what your question is about.
+                                        Gõ tên tag rồi nhấn Enter hoặc dấu phẩy — tag xuất hiện ngay. Tối đa 5 tag.
                                     </p>
                                 </div>
 

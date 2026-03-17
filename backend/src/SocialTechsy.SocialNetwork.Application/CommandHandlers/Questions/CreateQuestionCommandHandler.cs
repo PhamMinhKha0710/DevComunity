@@ -2,6 +2,7 @@ using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 using SocialTechsy.SocialNetwork.Domain.Enums;
 
@@ -14,13 +15,16 @@ public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionComman
 {
     private readonly IQuestionRepository _questionRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ICacheService? _cacheService;
 
     public CreateQuestionCommandHandler(
         IQuestionRepository questionRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        ICacheService? cacheService = null)
     {
         _questionRepository = questionRepository;
         _userRepository = userRepository;
+        _cacheService = cacheService;
     }
 
     public async Task<QuestionDto> Handle(CreateQuestionCommand request, CancellationToken cancellationToken)
@@ -38,11 +42,18 @@ public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionComman
 
         var createdQuestion = await _questionRepository.AddAsync(question, cancellationToken);
 
+        if (request.Tags?.Count > 0)
+            await _questionRepository.SetTagsForQuestionAsync(createdQuestion.QuestionId, request.Tags, cancellationToken);
+
         // Award reputation for asking a question (+2)
         await _userRepository.UpdateReputationAsync(
             request.UserId, 
             CommandHandlers.Votes.ReputationPoints.AskQuestion, 
             cancellationToken);
+
+        // Invalidate questions list cache
+        _cacheService?.RemoveByPrefix("questions:page:");
+        _cacheService?.RemoveByPrefix("search:");
 
         return new QuestionDto
         {

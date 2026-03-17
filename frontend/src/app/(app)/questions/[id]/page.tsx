@@ -16,6 +16,7 @@ import { commentsApi } from "@/lib/api/comments.api";
 import AppLayout from "@/components/AppLayout";
 import RelativeTime from "@/components/RelativeTime";
 import type { Question, Answer, Comment } from "@/types";
+import { authorInitial } from "@/lib/utils";
 
 const MarkdownContent = dynamic(() => import("@/components/MarkdownContent"), {
   loading: () => (
@@ -146,9 +147,38 @@ export default function QuestionDetailPage() {
         queryClient.setQueryData(["answers", id], context.prev);
       }
     },
+    onSuccess: (_data, vars) => {
+      const { targetType, targetId, isLiked } = vars;
+      const newUserVote = isLiked ? null : "up";
+
+      if (targetType === "question") {
+        const response = _data as { score: number; userVote?: string };
+        const newScore = response.score;
+        const newVoteType = newUserVote === "up" ? "up" : null;
+
+        queryClient.setQueryData<Question>(["question", id], (prev) => {
+          if (!prev) return prev;
+          return { ...prev, score: newScore, userVoteType: newVoteType as Question["userVoteType"] };
+        });
+      } else {
+        const response = _data as { score: number; userVote?: string };
+        const newScore = response.score;
+        const newVoteType = newUserVote === "up" ? "up" : null;
+
+        queryClient.setQueryData(["answers", id], (prev: unknown) => {
+          if (!prev) return prev;
+          const raw = prev as { items?: Answer[] };
+          const items = raw.items || (prev as Answer[]);
+          const updated = (Array.isArray(items) ? items : []).map((a: Answer) =>
+            a.answerId === targetId
+              ? { ...a, score: newScore, userVoteType: newVoteType as Answer["userVoteType"] }
+              : a,
+          );
+          return raw.items ? { ...raw, items: updated } : updated;
+        });
+      }
+    },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["question", id] });
-      queryClient.invalidateQueries({ queryKey: ["answers", id] });
       queryClient.invalidateQueries({ queryKey: ["questions"] });
     },
   });
@@ -322,13 +352,29 @@ export default function QuestionDetailPage() {
             <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--text-muted)]">
               <span className="flex items-center gap-1">
                 <i className="bi bi-clock"></i>
-              <RelativeTime value={question.createdDate} fallback={formatDate(question.createdDate)} />
+                <RelativeTime value={question.createdDate} fallback={formatDate(question.createdDate)} />
               </span>
               <span className="flex items-center gap-1">
                 <i className="bi bi-eye"></i>
                 {question.viewCount} views
               </span>
             </div>
+
+            {/* Tags - ngay dưới meta, dễ thấy */}
+            {(question.tags?.length ?? 0) > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-[var(--text-muted)] mr-1">Tags:</span>
+                {question.tags.map((tag) => (
+                  <Link
+                    key={tag.tagId}
+                    href={`/questions?tag=${tag.tagName}`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-md text-sm font-medium hover:bg-[var(--primary)] hover:text-white transition"
+                  >
+                    #{tag.tagName}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
@@ -336,18 +382,6 @@ export default function QuestionDetailPage() {
               content={question.body}
               className="mb-6 text-[var(--text-secondary)]"
             />
-
-            <div className="flex flex-wrap gap-2 mb-6">
-              {question.tags?.map((tag) => (
-                <Link
-                  key={tag.tagId}
-                  href={`/tags?search=${tag.tagName}`}
-                  className="px-3 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-sm font-medium hover:bg-[var(--primary)] hover:text-white transition"
-                >
-                  #{tag.tagName}
-                </Link>
-              ))}
-            </div>
 
             {/* Like count */}
             {question.score > 0 && (
@@ -400,9 +434,17 @@ export default function QuestionDetailPage() {
                 Tất cả câu hỏi
               </Link>
               <div className="flex items-center gap-3 bg-[var(--bg-tertiary)] p-3 rounded-xl border border-[var(--border-color)]">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
-                  {question.authorUsername?.charAt(0).toUpperCase()}
-                </div>
+                {question.authorProfilePicture ? (
+                  <img
+                    src={question.authorProfilePicture}
+                    alt={question.authorUsername || ""}
+                    className="w-10 h-10 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold">
+                    {authorInitial(question.authorUsername)}
+                  </div>
+                )}
                 <div className="text-sm">
                   <div className="text-[var(--text-muted)]">Hỏi bởi</div>
                   <Link
@@ -443,9 +485,9 @@ export default function QuestionDetailPage() {
                     </div>
                   )}
 
-                  <div
-                    className="prose dark:prose-invert max-w-none mb-4 text-[var(--text-secondary)]"
-                    dangerouslySetInnerHTML={{ __html: answer.body }}
+                  <MarkdownContent
+                    content={answer.body}
+                    className="mb-4 text-[var(--text-secondary)]"
                   />
 
                   {/* Like count */}
@@ -494,9 +536,17 @@ export default function QuestionDetailPage() {
                     <div className="ml-4 pl-4 border-l-2 border-[var(--border-color)] mb-3 space-y-3">
                       {answer.comments.map((comment: Comment) => (
                         <div key={comment.commentId} className="flex gap-2.5">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold mt-0.5">
-                            {comment.authorUsername?.charAt(0).toUpperCase()}
-                          </div>
+                          {comment.authorProfilePicture ? (
+                            <img
+                              src={comment.authorProfilePicture}
+                              alt={comment.authorUsername || ""}
+                              className="w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5"
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold mt-0.5">
+                              {authorInitial(comment.authorUsername)}
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="bg-[var(--bg-tertiary)] rounded-xl px-3 py-2">
                               <Link
@@ -523,9 +573,17 @@ export default function QuestionDetailPage() {
                   {replyingTo === answer.answerId && user && (
                     <div className="ml-4 pl-4 border-l-2 border-[var(--primary)]/30 mb-3">
                       <div className="flex gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-1">
-                          {user.username?.charAt(0).toUpperCase()}
-                        </div>
+                        {user.profilePicture ? (
+                          <img
+                            src={user.profilePicture}
+                            alt={user.displayName || user.username}
+                            className="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-1"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-1">
+                            {authorInitial(user.displayName || user.username)}
+                          </div>
+                        )}
                         <div className="flex-1">
                           <textarea
                             ref={replyInputRef}
@@ -568,9 +626,17 @@ export default function QuestionDetailPage() {
                       className="text-xs text-[var(--text-muted)]"
                     />
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
-                        {answer.authorUsername?.charAt(0).toUpperCase()}
-                      </div>
+                      {answer.authorProfilePicture ? (
+                        <img
+                          src={answer.authorProfilePicture}
+                          alt={answer.authorUsername || ""}
+                          className="w-6 h-6 rounded object-cover"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
+                          {authorInitial(answer.authorUsername)}
+                        </div>
+                      )}
                       <Link
                         href={`/users/${answer.authorId}`}
                         className="text-sm font-medium text-[var(--primary)] hover:underline"
@@ -633,13 +699,13 @@ export default function QuestionDetailPage() {
             </p>
             <div className="flex justify-center gap-4">
               <Link
-                href="/login"
+                href="/auth?mode=login"
                 className="px-6 py-2 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition"
               >
                 Log In
               </Link>
               <Link
-                href="/register"
+                href="/auth?mode=register"
                 className="px-6 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium border border-[var(--border-color)] hover:border-[var(--primary)] transition"
               >
                 Sign Up

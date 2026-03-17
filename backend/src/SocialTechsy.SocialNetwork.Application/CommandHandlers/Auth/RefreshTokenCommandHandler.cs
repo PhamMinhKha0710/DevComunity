@@ -10,17 +10,14 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
 public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, AuthResponse>
 {
     private readonly IRefreshTokenRepository _refreshTokenRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly IJwtTokenService _tokenService;
+    private readonly IAuthTokenIssuer _authTokenIssuer;
 
     public RefreshTokenCommandHandler(
         IRefreshTokenRepository refreshTokenRepository,
-        IUserRepository userRepository,
-        IJwtTokenService tokenService)
+        IAuthTokenIssuer authTokenIssuer)
     {
         _refreshTokenRepository = refreshTokenRepository;
-        _userRepository = userRepository;
-        _tokenService = tokenService;
+        _authTokenIssuer = authTokenIssuer;
     }
 
     public async Task<AuthResponse> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
@@ -51,21 +48,12 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         }
 
         // Rotate: revoke old token and create new one
-        var newAccessToken = _tokenService.GenerateAccessToken(user.UserId, user.Email, user.Username);
-        var newRefreshTokenString = _tokenService.GenerateRefreshToken();
+        var (newAccessToken, newRefreshTokenString) =
+            await _authTokenIssuer.IssueTokensAsync(user, 7, cancellationToken);
 
         storedToken.RevokedAt = DateTime.UtcNow;
         storedToken.ReplacedByToken = newRefreshTokenString;
         await _refreshTokenRepository.UpdateAsync(storedToken, cancellationToken);
-
-        var newRefreshToken = new RefreshToken
-        {
-            Token = newRefreshTokenString,
-            UserId = user.UserId,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            CreatedAt = DateTime.UtcNow
-        };
-        await _refreshTokenRepository.AddAsync(newRefreshToken, cancellationToken);
 
         return new AuthResponse
         {
