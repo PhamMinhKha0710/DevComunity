@@ -20,6 +20,5 @@ public class UpdateProfileCommand : IRequest<bool>
     public string? Location { get; set; }
 
     [StringLength(200)]
-    [Url]
     public string? Website { get; set; }
 }

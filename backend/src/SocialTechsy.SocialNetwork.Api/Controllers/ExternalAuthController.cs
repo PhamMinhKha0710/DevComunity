@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
@@ -16,21 +17,21 @@ public class ExternalAuthController : ControllerBase
 {
     private readonly ILogger<ExternalAuthController> _logger;
     private readonly IUserRepository _userRepository;
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
-    private readonly IJwtTokenService _tokenService;
+    private readonly IOAuthLoginSessionRepository _oauthSessionRepository;
+    private readonly IAuthTokenIssuer _authTokenIssuer;
     private readonly IConfiguration _configuration;
 
     public ExternalAuthController(
         ILogger<ExternalAuthController> logger,
         IUserRepository userRepository,
-        IRefreshTokenRepository refreshTokenRepository,
-        IJwtTokenService tokenService,
+        IOAuthLoginSessionRepository oauthSessionRepository,
+        IAuthTokenIssuer authTokenIssuer,
         IConfiguration configuration)
     {
         _logger = logger;
         _userRepository = userRepository;
-        _refreshTokenRepository = refreshTokenRepository;
-        _tokenService = tokenService;
+        _oauthSessionRepository = oauthSessionRepository;
+        _authTokenIssuer = authTokenIssuer;
         _configuration = configuration;
     }
 
@@ -153,23 +154,27 @@ public class ExternalAuthController : ControllerBase
             await _userRepository.UpdateAsync(user, cancellationToken);
         }
 
-        var accessToken = _tokenService.GenerateAccessToken(user.UserId, user.Email, user.Username);
-        var refreshTokenString = _tokenService.GenerateRefreshToken();
-
-        var refreshToken = new RefreshToken
-        {
-            Token = refreshTokenString,
-            UserId = user.UserId,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            CreatedAt = DateTime.UtcNow
-        };
-        await _refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+        var (accessToken, refreshTokenString) =
+            await _authTokenIssuer.IssueTokensAsync(user, 7, cancellationToken);
 
         _logger.LogInformation("User {UserId} logged in via {Provider}", user.UserId, provider);
 
-        // Redirect to frontend callback page with tokens
+        // Store tokens in short-lived session; redirect with code only (no tokens in URL)
+        var code = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "-").Replace("/", "_").TrimEnd('=');
+        var session = new OAuthLoginSession
+        {
+            Code = code,
+            UserId = user.UserId,
+            Provider = provider,
+            AccessToken = accessToken,
+            RefreshToken = refreshTokenString,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(5)
+        };
+        await _oauthSessionRepository.AddAsync(session, cancellationToken);
+
         var frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "http://localhost:3000";
-        var redirectUrl = $"{frontendBaseUrl}/auth/callback?success=true&accessToken={Uri.EscapeDataString(accessToken)}&refreshToken={Uri.EscapeDataString(refreshTokenString)}&message={Uri.EscapeDataString($"Logged in via {provider}")}";
+        var redirectUrl = $"{frontendBaseUrl}/auth/callback?success=true&code={Uri.EscapeDataString(code)}&message={Uri.EscapeDataString($"Logged in via {provider}")}";
         return Redirect(redirectUrl);
     }
 
