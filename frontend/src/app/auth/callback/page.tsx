@@ -3,6 +3,7 @@
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { authApi } from '@/lib/api/auth.api';
 
 function CallbackContent() {
     const router = useRouter();
@@ -11,8 +12,7 @@ function CallbackContent() {
 
     useEffect(() => {
         const success = searchParams.get('success');
-        const accessToken = searchParams.get('accessToken');
-        const refreshToken = searchParams.get('refreshToken');
+        const code = searchParams.get('code');
         const error = searchParams.get('error');
 
         if (error) {
@@ -20,14 +20,22 @@ function CallbackContent() {
             return;
         }
 
-        if (success === 'true' && accessToken) {
-            localStorage.setItem('accessToken', accessToken);
-            document.cookie = `accessToken=${accessToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-            if (refreshToken) {
-                localStorage.setItem('refreshToken', refreshToken);
-            }
-            // Sync auth store (fetch user, set isAuthenticated) before redirect so dashboard shows immediately
-            initialize().then(() => router.replace('/'));
+        if (success === 'true' && code) {
+            authApi.exchangeCode(code)
+                .then((res) => {
+                    if (res.success && res.accessToken) {
+                        localStorage.setItem('accessToken', res.accessToken);
+                        document.cookie = `accessToken=${res.accessToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+                        if (res.refreshToken) {
+                            localStorage.setItem('refreshToken', res.refreshToken);
+                        }
+                        return initialize().then(() => router.replace('/'));
+                    }
+                    router.replace('/auth?mode=login&error=' + encodeURIComponent(res.message || 'Authentication failed'));
+                })
+                .catch(() => {
+                    router.replace('/auth?mode=login&error=' + encodeURIComponent('Authentication failed'));
+                });
         } else {
             router.replace('/auth?mode=login&error=' + encodeURIComponent('Authentication failed'));
         }

@@ -1,13 +1,17 @@
 'use client';
 
+import { useCallback, useEffect } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Question, Tag } from "@/types";
 import { questionsApi } from "@/lib/api/questions.api";
+import { useHub } from "@/lib/signalr/useHub";
+import { HubConnectionState } from "@microsoft/signalr";
 import AppLayout from "@/components/AppLayout";
 import LandingPage from "@/components/landing/LandingPage";
 import RelativeTime from "@/components/RelativeTime";
+import { authorInitial } from "@/lib/utils";
 
 const stripHtml = (html: string): string => {
   if (!html) return '';
@@ -16,6 +20,8 @@ const stripHtml = (html: string): string => {
 
 export default function HomePage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
+  const questionHub = useHub("question");
 
   const { data, isLoading } = useQuery({
     queryKey: ['questions', { page: 1, pageSize: 10 }],
@@ -24,6 +30,47 @@ export default function HomePage() {
   });
 
   const questions: Question[] = data?.items || [];
+  const questionIds = questions.map((q) => q.questionId).join(',');
+
+  // Join question rooms to receive real-time like updates
+  useEffect(() => {
+    if (!isAuthenticated || questionHub.connectionState !== HubConnectionState.Connected || questions.length === 0) return;
+    const ids = questions.map((q) => q.questionId);
+    ids.forEach((questionId) => {
+      questionHub.invoke("JoinQuestion", questionId).catch(() => {});
+    });
+    return () => {
+      ids.forEach((questionId) => {
+        questionHub.invoke("LeaveQuestion", questionId).catch(() => {});
+      });
+    };
+  }, [isAuthenticated, questionHub.connectionState, questionHub, questionIds, questions.length]);
+
+  const handleVoteChanged = useCallback(
+    (payload: { targetType: string; targetId: number; likeCount: number }) => {
+      if (payload.targetType !== "question") return;
+      queryClient.setQueriesData(
+        { queryKey: ["questions"] },
+        (old: { items?: Question[] } | undefined) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((q) =>
+              q.questionId === payload.targetId ? { ...q, score: payload.likeCount } : q
+            ),
+          };
+        }
+      );
+    },
+    [queryClient]
+  );
+
+  useEffect(() => {
+    questionHub.on("VoteChanged", handleVoteChanged);
+    return () => {
+      questionHub.off("VoteChanged", handleVoteChanged);
+    };
+  }, [questionHub, handleVoteChanged]);
 
   if (authLoading) {
     return (
@@ -110,7 +157,7 @@ export default function HomePage() {
                     {/* Author */}
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold">
-                        {question.authorUsername?.charAt(0).toUpperCase() || '?'}
+                        {authorInitial(question.authorUsername)}
                       </div>
                       <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         {question.authorUsername || 'Anonymous'}

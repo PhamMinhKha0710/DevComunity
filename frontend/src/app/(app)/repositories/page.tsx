@@ -9,6 +9,7 @@ import type { Repository } from '@/types';
 import { repositoriesApi } from '@/lib/api/repositories.api';
 import AppLayout from '@/components/AppLayout';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 function RepositoriesContent() {
     const searchParams = useSearchParams();
@@ -86,7 +87,7 @@ function RepositoriesContent() {
                                 {/* Owner */}
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${gradients[index % gradients.length]} flex items-center justify-center text-white text-xs font-bold`}>
-                                        {repo.ownerUsername?.charAt(0).toUpperCase() || '?'}
+                                        {authorInitial(repo.ownerUsername)}
                                     </div>
                                     <Link href={`/users/${repo.ownerId}`} className="text-sm text-[#64748b] hover:text-[#137fec] transition-colors">
                                         {repo.ownerUsername}

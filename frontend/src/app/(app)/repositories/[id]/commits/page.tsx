@@ -7,6 +7,7 @@ import type { RepositoryCommit } from '@/types';
 import { repositoriesApi } from '@/lib/api/repositories.api';
 import AppLayout from '@/components/AppLayout';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 export default function CommitsPage() {
     const params = useParams();
@@ -64,7 +65,7 @@ export default function CommitsPage() {
                     commits.map((commit, index) => (
                         <div key={commit.sha} className={`p-5 flex items-center gap-4 ${index > 0 ? 'border-t border-[#e2e8f0] dark:border-[var(--border-color)]' : ''}`}>
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                                {commit.authorName?.charAt(0).toUpperCase() || '?'}
+                                {authorInitial(commit.authorName)}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="font-bold text-[#0f172a] dark:text-white text-sm truncate">{commit.message}</p>
