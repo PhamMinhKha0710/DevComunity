@@ -97,6 +97,10 @@ public class PostDto
     public string Content { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    public int LikeCount { get; set; }
+    public bool UserLiked { get; set; }
+    public int CommentCount { get; set; }
+    public bool UserSaved { get; set; }
 }
 
 public class CreatePostRequest

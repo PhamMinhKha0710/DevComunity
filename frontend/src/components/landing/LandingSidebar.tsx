@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { authorInitial } from '@/lib/utils';
 
 const TRENDING_TOPICS = [
   { name: '#Typescript_5.4', posts: '1.2k posts this week' },
@@ -50,7 +51,7 @@ export default function LandingSidebar() {
             <div key={c.name} className="landing-contributor">
               <div className="landing-contributor-avatar-wrapper">
                 <div className="landing-contributor-avatar">
-                  {c.name.charAt(0)}
+                  {authorInitial(c.name)}
                 </div>
                 <div className="landing-rank-badge" style={{ background: c.color }}>
                   {c.rank}

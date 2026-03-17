@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useState, useEffect } from 'react';
+import { authorInitial } from '@/lib/utils';
 
 export default function Navbar() {
     const { user, isAuthenticated, logout } = useAuth();
@@ -110,7 +111,7 @@ export default function Navbar() {
                                         className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition"
                                     >
                                         <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
-                                            {user.username?.charAt(0).toUpperCase() || 'U'}
+                                            {authorInitial(user.username)}
                                         </div>
                                     </button>
 
@@ -136,13 +137,13 @@ export default function Navbar() {
                         ) : (
                             <>
                                 <Link
-                                    href="/login"
+                                    href="/auth?mode=login"
                                     className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-orange-500 transition font-medium"
                                 >
                                     Log in
                                 </Link>
                                 <Link
-                                    href="/register"
+                                    href="/auth?mode=register"
                                     className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-medium"
                                 >
                                     Sign up
@@ -195,10 +196,10 @@ export default function Navbar() {
 
                             {!isAuthenticated && (
                                 <div className="flex gap-2 pt-4">
-                                    <Link href="/login" className="flex-1 text-center py-2 border border-orange-500 text-orange-500 rounded-lg">
+                                    <Link href="/auth?mode=login" className="flex-1 text-center py-2 border border-orange-500 text-orange-500 rounded-lg">
                                         Log in
                                     </Link>
-                                    <Link href="/register" className="flex-1 text-center py-2 bg-orange-500 text-white rounded-lg">
+                                    <Link href="/auth?mode=register" className="flex-1 text-center py-2 bg-orange-500 text-white rounded-lg">
                                         Sign up
                                     </Link>
                                 </div>

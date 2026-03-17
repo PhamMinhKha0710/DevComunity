@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useChatContext } from '@/lib/contexts/ChatContext';
+import { authorInitial } from '@/lib/utils';
 
 interface NavItem {
     name: string;
@@ -90,7 +91,7 @@ export default function ModernSidebar() {
                             <img src={user.profilePicture} alt={user.displayName || user.username} className="size-10 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700" />
                         ) : (
                             <div className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border-2 border-slate-100 dark:border-slate-700">
-                                {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
+                                {authorInitial(user.displayName || user.username)}
                             </div>
                         )}
                         <div className="flex-1 min-w-0">

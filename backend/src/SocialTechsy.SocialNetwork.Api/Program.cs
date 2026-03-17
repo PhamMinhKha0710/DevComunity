@@ -11,6 +11,7 @@ using SocialTechsy.SocialNetwork.Infrastructure;
 using SocialTechsy.SocialNetwork.Api;
 using OpenTelemetry.Trace;
 using Serilog;
+using StackExchange.Profiling;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +45,16 @@ builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHan
 // Add Application and Infrastructure services
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// MiniProfiler - only in Development
+if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("MiniProfiler:Enabled"))
+{
+    builder.Services.AddMiniProfiler(options =>
+    {
+        options.RouteBasePath = "/profiler";
+        options.EnableServerTimingHeader = true;
+    });
+}
 
 // SignalR-based handlers (needs API layer for hub contexts)
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.ILikeNotificationHandler,
@@ -88,10 +99,27 @@ if (builder.Configuration.GetSection("RabbitMQ").GetValue<bool>("Enabled"))
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
 
-builder.Services.AddAuthentication(options =>
+// Get OAuth settings
+var googleSettings = builder.Configuration.GetSection("Authentication:Google");
+var githubSettings = builder.Configuration.GetSection("Authentication:GitHub");
+var facebookSettings = builder.Configuration.GetSection("Authentication:Facebook");
+
+// Build authentication scheme list
+var authenticationBuilder = builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+// Add Cookie authentication for OAuth external login flow
+.AddCookie("ExternalCookie", options =>
+{
+    options.Cookie.Name = "ExternalCookie";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+    options.LoginPath = "/api/auth/external-login";
+    options.LogoutPath = "/api/auth/external-logout";
+    options.AccessDeniedPath = "/api/auth/access-denied";
 })
 .AddJwtBearer(options =>
 {
@@ -114,7 +142,7 @@ builder.Services.AddAuthentication(options =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            
+
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
             {
                 context.Token = accessToken;
@@ -123,6 +151,70 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
+
+// Configure Google OAuth
+if (!string.IsNullOrEmpty(googleSettings["ClientId"]) && !string.IsNullOrEmpty(googleSettings["ClientSecret"]))
+{
+    authenticationBuilder.AddGoogle(options =>
+    {
+        options.ClientId = googleSettings["ClientId"] ?? "";
+        options.ClientSecret = googleSettings["ClientSecret"] ?? "";
+        options.CallbackPath = "/api/auth/external-callback/google";
+        options.SignInScheme = "ExternalCookie";
+        options.SaveTokens = true;
+        options.Events.OnCreatingTicket = context =>
+        {
+            if (context.User.TryGetProperty("picture", out var picture))
+            {
+                context.Properties?.Items?.Add("ExternalProviderAvatar", picture.GetString() ?? "");
+            }
+            return Task.CompletedTask;
+        };
+    });
+}
+
+// Configure GitHub OAuth
+if (!string.IsNullOrEmpty(githubSettings["ClientId"]) && !string.IsNullOrEmpty(githubSettings["ClientSecret"]))
+{
+    authenticationBuilder.AddGitHub(options =>
+    {
+        options.ClientId = githubSettings["ClientId"] ?? "";
+        options.ClientSecret = githubSettings["ClientSecret"] ?? "";
+        options.CallbackPath = "/api/auth/external-callback/github";
+        options.SignInScheme = "ExternalCookie";
+        options.SaveTokens = true;
+        options.Scope.Add("user:email"); // Required to get user email from GitHub
+        options.Events.OnCreatingTicket = context =>
+        {
+            if (context.User.TryGetProperty("avatar_url", out var avatar))
+            {
+                context.Properties?.Items?.Add("ExternalProviderAvatar", avatar.GetString() ?? "");
+            }
+            return Task.CompletedTask;
+        };
+    });
+}
+
+// Configure Facebook OAuth
+if (!string.IsNullOrEmpty(facebookSettings["AppId"]) && !string.IsNullOrEmpty(facebookSettings["AppSecret"]))
+{
+    authenticationBuilder.AddFacebook(options =>
+    {
+        options.AppId = facebookSettings["AppId"] ?? "";
+        options.AppSecret = facebookSettings["AppSecret"] ?? "";
+        options.CallbackPath = "/api/auth/external-callback/facebook";
+        options.SignInScheme = "ExternalCookie";
+        options.SaveTokens = true;
+        options.Events.OnCreatingTicket = context =>
+        {
+            if (context.User.TryGetProperty("picture", out var picture) && picture.TryGetProperty("data", out var data) && data.TryGetProperty("url", out var url))
+            {
+                context.Properties?.Items?.Add("ExternalProviderAvatar", url.GetString() ?? "");
+            }
+            return Task.CompletedTask;
+        };
+    });
+}
 
 // Configure CORS for React frontend
 builder.Services.AddCors(options =>
@@ -269,6 +361,12 @@ app.UseCors("ReactApp");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// MiniProfiler - only in Development
+if (app.Environment.IsDevelopment())
+{
+    app.UseMiniProfiler();
+}
 
 app.MapControllers();
 app.MapHealthChecks("/health");

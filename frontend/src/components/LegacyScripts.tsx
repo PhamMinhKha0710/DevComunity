@@ -39,18 +39,6 @@ export function LegacyScripts() {
             <Script src="/js/view-counter-fixed.js" strategy="lazyOnload" />
             <Script src="/js/activity-handler.js" strategy="lazyOnload" />
 
-            {/* SignalR Scripts - Only load when authenticated */}
-            {isAuthenticated && (
-                <>
-                    <Script src="/js/signalr-loader.js" strategy="lazyOnload" />
-                    <Script src="/js/signalr-connection-check.js" strategy="lazyOnload" />
-                    <Script src="/js/question-realtime-client.js" strategy="lazyOnload" />
-                    <Script src="/js/chat-client.js" strategy="lazyOnload" />
-                    <Script src="/js/notification-service-fixed.js" strategy="lazyOnload" />
-                    <Script src="/js/presence-handler.js" strategy="lazyOnload" />
-                </>
-            )}
-
             {/* Search and Tags */}
             <Script src="/js/search-autocomplete.js" strategy="lazyOnload" />
             <Script src="/js/tag-search.js" strategy="lazyOnload" />

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,31 +11,24 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Use raw SQL to avoid errors if columns already exist
             migrationBuilder.Sql(@"
-                IF COL_LENGTH('Messages', 'AttachmentFileName') IS NULL
-                    ALTER TABLE [Messages] ADD [AttachmentFileName] nvarchar(255) NULL;
-            ");
-            migrationBuilder.Sql(@"
-                IF COL_LENGTH('Messages', 'AttachmentSize') IS NULL
-                    ALTER TABLE [Messages] ADD [AttachmentSize] bigint NULL;
-            ");
-            migrationBuilder.Sql(@"
-                IF COL_LENGTH('Messages', 'AttachmentUrl') IS NULL
-                    ALTER TABLE [Messages] ADD [AttachmentUrl] nvarchar(500) NULL;
-            ");
-            migrationBuilder.Sql(@"
-                IF COL_LENGTH('Messages', 'MessageType') IS NULL
-                    ALTER TABLE [Messages] ADD [MessageType] nvarchar(20) NOT NULL DEFAULT 'text';
-            ");
-            migrationBuilder.Sql(@"
-                IF COL_LENGTH('Messages', 'ReplyToMessageId') IS NULL
-                    ALTER TABLE [Messages] ADD [ReplyToMessageId] int NULL;
+                IF OBJECT_ID(N'Messages', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH('Messages', 'AttachmentFileName') IS NULL
+                        ALTER TABLE [Messages] ADD [AttachmentFileName] nvarchar(255) NULL;
+                    IF COL_LENGTH('Messages', 'AttachmentSize') IS NULL
+                        ALTER TABLE [Messages] ADD [AttachmentSize] bigint NULL;
+                    IF COL_LENGTH('Messages', 'AttachmentUrl') IS NULL
+                        ALTER TABLE [Messages] ADD [AttachmentUrl] nvarchar(500) NULL;
+                    IF COL_LENGTH('Messages', 'MessageType') IS NULL
+                        ALTER TABLE [Messages] ADD [MessageType] nvarchar(20) NOT NULL DEFAULT 'text';
+                    IF COL_LENGTH('Messages', 'ReplyToMessageId') IS NULL
+                        ALTER TABLE [Messages] ADD [ReplyToMessageId] int NULL;
+                END
             ");
 
-            // Create MessageReactions table if not exists
             migrationBuilder.Sql(@"
-                IF OBJECT_ID(N'MessageReactions', N'U') IS NULL
+                IF OBJECT_ID(N'MessageReactions', N'U') IS NULL AND OBJECT_ID(N'Messages', N'U') IS NOT NULL
                 BEGIN
                     CREATE TABLE [MessageReactions] (
                         [MessageReactionId] int NOT NULL IDENTITY,
@@ -50,9 +43,8 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                 END
             ");
 
-            // Create PasswordResetTokens table if not exists
             migrationBuilder.Sql(@"
-                IF OBJECT_ID(N'PasswordResetTokens', N'U') IS NULL
+                IF OBJECT_ID(N'PasswordResetTokens', N'U') IS NULL AND OBJECT_ID(N'Users', N'U') IS NOT NULL
                 BEGIN
                     CREATE TABLE [PasswordResetTokens] (
                         [PasswordResetTokenId] int NOT NULL IDENTITY,
@@ -67,31 +59,29 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                 END
             ");
 
-            // Create indexes if not exist
             migrationBuilder.Sql(@"
-                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Messages_ReplyToMessageId')
+                IF OBJECT_ID(N'Messages', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Messages_ReplyToMessageId')
                     CREATE INDEX [IX_Messages_ReplyToMessageId] ON [Messages] ([ReplyToMessageId]);
             ");
             migrationBuilder.Sql(@"
-                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessageReactions_MessageId_UserId')
+                IF OBJECT_ID(N'MessageReactions', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessageReactions_MessageId_UserId')
                     CREATE UNIQUE INDEX [IX_MessageReactions_MessageId_UserId] ON [MessageReactions] ([MessageId], [UserId]);
             ");
             migrationBuilder.Sql(@"
-                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessageReactions_UserId')
+                IF OBJECT_ID(N'MessageReactions', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_MessageReactions_UserId')
                     CREATE INDEX [IX_MessageReactions_UserId] ON [MessageReactions] ([UserId]);
             ");
             migrationBuilder.Sql(@"
-                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_PasswordResetTokens_Token')
+                IF OBJECT_ID(N'PasswordResetTokens', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_PasswordResetTokens_Token')
                     CREATE UNIQUE INDEX [IX_PasswordResetTokens_Token] ON [PasswordResetTokens] ([Token]);
             ");
             migrationBuilder.Sql(@"
-                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_PasswordResetTokens_UserId')
+                IF OBJECT_ID(N'PasswordResetTokens', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_PasswordResetTokens_UserId')
                     CREATE INDEX [IX_PasswordResetTokens_UserId] ON [PasswordResetTokens] ([UserId]);
             ");
 
-            // Add FK for ReplyToMessageId if not exists
             migrationBuilder.Sql(@"
-                IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Messages_Messages_ReplyToMessageId')
+                IF OBJECT_ID(N'Messages', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Messages_Messages_ReplyToMessageId')
                     ALTER TABLE [Messages] ADD CONSTRAINT [FK_Messages_Messages_ReplyToMessageId]
                         FOREIGN KEY ([ReplyToMessageId]) REFERENCES [Messages] ([MessageId]) ON DELETE SET NULL;
             ");

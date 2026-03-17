@@ -68,6 +68,7 @@ public class PostRepository : IPostRepository
     {
         var query = _context.Posts
             .Include(p => p.Author)
+            .Include(p => p.Group)
             .Where(p => p.GroupId == groupId);
 
         var totalCount = await query.CountAsync(cancellationToken);

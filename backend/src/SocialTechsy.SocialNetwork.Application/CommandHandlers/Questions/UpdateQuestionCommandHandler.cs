@@ -2,6 +2,7 @@ using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Common.Exceptions;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
 
@@ -11,15 +12,19 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
 public class UpdateQuestionCommandHandler : IRequestHandler<UpdateQuestionCommand, Unit>
 {
     private readonly IQuestionRepository _questionRepository;
+    private readonly ICacheService? _cacheService;
 
-    public UpdateQuestionCommandHandler(IQuestionRepository questionRepository)
+    public UpdateQuestionCommandHandler(
+        IQuestionRepository questionRepository,
+        ICacheService? cacheService = null)
     {
         _questionRepository = questionRepository;
+        _cacheService = cacheService;
     }
 
     public async Task<Unit> Handle(UpdateQuestionCommand request, CancellationToken cancellationToken)
     {
-        var question = await _questionRepository.GetByIdAsync(request.QuestionId, cancellationToken);
+        var question = await _questionRepository.GetByIdForUpdateAsync(request.QuestionId, cancellationToken);
 
         if (question == null)
             throw new EntityNotFoundException("Question", request.QuestionId);
@@ -32,6 +37,15 @@ public class UpdateQuestionCommandHandler : IRequestHandler<UpdateQuestionComman
         question.UpdatedDate = DateTime.UtcNow;
 
         await _questionRepository.UpdateAsync(question, cancellationToken);
+
+        if (request.Tags != null)
+            await _questionRepository.SetTagsForQuestionAsync(request.QuestionId, request.Tags, cancellationToken);
+
+        // Invalidate cache
+        _cacheService?.Remove($"question:{request.QuestionId}");
+        _cacheService?.RemoveByPrefix("questions:page:");
+        _cacheService?.RemoveByPrefix("search:");
+
         return Unit.Value;
     }
 }

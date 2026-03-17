@@ -24,6 +24,16 @@ public class CreateAnswerCommentCommand : IRequest<CommentDto?>
 }
 
 /// <summary>
+/// Command to create a comment on a post
+/// </summary>
+public class CreatePostCommentCommand : IRequest<CommentDto?>
+{
+    public int PostId { get; set; }
+    public int UserId { get; set; }
+    public string Body { get; set; } = null!;
+}
+
+/// <summary>
 /// Command to update a comment
 /// </summary>
 public class UpdateCommentCommand : IRequest<bool>

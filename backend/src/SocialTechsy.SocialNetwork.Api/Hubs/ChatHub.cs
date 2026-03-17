@@ -1,4 +1,4 @@
-using System.Text.Encodings.Web;
+using System.Net;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -34,6 +34,13 @@ public class ChatHub : Hub
     private int GetCurrentUserId() =>
         int.TryParse(Context.UserIdentifier, out var id) ? id : 0;
 
+    /// <summary>
+    /// Escapes only dangerous HTML chars while preserving Unicode (Vietnamese, emoji, etc.).
+    /// Unlike HtmlEncoder.Default.Encode which converts non-ASCII to HTML numeric entities.
+    /// </summary>
+    private static string SanitizeHtml(string input) =>
+        WebUtility.HtmlEncode(input);
+
     public override async Task OnConnectedAsync()
     {
         if (Context.UserIdentifier is { } uid)
@@ -54,7 +61,7 @@ public class ChatHub : Hub
     public Task LeaveConversation(int conversationId) =>
         Groups.RemoveFromGroupAsync(Context.ConnectionId, $"conversation_{conversationId}");
 
-    public async Task SendMessage(int conversationId, string content, long? replyToMessageId = null)
+    public async Task SendMessage(int conversationId, string content, string? replyToMessageId = null)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -66,12 +73,18 @@ public class ChatHub : Hub
         if (!await IsRateLimitAllowedAsync(userId))
         { await SendError("Rate limit exceeded. Please slow down."); return; }
 
+        long? replyId = null;
+        if (!string.IsNullOrEmpty(replyToMessageId) && long.TryParse(replyToMessageId, out var parsedReplyId))
+        {
+            replyId = parsedReplyId;
+        }
+
         var result = await _mediator.Send(new SendMessageCommand
         {
             ConversationId = conversationId,
             SenderId = userId,
-            Content = HtmlEncoder.Default.Encode(content),
-            ReplyToMessageId = replyToMessageId
+            Content = SanitizeHtml(content),
+            ReplyToMessageId = replyId
         });
 
         if (result == null) return;
@@ -79,7 +92,7 @@ public class ChatHub : Hub
     }
 
     public async Task SendMediaMessage(int conversationId, string messageType, string attachmentUrl,
-        string attachmentFileName, long attachmentSize, string? caption = null, long? replyToMessageId = null)
+        string attachmentFileName, long attachmentSize, string? caption = null, string? replyToMessageId = null)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -93,32 +106,41 @@ public class ChatHub : Hub
         if (!await IsRateLimitAllowedAsync(userId))
         { await SendError("Rate limit exceeded. Please slow down."); return; }
 
+        long? replyId = null;
+        if (!string.IsNullOrEmpty(replyToMessageId) && long.TryParse(replyToMessageId, out var parsedReplyId))
+        {
+            replyId = parsedReplyId;
+        }
+
         var result = await _mediator.Send(new SendMessageCommand
         {
             ConversationId = conversationId,
             SenderId = userId,
-            Content = caption != null ? HtmlEncoder.Default.Encode(caption) : "",
+            Content = caption != null ? SanitizeHtml(caption) : "",
             MessageType = parsedMessageType,
             AttachmentUrl = attachmentUrl,
             AttachmentFileName = attachmentFileName,
             AttachmentSize = attachmentSize,
-            ReplyToMessageId = replyToMessageId
+            ReplyToMessageId = replyId
         });
 
         if (result == null) return;
         await BroadcastMessageAsync(conversationId, result);
     }
 
-    public async Task SyncMessages(int conversationId, long lastMessageId)
+    public async Task SyncMessages(int conversationId, string lastMessageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
+
+        if (!long.TryParse(lastMessageId, out var sinceId))
+            return;
 
         var messages = await _mediator.Send(new GetMessagesSinceQuery
         {
             ConversationId = conversationId,
             UserId = userId,
-            SinceMessageId = lastMessageId
+            SinceMessageId = sinceId
         });
 
         await Clients.Caller.SendAsync("SyncMessages", new { conversationId, messages });
@@ -162,10 +184,13 @@ public class ChatHub : Hub
             .SendAsync("MessagesRead", new { userId, lastMessageId });
     }
 
-    public async Task AddReaction(int conversationId, long messageId, string reactionType)
+    public async Task AddReaction(int conversationId, string messageIdStr, string reactionType)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
+
+        if (!long.TryParse(messageIdStr, out var messageId))
+        { await SendError("Invalid message ID"); return; }
 
         if (!Enum.TryParse<ReactionType>(reactionType, ignoreCase: true, out var parsedReaction))
         { await SendError("Invalid reaction type"); return; }
@@ -179,7 +204,15 @@ public class ChatHub : Hub
 
         if (result == null) return;
         await Clients.Group($"conversation_{conversationId}")
-            .SendAsync("ReceiveReaction", result);
+            .SendAsync("ReceiveReaction", new
+            {
+                messageId,
+                result.UserId,
+                result.Username,
+                result.ProfilePicture,
+                result.ReactionType,
+                result.CreatedAt
+            });
     }
 
     public async Task AcknowledgeDelivery(int conversationId, long messageId, string status)
@@ -202,10 +235,13 @@ public class ChatHub : Hub
             .SendAsync("DeliveryStatusUpdated", new { messageId, userId, status = status.ToLower() });
     }
 
-    public async Task RemoveReaction(int conversationId, long messageId)
+    public async Task RemoveReaction(int conversationId, string messageIdStr)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
+
+        if (!long.TryParse(messageIdStr, out var messageId))
+        { await SendError("Invalid message ID"); return; }
 
         var removed = await _mediator.Send(new RemoveReactionCommand
         {
@@ -232,7 +268,7 @@ public class ChatHub : Hub
         {
             MessageId = messageId,
             UserId = userId,
-            NewContent = System.Text.Encodings.Web.HtmlEncoder.Default.Encode(newContent)
+            NewContent = SanitizeHtml(newContent)
         });
 
         if (!result)
@@ -279,15 +315,9 @@ public class ChatHub : Hub
         await Clients.Group($"conversation_{conversationId}")
             .SendAsync("ReceiveMessage", result.Message);
 
-        var notification = new
-        {
-            conversationId,
-            messagePreview = result.NotificationPreview,
-            senderName = result.SenderDisplayName
-        };
-        var notifTasks = result.OtherParticipantUserIds
-            .Select(uid => Clients.Group($"user_{uid}").SendAsync("NewMessageNotification", notification));
-        await Task.WhenAll(notifTasks);
+        // NewMessageNotification is handled by the outbox/RabbitMQ pipeline
+        // (ChatMessageConsumerService -> SignalRChatPushHandler) to avoid duplicate
+        // delivery when both direct hub and async consumer are active.
     }
 
     private async Task<bool> IsRateLimitAllowedAsync(int userId) =>

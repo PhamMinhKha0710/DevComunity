@@ -397,6 +397,16 @@ FodyWeavers.xsd
 # Agent
 .agent/
 
+# Cursor IDE
+.cursor/
+.cursor/rules/
+
+# Memory & Notes (local development only)
+memory/
+!memory/.gitkeep
+docs/
+!docs/README.md
+
 # JetBrains IDEs (Rider, WebStorm)
 .idea/
 *.iml
@@ -447,6 +457,9 @@ uploads/
 
 # Docker (optional)
 docker-compose.override.yml
+
+# k6 test results
+backend/tests/k6/results/
 
 # Cursor IDE project metadata
 .cursor/

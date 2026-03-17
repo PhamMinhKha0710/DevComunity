@@ -22,6 +22,7 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
         if (user == null)
             return false;
 
+        // Only update fields that are provided - leave others unchanged in DB
         if (request.DisplayName != null)
             user.DisplayName = request.DisplayName;
         if (request.Bio != null)
@@ -29,7 +30,7 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
         if (request.Location != null)
             user.Location = request.Location;
         if (request.Website != null)
-            user.Website = request.Website;
+            user.Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website.Trim();
 
         await _userRepository.UpdateAsync(user, cancellationToken);
 

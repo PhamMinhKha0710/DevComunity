@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { formatFileSize } from './types';
+import { formatFileSize, decodeHtmlEntities } from './types';
 import type { RealtimeMessage } from './types';
 
 const REACTION_EMOJI_MAP: Record<string, string> = {
@@ -85,7 +85,7 @@ export default function MessageBubble({
                     ? `bg-[var(--primary)] text-white shadow-md shadow-[var(--primary)]/20 ${msg.status === 'sending' ? 'opacity-70' : ''}`
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
             } transition-all duration-200`}
-            onDoubleClick={() => onToggleReaction(msg.messageId, 'like')}
+            onDoubleClick={() => onToggleReaction(Number(msg.messageId), 'like')}
         >
             {msg.replyToMessage && (
                 <div className={`mb-2 p-2 rounded-lg text-xs ${
@@ -97,7 +97,7 @@ export default function MessageBubble({
                         {msg.replyToMessage.senderUsername}
                     </div>
                     <div className={`truncate ${isSent ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>
-                        {msg.replyToMessage.content}
+                        {decodeHtmlEntities(msg.replyToMessage.content)}
                     </div>
                 </div>
             )}
@@ -150,7 +150,7 @@ export default function MessageBubble({
                 </a>
             )}
 
-            {msg.content && <p className="break-words text-sm leading-relaxed">{msg.content}</p>}
+            {msg.content && <p className="break-words text-sm leading-relaxed">{decodeHtmlEntities(msg.content)}</p>}
 
             <div className={`absolute ${isSent ? '-left-16' : '-right-16'} top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
                 <button
@@ -161,7 +161,7 @@ export default function MessageBubble({
                     ↩️
                 </button>
                 <button
-                    onClick={() => onShowReactionPicker(pickerOpen ? null : msg.messageId)}
+                    onClick={() => onShowReactionPicker(pickerOpen ? null : Number(msg.messageId))}
                     className="w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
                     title="Add reaction"
                 >
@@ -172,7 +172,7 @@ export default function MessageBubble({
             {pickerOpen && (
                 <div className={`absolute ${isSent ? 'right-0' : 'left-0'} -bottom-2 translate-y-full z-50`}>
                     <ReactionPicker
-                        onReact={(type) => onToggleReaction(msg.messageId, type)}
+                        onReact={(type) => onToggleReaction(Number(msg.messageId), type)}
                         onClose={() => onShowReactionPicker(null)}
                         currentReaction={userReaction?.reactionType}
                     />

@@ -178,6 +178,24 @@ public class GroupsController : ControllerBase
     }
 
     /// <summary>
+    /// Check if current user is a member of the group
+    /// </summary>
+    [HttpGet("{id:int}/isMember")]
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<bool>> IsMember(int id, CancellationToken cancellationToken)
+    {
+        var group = await _groupRepository.GetByIdAsync(id, cancellationToken);
+        if (group == null) return NotFound(new { message = "Group not found" });
+
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Ok(false);
+
+        var isMember = await _groupRepository.IsMemberAsync(id, userId, cancellationToken);
+        return Ok(isMember);
+    }
+
+    /// <summary>
     /// Get group members
     /// </summary>
     [HttpGet("{id:int}/members")]
@@ -358,9 +376,9 @@ public class GroupsController : ControllerBase
         var group = await _groupRepository.GetByIdAsync(id, cancellationToken);
         if (group == null) return NotFound(new { message = "Group not found" });
 
-        // Check if already a member
+        // Check if already a member - return OK if already member (idempotent)
         var isMember = await _groupRepository.IsMemberAsync(id, userId, cancellationToken);
-        if (isMember) return BadRequest(new { message = "Already a member of this group" });
+        if (isMember) return Ok(new { message = "Already a member of this group" });
 
         // For private groups, need to be invited (not implemented yet)
         if (group.IsPrivate)
@@ -418,6 +436,10 @@ public class GroupsController : ControllerBase
         // Creator cannot leave
         if (group.CreatorId == userId)
             return BadRequest(new { message = "Group creator cannot leave. Transfer ownership or delete the group." });
+
+        // Check if user is a member - return OK if not a member (idempotent)
+        var isMember = await _groupRepository.IsMemberAsync(id, userId, cancellationToken);
+        if (!isMember) return Ok(new { message = "Not a member of this group" });
 
         await _groupRepository.RemoveMemberAsync(id, userId, cancellationToken);
 

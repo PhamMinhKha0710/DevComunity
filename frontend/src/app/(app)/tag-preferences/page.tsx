@@ -20,7 +20,7 @@ export default function TagPreferencesPage() {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            router.push('/login');
+            router.push('/auth?mode=login');
         }
     }, [user, authLoading, router]);
 

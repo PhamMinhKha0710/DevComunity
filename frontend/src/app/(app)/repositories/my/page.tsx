@@ -17,7 +17,7 @@ export default function MyRepositoriesPage() {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            router.push('/login');
+            router.push('/auth?mode=login');
         }
     }, [user, authLoading, router]);
 

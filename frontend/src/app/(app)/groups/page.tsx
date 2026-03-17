@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { groupsApi } from '@/lib/api/groups.api';
+import { authorInitial } from '@/lib/utils';
 
 interface Group {
     groupId: number;
@@ -190,7 +191,7 @@ export default function GroupsPage() {
                                                     {group.isPrivate ? 'Private' : 'Public'}
                                                 </span>
                                                 <div className="absolute bottom-3 left-3 text-white font-black text-lg drop-shadow-md">
-                                                    {group.name.substring(0, 2).toUpperCase()}
+                                                    {authorInitial(group.name)}
                                                 </div>
                                             </div>
                                             {/* Content */}
@@ -246,7 +247,7 @@ export default function GroupsPage() {
                                             >
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
-                                                        {group.name.substring(0, 2).toUpperCase()}
+                                                        {authorInitial(group.name)}
                                                     </div>
                                                     <div>
                                                         <h5 className="font-bold text-slate-900 dark:text-white text-sm group-hover:text-[var(--primary)] transition-colors">
@@ -284,7 +285,7 @@ export default function GroupsPage() {
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
-                                                {group.name.substring(0, 2).toUpperCase()}
+                                                {authorInitial(group.name)}
                                             </div>
                                             <div>
                                                 <h5 className="font-bold text-slate-900 dark:text-white text-sm">{group.name}</h5>
@@ -341,7 +342,7 @@ export default function GroupsPage() {
                                 <div key={person.name} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center text-white text-xs font-bold">
-                                            {person.name.charAt(0)}
+                                            {authorInitial(person.name)}
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-slate-900 dark:text-white">{person.name}</p>

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import type { Question, PaginatedResponse, Tag } from '@/types';
 import apiClient from '@/lib/api/client';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 const stripHtml = (html: string): string => {
   if (!html) return '';
@@ -89,7 +90,7 @@ export default function QuestionsFeed() {
               </div>
               <div className="landing-question-content">
                 <Link
-                  href={q.questionId > 0 ? `/questions/${q.questionId}` : '/register'}
+                  href={q.questionId > 0 ? `/questions/${q.questionId}` : '/auth?mode=register'}
                   className="landing-question-title"
                 >
                   {q.title}
@@ -105,7 +106,7 @@ export default function QuestionsFeed() {
                   </div>
                   <div className="landing-question-author">
                     <div className="landing-author-avatar">
-                      {q.authorUsername?.charAt(0).toUpperCase() || '?'}
+                      {authorInitial(q.authorUsername)}
                     </div>
                     <span className="landing-author-name">{q.authorUsername || 'Anonymous'}</span>
                     <RelativeTime

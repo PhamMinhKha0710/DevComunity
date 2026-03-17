@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.Mappings;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Queries.Users;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
@@ -15,11 +17,16 @@ public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;
     private readonly IMediator _mediator;
+    private readonly IOAuthLoginSessionRepository _oauthSessionRepository;
 
-    public AuthController(ILogger<AuthController> logger, IMediator mediator)
+    public AuthController(
+        ILogger<AuthController> logger,
+        IMediator mediator,
+        IOAuthLoginSessionRepository oauthSessionRepository)
     {
         _logger = logger;
         _mediator = mediator;
+        _oauthSessionRepository = oauthSessionRepository;
     }
 
     [HttpPost("register")]
@@ -39,6 +46,52 @@ public class AuthController : ControllerBase
             return BadRequest(result);
 
         return Ok(result);
+    }
+
+    [HttpPost("exchange")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthResponse>> ExchangeCode(
+        [FromBody] AuthCodeExchangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Code))
+            return BadRequest(new AuthResponse { Success = false, Message = "Code is required" });
+
+        var session = await _oauthSessionRepository.GetByCodeAsync(request.Code, cancellationToken);
+        if (session == null)
+        {
+            _logger.LogWarning("OAuth exchange attempted with unknown code");
+            return BadRequest(new AuthResponse { Success = false, Message = "Invalid or expired code" });
+        }
+
+        if (session.IsUsed)
+        {
+            _logger.LogWarning("OAuth exchange attempted with reused code for user {UserId}", session.UserId);
+            return BadRequest(new AuthResponse { Success = false, Message = "Code has already been used" });
+        }
+
+        if (session.IsExpired)
+        {
+            _logger.LogWarning("OAuth exchange attempted with expired code for user {UserId}", session.UserId);
+            return BadRequest(new AuthResponse { Success = false, Message = "Code has expired" });
+        }
+
+        session.IsUsed = true;
+        session.UsedAt = DateTime.UtcNow;
+        await _oauthSessionRepository.UpdateAsync(session, cancellationToken);
+
+        _logger.LogInformation("OAuth code exchanged successfully for user {UserId}", session.UserId);
+
+        return Ok(new AuthResponse
+        {
+            Success = true,
+            Message = "Authentication successful",
+            AccessToken = session.AccessToken,
+            RefreshToken = session.RefreshToken,
+            ExpiresAt = DateTime.UtcNow.AddHours(1),
+            User = session.User.ToDto()
+        });
     }
 
     [HttpPost("login")]

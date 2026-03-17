@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { Repository, RepositoryFile } from '@/types';
 import { repositoriesApi } from '@/lib/api/repositories.api';
 import AppLayout from '@/components/AppLayout';
+import { authorInitial } from '@/lib/utils';
 
 export default function RepositoryDetailsPage() {
     const params = useParams();
@@ -90,7 +91,7 @@ export default function RepositoryDetailsPage() {
                     <div className="flex items-center gap-2 mb-1">
                         <Link href={`/users/${repository.ownerId}`} className="text-[#64748b] hover:text-[#137fec] transition-colors text-sm flex items-center gap-1.5">
                             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold">
-                                {repository.ownerUsername?.charAt(0).toUpperCase() || '?'}
+                                {authorInitial(repository.ownerUsername)}
                             </div>
                             {repository.ownerUsername}
                         </Link>

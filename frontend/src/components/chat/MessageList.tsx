@@ -3,7 +3,7 @@
 import { useState, useMemo, type RefObject } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import type { Conversation, ConversationParticipant, User } from '@/types';
-import { formatTime, buildMessageGroups, getParticipantName, isParticipantOnline } from './types';
+import { formatTime, buildMessageGroups, getParticipantName, isParticipantOnline, authorInitial } from './types';
 import type { RealtimeMessage } from './types';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
@@ -51,7 +51,7 @@ export default function MessageList({
                             {otherParticipant?.profilePicture ? (
                                 <img src={otherParticipant.profilePicture} alt="" className="w-full h-full object-cover" />
                             ) : (
-                                selectedConversation ? getParticipantName(selectedConversation, currentUser.userId).charAt(0).toUpperCase() : '?'
+                                selectedConversation ? authorInitial(getParticipantName(selectedConversation, currentUser.userId)) : '?'
                             )}
                         </div>
                         {participantOnline && (
@@ -126,14 +126,14 @@ export default function MessageList({
                                             <img src={otherParticipant.profilePicture} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
-                                                {otherParticipant?.displayName?.charAt(0) || otherParticipant?.username?.charAt(0) || '?'}
+                                                {authorInitial(otherParticipant?.displayName || otherParticipant?.username)}
                                             </div>
                                         )}
                                     </div>
                                 ) : (
                                     <div className={`size-9 rounded-full overflow-hidden shrink-0 mt-1 ${group.showAvatar ? 'visible' : 'invisible'}`}>
                                         <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
-                                            {currentUser.username?.charAt(0).toUpperCase() || 'U'}
+                                            {authorInitial(currentUser.displayName || currentUser.username) || 'U'}
                                         </div>
                                     </div>
                                 )}
@@ -195,7 +195,7 @@ export default function MessageList({
                                                         className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[8px] font-semibold"
                                                         title={`Seen by ${otherParticipant?.displayName || otherParticipant?.username}`}
                                                     >
-                                                        {otherParticipant?.displayName?.charAt(0) || otherParticipant?.username?.charAt(0) || '?'}
+                                                        {authorInitial(otherParticipant?.displayName || otherParticipant?.username)}
                                                     </div>
                                                 )}
                                             </div>

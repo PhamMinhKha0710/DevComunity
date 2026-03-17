@@ -4,6 +4,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5122';
 
 type HubName = 'chat' | 'notifications' | 'presence' | 'question' | 'call' | 'activity';
 
+type StateChangeCallback = (hubName: HubName, state: signalR.HubConnectionState) => void;
+
 interface ManagedConnection {
     connection: signalR.HubConnection;
     refCount: number;
@@ -13,9 +15,22 @@ class SignalRConnectionManager {
     private connections = new Map<HubName, ManagedConnection>();
     private eventListeners = new Map<string, Set<(...args: unknown[]) => void>>();
     private reconnectCallbacks = new Map<HubName, Set<() => void>>();
+    private stateChangeListeners = new Set<StateChangeCallback>();
 
     getConnection(hubName: HubName): signalR.HubConnection | null {
         return this.connections.get(hubName)?.connection ?? null;
+    }
+
+    onStateChange(callback: StateChangeCallback): void {
+        this.stateChangeListeners.add(callback);
+    }
+
+    offStateChange(callback: StateChangeCallback): void {
+        this.stateChangeListeners.delete(callback);
+    }
+
+    private notifyStateChange(hubName: HubName, state: signalR.HubConnectionState): void {
+        this.stateChangeListeners.forEach(cb => cb(hubName, state));
     }
 
     async connect(hubName: HubName): Promise<signalR.HubConnection> {
@@ -27,9 +42,12 @@ class SignalRConnectionManager {
             }
             if (existing.connection.state === signalR.HubConnectionState.Disconnected) {
                 await existing.connection.start();
+                this.notifyStateChange(hubName, signalR.HubConnectionState.Connected);
             }
             return existing.connection;
         }
+
+        const isDev = process.env.NODE_ENV === 'development';
 
         const connection = new signalR.HubConnectionBuilder()
             .withUrl(`${API_BASE_URL}/hubs/${hubName}`, {
@@ -38,22 +56,30 @@ class SignalRConnectionManager {
                 transport: signalR.HttpTransportType.WebSockets,
             })
             .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-            .configureLogging(signalR.LogLevel.Warning)
+            .configureLogging(isDev ? signalR.LogLevel.Information : signalR.LogLevel.Warning)
             .build();
 
         this.connections.set(hubName, { connection, refCount: 1 });
 
-        connection.onclose(() => {
-            console.log(`[SignalR] ${hubName} connection closed`);
+        connection.onreconnecting(() => {
+            console.log(`[SignalR] ${hubName} reconnecting...`);
+            this.notifyStateChange(hubName, signalR.HubConnectionState.Reconnecting);
         });
 
         connection.onreconnected(() => {
             console.log(`[SignalR] ${hubName} reconnected`);
+            this.notifyStateChange(hubName, signalR.HubConnectionState.Connected);
             this.reconnectCallbacks.get(hubName)?.forEach(cb => cb());
+        });
+
+        connection.onclose(() => {
+            console.log(`[SignalR] ${hubName} connection closed`);
+            this.notifyStateChange(hubName, signalR.HubConnectionState.Disconnected);
         });
 
         await connection.start();
         console.log(`[SignalR] ${hubName} connected`);
+        this.notifyStateChange(hubName, signalR.HubConnectionState.Connected);
         return connection;
     }
 
@@ -129,5 +155,19 @@ class SignalRConnectionManager {
     }
 }
 
-export const signalRManager = new SignalRConnectionManager();
+// Preserve singleton across Fast Refresh / HMR in development
+function getOrCreateManager(): SignalRConnectionManager {
+    if (typeof window !== 'undefined') {
+        const win = window as any;
+        if (win.__signalRManager instanceof SignalRConnectionManager) {
+            return win.__signalRManager;
+        }
+        const manager = new SignalRConnectionManager();
+        win.__signalRManager = manager;
+        return manager;
+    }
+    return new SignalRConnectionManager();
+}
+
+export const signalRManager = getOrCreateManager();
 export type { HubName };

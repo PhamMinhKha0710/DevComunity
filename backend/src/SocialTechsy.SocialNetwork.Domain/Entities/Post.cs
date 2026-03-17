@@ -15,4 +15,6 @@ public class Post
     // Navigation properties
     public virtual User Author { get; set; } = null!;
     public virtual Group? Group { get; set; }
+    public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
+    public virtual ICollection<SavedItem> SavedByUsers { get; set; } = new List<SavedItem>();
 }

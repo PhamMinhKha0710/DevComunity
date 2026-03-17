@@ -25,6 +25,7 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
         // Indexes
         builder.HasIndex(c => c.QuestionId);
         builder.HasIndex(c => c.AnswerId);
+        builder.HasIndex(c => c.PostId);
 
         // Relationships
         builder.HasOne(c => c.Question)
@@ -36,6 +37,11 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
             .WithMany(a => a.Comments)
             .HasForeignKey(c => c.AnswerId)
             .OnDelete(DeleteBehavior.Restrict); // Changed to Restrict
+
+        builder.HasOne(c => c.Post)
+            .WithMany(p => p.Comments)
+            .HasForeignKey(c => c.PostId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(c => c.User)
             .WithMany()

@@ -89,6 +89,47 @@ public class CreateAnswerCommentCommandHandler : IRequestHandler<CreateAnswerCom
 }
 
 /// <summary>
+/// Handler for creating a comment on a post
+/// </summary>
+public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostCommentCommand, CommentDto?>
+{
+    private readonly ICommentRepository _commentRepository;
+    private readonly IPostRepository _postRepository;
+
+    public CreatePostCommentCommandHandler(
+        ICommentRepository commentRepository,
+        IPostRepository postRepository)
+    {
+        _commentRepository = commentRepository;
+        _postRepository = postRepository;
+    }
+
+    public async Task<CommentDto?> Handle(CreatePostCommentCommand request, CancellationToken cancellationToken)
+    {
+        var post = await _postRepository.GetByIdAsync(request.PostId, cancellationToken);
+        if (post == null) return null;
+
+        var comment = new Comment
+        {
+            PostId = request.PostId,
+            UserId = request.UserId,
+            Body = request.Body,
+            CreatedDate = DateTime.UtcNow
+        };
+
+        var created = await _commentRepository.AddAsync(comment, cancellationToken);
+        
+        return new CommentDto
+        {
+            CommentId = created.CommentId,
+            Body = created.Body,
+            CreatedDate = created.CreatedDate,
+            UserId = created.UserId
+        };
+    }
+}
+
+/// <summary>
 /// Handler for updating a comment
 /// </summary>
 public class UpdateCommentCommandHandler : IRequestHandler<UpdateCommentCommand, bool>
