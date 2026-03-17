@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { useNotificationStore } from '@/lib/stores/notificationStore';
 import { useHub } from '@/lib/signalr/useHub';
 import { HubConnectionState } from '@microsoft/signalr';
+import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api/client';
 import toast from 'react-hot-toast';
 
@@ -23,6 +24,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const { user } = useAuth();
     const store = useNotificationStore();
     const hub = useHub('notifications');
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (!user) {
@@ -67,6 +69,37 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             }
         };
 
+        const handleFriendRequestReceived = (data: any) => {
+            const fromName = data.fromUser?.displayName || data.fromUser?.username || 'Someone';
+            toast.success(`Bạn có lời mời kết bạn từ ${fromName}`, {
+                icon: '👥',
+                duration: 4000,
+                style: { borderRadius: '10px', background: '#333', color: '#fff' },
+            });
+            queryClient.invalidateQueries({ queryKey: ['friends'] });
+            queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+        };
+
+        const handleFriendRequestAccepted = (data: any) => {
+            const byName = data.acceptedBy?.displayName || data.acceptedBy?.username || 'Someone';
+            toast.success(`${byName} đã chấp nhận lời mời kết bạn`, {
+                icon: '✅',
+                duration: 4000,
+                style: { borderRadius: '10px', background: '#333', color: '#fff' },
+            });
+            queryClient.invalidateQueries({ queryKey: ['friends'] });
+            queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+        };
+
+        const handleFriendRequestRejected = () => {
+            toast('Lời mời kết bạn đã bị từ chối', {
+                icon: '❌',
+                duration: 3000,
+                style: { borderRadius: '10px', background: '#333', color: '#fff' },
+            });
+            queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+        };
+
         const handleRead = (notificationId: number) => {
             store.markAsRead(notificationId);
         };
@@ -78,11 +111,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         hub.on('ReceiveNotification', handleReceive);
         hub.on('NotificationRead', handleRead);
         hub.on('AllNotificationsRead', handleAllRead);
+        hub.on('FriendRequestReceived', handleFriendRequestReceived);
+        hub.on('FriendRequestAccepted', handleFriendRequestAccepted);
+        hub.on('FriendRequestRejected', handleFriendRequestRejected);
 
         return () => {
             hub.off('ReceiveNotification', handleReceive);
             hub.off('NotificationRead', handleRead);
             hub.off('AllNotificationsRead', handleAllRead);
+            hub.off('FriendRequestReceived', handleFriendRequestReceived);
+            hub.off('FriendRequestAccepted', handleFriendRequestAccepted);
+            hub.off('FriendRequestRejected', handleFriendRequestRejected);
         };
     }, [user, hub]);
 

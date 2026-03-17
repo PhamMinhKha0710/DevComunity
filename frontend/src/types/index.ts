@@ -214,13 +214,23 @@ export interface MessageReaction {
     createdAt: string;
 }
 
-// SavedItem types
+// SavedItem types (API returns flat shape: type, questionTitle, answerBody, relatedQuestionId, etc.)
 export interface SavedItem {
     savedItemId: number;
-    userId: number;
-    targetType: 'Question' | 'Answer';
-    targetId: number;
+    userId?: number;
+    targetType?: 'Question' | 'Answer';
+    type?: string;
+    targetId?: number;
     createdDate: string;
     question?: Question;
     answer?: Answer;
+    questionId?: number | null;
+    questionTitle?: string | null;
+    questionScore?: number | null;
+    questionAnswerCount?: number | null;
+    answerId?: number | null;
+    answerBody?: string | null;
+    answerScore?: number | null;
+    relatedQuestionId?: number | null;
+    relatedQuestionTitle?: string | null;
 }
