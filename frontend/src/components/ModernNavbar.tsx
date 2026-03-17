@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useChatContext } from '@/lib/contexts/ChatContext';
+import { authorInitial } from '@/lib/utils';
 
 export default function ModernNavbar() {
     const router = useRouter();
@@ -196,7 +197,7 @@ export default function ModernNavbar() {
                                 {user?.profilePicture ? (
                                     <img src={user.profilePicture} alt={user.displayName || user.username} className="size-full object-cover" />
                                 ) : (
-                                    user?.username?.charAt(0).toUpperCase() || 'U'
+                                    authorInitial(user?.username)
                                 )}
                             </button>
 

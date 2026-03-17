@@ -68,6 +68,9 @@ export interface MessageGroup {
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
+/** Re-export from central utils */
+export { authorInitial } from '@/lib/utils';
+
 export function formatTime(dateString: string | null | undefined): string {
     if (!dateString) return '';
     try {

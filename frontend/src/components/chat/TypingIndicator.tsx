@@ -1,6 +1,7 @@
 'use client';
 
 import type { ConversationParticipant } from '@/types';
+import { authorInitial } from './types';
 
 interface TypingIndicatorProps {
     otherParticipant?: ConversationParticipant;
@@ -14,7 +15,7 @@ export default function TypingIndicator({ otherParticipant }: TypingIndicatorPro
                     <img src={otherParticipant.profilePicture} alt="" className="w-full h-full object-cover" />
                 ) : (
                     <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
-                        {otherParticipant?.displayName?.charAt(0) || otherParticipant?.username?.charAt(0) || '?'}
+                        {authorInitial(otherParticipant?.displayName || otherParticipant?.username)}
                     </div>
                 )}
             </div>
