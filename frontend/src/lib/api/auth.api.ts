@@ -28,4 +28,7 @@ export const authApi = {
         window.location.href = `/api/auth/external-login/${provider}`;
         return Promise.resolve({ success: true, message: 'Redirecting...' });
     },
+
+    exchangeCode: (code: string) =>
+        apiClient.post<AuthResponse>('/auth/exchange', { code }).then(r => r.data),
 };

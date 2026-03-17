@@ -7,9 +7,15 @@ export const votesApi = {
     voteAnswer: (answerId: number, data: { voteType: 'up' | 'down' }) =>
         apiClient.post(`/votes/answer/${answerId}`, data).then(r => r.data),
 
+    votePost: (postId: number, data: { voteType: 'up' | 'down' }) =>
+        apiClient.post(`/votes/post/${postId}`, data).then(r => r.data),
+
     removeQuestionVote: (questionId: number) =>
         apiClient.delete(`/votes/question/${questionId}`).then(r => r.data),
 
     removeAnswerVote: (answerId: number) =>
         apiClient.delete(`/votes/answer/${answerId}`).then(r => r.data),
+
+    removePostVote: (postId: number) =>
+        apiClient.delete(`/votes/post/${postId}`).then(r => r.data),
 };

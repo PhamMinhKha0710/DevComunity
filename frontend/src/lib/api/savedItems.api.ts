@@ -16,6 +16,12 @@ export const savedItemsApi = {
     unsaveAnswer: (answerId: number) =>
         apiClient.delete(`/SavedItems/answers/${answerId}`).then(r => r.data),
 
+    savePost: (postId: number) =>
+        apiClient.post(`/SavedItems/posts/${postId}`).then(r => r.data),
+
+    unsavePost: (postId: number) =>
+        apiClient.delete(`/SavedItems/posts/${postId}`).then(r => r.data),
+
     remove: (id: number) =>
         apiClient.delete(`/SavedItems/${id}`).then(r => r.data),
 };

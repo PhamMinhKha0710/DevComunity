@@ -7,6 +7,12 @@ export const commentsApi = {
     addToAnswer: (answerId: number, body: string) =>
         apiClient.post(`/comments/answer/${answerId}`, { body }).then(r => r.data),
 
+    addToPost: (postId: number, body: string) =>
+        apiClient.post(`/comments/post/${postId}`, { body }).then(r => r.data),
+
+    listByPost: (postId: number) =>
+        apiClient.get(`/comments/post/${postId}`).then(r => r.data),
+
     update: (commentId: number, body: string) =>
         apiClient.put(`/comments/${commentId}`, { body }).then(r => r.data),
 

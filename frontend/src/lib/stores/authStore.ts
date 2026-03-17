@@ -16,6 +16,7 @@ interface AuthState {
     isLoading: boolean;
     setUser: (user: User | null) => void;
     initialize: () => Promise<void>;
+    refreshCurrentUser: () => Promise<void>;
     login: (data: LoginRequest) => Promise<AuthResponse>;
     register: (data: RegisterRequest) => Promise<AuthResponse>;
     logout: () => void;
@@ -28,6 +29,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     isLoading: true,
 
     setUser: (user) => set({ user, isAuthenticated: !!user }),
+
+    refreshCurrentUser: async () => {
+        try {
+            const response = await apiClient.get<User>('/auth/me');
+            set({ user: response.data });
+        } catch {
+            // If refresh fails, keep current user state
+        }
+    },
 
     initialize: async () => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;

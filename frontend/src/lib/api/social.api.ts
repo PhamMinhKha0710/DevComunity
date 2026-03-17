@@ -18,6 +18,9 @@ export const friendshipApi = {
     getPending: () =>
         apiClient.get('/Friendship/pending').then(r => r.data),
 
+    sendRequest: (targetUserId: number) =>
+        apiClient.post(`/Friendship/request/${targetUserId}`).then(r => r.data),
+
     accept: (requestId: number) =>
         apiClient.put(`/Friendship/accept/${requestId}`).then(r => r.data),
 
