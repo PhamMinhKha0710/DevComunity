@@ -42,6 +42,22 @@ public class CommentRepository : ICommentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<Comment>> GetByPostIdAsync(int postId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Comments
+            .Include(c => c.User)
+            .Where(c => c.PostId == postId)
+            .OrderBy(c => c.CreatedDate)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> GetCountByPostIdAsync(int postId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Comments
+            .Where(c => c.PostId == postId)
+            .CountAsync(cancellationToken);
+    }
+
     public async Task<Comment> AddAsync(Comment comment, CancellationToken cancellationToken = default)
     {
         await _context.Comments.AddAsync(comment, cancellationToken);
