@@ -11,6 +11,7 @@ public class GetQuestionByIdQueryHandler : IRequestHandler<GetQuestionByIdQuery,
 {
     private readonly IQuestionRepository _questionRepository;
     private readonly IVoteRepository _voteRepository;
+    private readonly ISavedItemRepository? _savedItemRepository;
     private readonly ILikeService? _likeService;
     private readonly IViewService? _viewService;
     private readonly ICacheService? _cacheService;
@@ -20,12 +21,14 @@ public class GetQuestionByIdQueryHandler : IRequestHandler<GetQuestionByIdQuery,
     public GetQuestionByIdQueryHandler(
         IQuestionRepository questionRepository,
         IVoteRepository voteRepository,
+        ISavedItemRepository? savedItemRepository = null,
         ILikeService? likeService = null,
         IViewService? viewService = null,
         ICacheService? cacheService = null)
     {
         _questionRepository = questionRepository;
         _voteRepository = voteRepository;
+        _savedItemRepository = savedItemRepository;
         _likeService = likeService;
         _viewService = viewService;
         _cacheService = cacheService;
@@ -46,7 +49,7 @@ public class GetQuestionByIdQueryHandler : IRequestHandler<GetQuestionByIdQuery,
             // If cached and user is logged in, check vote status
             if (cached != null && request.CurrentUserId.HasValue && request.CurrentUserId.Value > 0)
             {
-                return await EnrichWithUserVoteAsync(cached, request.CurrentUserId.Value, cancellationToken);
+                return await EnrichWithUserStateAsync(cached, request.CurrentUserId.Value, cancellationToken);
             }
 
             return cached;
@@ -78,14 +81,15 @@ public class GetQuestionByIdQueryHandler : IRequestHandler<GetQuestionByIdQuery,
         // Get user vote if logged in
         if (request.CurrentUserId.HasValue && request.CurrentUserId.Value > 0)
         {
-            return await EnrichWithUserVoteAsync(dto, request.CurrentUserId.Value, cancellationToken);
+            return await EnrichWithUserStateAsync(dto, request.CurrentUserId.Value, cancellationToken);
         }
 
         return dto;
     }
 
-    private async Task<QuestionDetailDto> EnrichWithUserVoteAsync(QuestionDetailDto dto, int currentUserId, CancellationToken cancellationToken)
+    private async Task<QuestionDetailDto> EnrichWithUserStateAsync(QuestionDetailDto dto, int currentUserId, CancellationToken cancellationToken)
     {
+        // Get user vote status
         if (_likeService != null)
         {
             var isLiked = await _likeService.IsLikedAsync("question", dto.QuestionId, currentUserId);
@@ -95,6 +99,12 @@ public class GetQuestionByIdQueryHandler : IRequestHandler<GetQuestionByIdQuery,
         {
             var vote = await _voteRepository.GetUserVoteOnQuestionAsync(currentUserId, dto.QuestionId, cancellationToken);
             dto.UserVoteType = vote == null ? null : (vote.IsUpvote ? "up" : "down");
+        }
+
+        // Get saved status
+        if (_savedItemRepository != null)
+        {
+            dto.IsSaved = await _savedItemRepository.IsSavedAsync(currentUserId, dto.QuestionId, null, null, cancellationToken);
         }
 
         return dto;
