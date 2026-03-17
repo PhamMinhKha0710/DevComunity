@@ -1,7 +1,7 @@
 'use client';
 
 import type { Conversation } from '@/types';
-import { formatTime, getParticipantName, getParticipantAvatar, isParticipantOnline, decodeHtmlEntities, formatCallPreview } from './types';
+import { formatTime, getParticipantName, getParticipantAvatar, isParticipantOnline, decodeHtmlEntities, formatCallPreview, authorInitial } from './types';
 
 interface ConversationItemProps {
     conversation: Conversation;
@@ -37,7 +37,7 @@ export default function ConversationItem({
                     {avatar ? (
                         <img src={avatar} alt="" className="w-full h-full object-cover" />
                     ) : (
-                        name.charAt(0).toUpperCase()
+                        authorInitial(name)
                     )}
                 </div>
                 {isOnline && (

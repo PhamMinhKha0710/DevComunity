@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useState, useEffect } from 'react';
+import { authorInitial } from '@/lib/utils';
 
 export default function Navbar() {
     const { user, isAuthenticated, logout } = useAuth();
@@ -110,7 +111,7 @@ export default function Navbar() {
                                         className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition"
                                     >
                                         <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
-                                            {user.username?.charAt(0).toUpperCase() || 'U'}
+                                            {authorInitial(user.username)}
                                         </div>
                                     </button>
 

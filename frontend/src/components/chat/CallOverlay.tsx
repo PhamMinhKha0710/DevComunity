@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { CallState, CallType } from '@/lib/webrtc/useWebRTC';
+import { authorInitial } from './types';
 
 interface CallOverlayProps {
     callState: CallState;
@@ -68,7 +69,7 @@ export default function CallOverlay({
     }, [callState]);
 
     const isVideo = callType === 'video';
-    const initial = peerName.charAt(0).toUpperCase();
+    const initial = authorInitial(peerName);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95">

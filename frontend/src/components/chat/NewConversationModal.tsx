@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import apiClient from '@/lib/api/client';
 import type { SearchUser } from './types';
+import { authorInitial } from './types';
 
 interface NewConversationModalProps {
     currentUserId: number;
@@ -72,9 +73,13 @@ export default function NewConversationModal({ currentUserId, onConversationCrea
                                 onClick={() => { setSelectedUser(u); setSearchUser(''); setUserResults([]); }}
                                 className="w-full p-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-left"
                             >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
-                                    {(u.displayName || u.username).charAt(0).toUpperCase()}
-                                </div>
+                                {u.profilePicture ? (
+                                    <img src={u.profilePicture} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                                        {authorInitial(u.displayName || u.username)}
+                                    </div>
+                                )}
                                 <div>
                                     <div className="font-bold text-sm text-slate-900 dark:text-white">{u.displayName || u.username}</div>
                                     <div className="text-xs text-slate-500">@{u.username}</div>

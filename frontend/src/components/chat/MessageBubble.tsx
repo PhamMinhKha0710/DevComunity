@@ -85,7 +85,7 @@ export default function MessageBubble({
                     ? `bg-[var(--primary)] text-white shadow-md shadow-[var(--primary)]/20 ${msg.status === 'sending' ? 'opacity-70' : ''}`
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
             } transition-all duration-200`}
-            onDoubleClick={() => onToggleReaction(msg.messageId, 'like')}
+            onDoubleClick={() => onToggleReaction(Number(msg.messageId), 'like')}
         >
             {msg.replyToMessage && (
                 <div className={`mb-2 p-2 rounded-lg text-xs ${
@@ -161,7 +161,7 @@ export default function MessageBubble({
                     ↩️
                 </button>
                 <button
-                    onClick={() => onShowReactionPicker(pickerOpen ? null : msg.messageId)}
+                    onClick={() => onShowReactionPicker(pickerOpen ? null : Number(msg.messageId))}
                     className="w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
                     title="Add reaction"
                 >
@@ -172,7 +172,7 @@ export default function MessageBubble({
             {pickerOpen && (
                 <div className={`absolute ${isSent ? 'right-0' : 'left-0'} -bottom-2 translate-y-full z-50`}>
                     <ReactionPicker
-                        onReact={(type) => onToggleReaction(msg.messageId, type)}
+                        onReact={(type) => onToggleReaction(Number(msg.messageId), type)}
                         onClose={() => onShowReactionPicker(null)}
                         currentReaction={userReaction?.reactionType}
                     />

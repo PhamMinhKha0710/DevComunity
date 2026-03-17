@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import type { Conversation, ConversationParticipant } from '@/types';
 import type { RealtimeMessage } from './types';
+import { authorInitial } from './types';
 
 interface ConversationInfoPanelProps {
     conversation: Conversation;
@@ -39,7 +40,7 @@ export default function ConversationInfoPanel({
                     {otherParticipant?.profilePicture ? (
                         <img src={otherParticipant.profilePicture} alt="" className="w-full h-full object-cover" />
                     ) : (
-                        displayName.charAt(0).toUpperCase()
+                        authorInitial(displayName)
                     )}
                 </div>
                 <h4 className="mt-3 font-bold text-slate-900 dark:text-white">{displayName}</h4>
@@ -73,7 +74,7 @@ export default function ConversationInfoPanel({
                                     {p.profilePicture ? (
                                         <img src={p.profilePicture} alt="" className="w-full h-full object-cover" />
                                     ) : (
-                                        (p.displayName || p.username).charAt(0).toUpperCase()
+                                        authorInitial(p.displayName || p.username)
                                     )}
                                 </div>
                                 <span className="text-sm text-slate-700 dark:text-slate-300 truncate">{p.displayName || p.username}</span>
