@@ -61,7 +61,7 @@ public class ChatHub : Hub
     public Task LeaveConversation(int conversationId) =>
         Groups.RemoveFromGroupAsync(Context.ConnectionId, $"conversation_{conversationId}");
 
-    public async Task SendMessage(int conversationId, string content, string? replyToMessageId = null)
+    public async Task SendMessage(int conversationId, string content, long? replyToMessageId = null)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -73,18 +73,12 @@ public class ChatHub : Hub
         if (!await IsRateLimitAllowedAsync(userId))
         { await SendError("Rate limit exceeded. Please slow down."); return; }
 
-        long? replyId = null;
-        if (!string.IsNullOrEmpty(replyToMessageId) && long.TryParse(replyToMessageId, out var parsedReplyId))
-        {
-            replyId = parsedReplyId;
-        }
-
         var result = await _mediator.Send(new SendMessageCommand
         {
             ConversationId = conversationId,
             SenderId = userId,
             Content = SanitizeHtml(content),
-            ReplyToMessageId = replyId
+            ReplyToMessageId = replyToMessageId
         });
 
         if (result == null) return;
@@ -92,7 +86,7 @@ public class ChatHub : Hub
     }
 
     public async Task SendMediaMessage(int conversationId, string messageType, string attachmentUrl,
-        string attachmentFileName, long attachmentSize, string? caption = null, string? replyToMessageId = null)
+        string attachmentFileName, long attachmentSize, string? caption = null, long? replyToMessageId = null)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -128,19 +122,16 @@ public class ChatHub : Hub
         await BroadcastMessageAsync(conversationId, result);
     }
 
-    public async Task SyncMessages(int conversationId, string lastMessageId)
+    public async Task SyncMessages(int conversationId, long lastMessageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
-
-        if (!long.TryParse(lastMessageId, out var sinceId))
-            return;
 
         var messages = await _mediator.Send(new GetMessagesSinceQuery
         {
             ConversationId = conversationId,
             UserId = userId,
-            SinceMessageId = sinceId
+            SinceMessageId = lastMessageId
         });
 
         await Clients.Caller.SendAsync("SyncMessages", new { conversationId, messages });
@@ -184,13 +175,10 @@ public class ChatHub : Hub
             .SendAsync("MessagesRead", new { userId, lastMessageId });
     }
 
-    public async Task AddReaction(int conversationId, string messageIdStr, string reactionType)
+    public async Task AddReaction(int conversationId, long messageId, string reactionType)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
-
-        if (!long.TryParse(messageIdStr, out var messageId))
-        { await SendError("Invalid message ID"); return; }
 
         if (!Enum.TryParse<ReactionType>(reactionType, ignoreCase: true, out var parsedReaction))
         { await SendError("Invalid reaction type"); return; }
@@ -235,13 +223,10 @@ public class ChatHub : Hub
             .SendAsync("DeliveryStatusUpdated", new { messageId, userId, status = status.ToLower() });
     }
 
-    public async Task RemoveReaction(int conversationId, string messageIdStr)
+    public async Task RemoveReaction(int conversationId, long messageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
-
-        if (!long.TryParse(messageIdStr, out var messageId))
-        { await SendError("Invalid message ID"); return; }
 
         var removed = await _mediator.Send(new RemoveReactionCommand
         {
