@@ -24,7 +24,7 @@ public class UpdateQuestionCommandHandler : IRequestHandler<UpdateQuestionComman
 
     public async Task<Unit> Handle(UpdateQuestionCommand request, CancellationToken cancellationToken)
     {
-        var question = await _questionRepository.GetByIdAsync(request.QuestionId, cancellationToken);
+        var question = await _questionRepository.GetByIdForUpdateAsync(request.QuestionId, cancellationToken);
 
         if (question == null)
             throw new EntityNotFoundException("Question", request.QuestionId);

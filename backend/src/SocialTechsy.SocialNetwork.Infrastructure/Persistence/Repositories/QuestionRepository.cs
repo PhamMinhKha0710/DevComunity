@@ -35,6 +35,15 @@ public class QuestionRepository : IQuestionRepository
             .FirstOrDefaultAsync(q => q.QuestionId == id, cancellationToken);
     }
 
+    public async Task<Question?> GetByIdForUpdateAsync(int id, CancellationToken cancellationToken = default)
+    {
+        // For update operations, we only need the Question entity itself.
+        // This avoids EF Core tracking the entire graph (User, Answers, QuestionTags, Comments),
+        // which would cause conflicts when updating question and tags in the same request.
+        return await _context.Questions
+            .FirstOrDefaultAsync(q => q.QuestionId == id, cancellationToken);
+    }
+
     public async Task<(IEnumerable<Question> Items, int TotalCount)> GetPaginatedAsync(
         int page,
         int pageSize,
@@ -182,7 +191,14 @@ public class QuestionRepository : IQuestionRepository
 
     public async Task UpdateAsync(Question question, CancellationToken cancellationToken = default)
     {
-        _context.Questions.Update(question);
+        // If the entity was loaded in this context (e.g. via GetByIdAsync), it is already tracked.
+        // Calling Update() would mark the entire graph (User, Answers, QuestionTags, Comments) as Modified
+        // and can cause 500 errors on SaveChanges. Only attach/update when detached.
+        var entry = _context.Entry(question);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Questions.Update(question);
+        }
         await _context.SaveChangesAsync(cancellationToken);
     }
 

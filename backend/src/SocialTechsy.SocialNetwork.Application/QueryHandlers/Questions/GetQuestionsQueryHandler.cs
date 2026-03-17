@@ -10,6 +10,7 @@ namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Questions;
 public class GetQuestionsQueryHandler : IRequestHandler<GetQuestionsQuery, PaginatedResponse<QuestionSummaryDto>>
 {
     private readonly IQuestionRepository _questionRepository;
+    private readonly IAnswerRepository _answerRepository;
     private readonly IVoteRepository _voteRepository;
     private readonly ILikeService? _likeService;
     private readonly IViewService? _viewService;
@@ -19,12 +20,14 @@ public class GetQuestionsQueryHandler : IRequestHandler<GetQuestionsQuery, Pagin
 
     public GetQuestionsQueryHandler(
         IQuestionRepository questionRepository,
+        IAnswerRepository answerRepository,
         IVoteRepository voteRepository,
         ILikeService? likeService = null,
         IViewService? viewService = null,
         ICacheService? cacheService = null)
     {
         _questionRepository = questionRepository;
+        _answerRepository = answerRepository;
         _voteRepository = voteRepository;
         _likeService = likeService;
         _viewService = viewService;
@@ -84,6 +87,17 @@ public class GetQuestionsQueryHandler : IRequestHandler<GetQuestionsQuery, Pagin
             {
                 if (viewCounts.TryGetValue(item.QuestionId, out var v) && v > 0)
                     item.ViewCount = (int)v;
+            }
+        }
+
+        // Answer counts and has-accepted (list does not load Answers navigation)
+        var answerStats = await _answerRepository.GetAnswerCountsAndAcceptedByQuestionIdsAsync(ids, cancellationToken);
+        foreach (var item in items)
+        {
+            if (answerStats.TryGetValue(item.QuestionId, out var stats))
+            {
+                item.AnswerCount = stats.Count;
+                item.HasAcceptedAnswer = stats.HasAccepted;
             }
         }
 
