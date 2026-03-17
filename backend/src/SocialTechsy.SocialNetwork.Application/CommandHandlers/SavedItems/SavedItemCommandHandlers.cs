@@ -28,7 +28,7 @@ public class SaveQuestionCommandHandler : IRequestHandler<SaveQuestionCommand, b
             return false;
 
         // Check if already saved
-        if (await _savedItemRepository.IsSavedAsync(request.UserId, request.QuestionId, null, cancellationToken))
+        if (await _savedItemRepository.IsSavedAsync(request.UserId, request.QuestionId, null, null, cancellationToken))
             return true; // Already saved
 
         var savedItem = new SavedItem
@@ -85,7 +85,7 @@ public class SaveAnswerCommandHandler : IRequestHandler<SaveAnswerCommand, bool>
             return false;
 
         // Check if already saved
-        if (await _savedItemRepository.IsSavedAsync(request.UserId, null, request.AnswerId, cancellationToken))
+        if (await _savedItemRepository.IsSavedAsync(request.UserId, null, request.AnswerId, null, cancellationToken))
             return true; // Already saved
 
         var savedItem = new SavedItem
@@ -115,5 +115,62 @@ public class UnsaveAnswerCommandHandler : IRequestHandler<UnsaveAnswerCommand>
     public async Task Handle(UnsaveAnswerCommand request, CancellationToken cancellationToken)
     {
         await _savedItemRepository.DeleteByAnswerAsync(request.UserId, request.AnswerId, cancellationToken);
+    }
+}
+
+/// <summary>
+/// Handler for saving a post
+/// </summary>
+public class SavePostCommandHandler : IRequestHandler<SavePostCommand, bool>
+{
+    private readonly ISavedItemRepository _savedItemRepository;
+    private readonly IPostRepository _postRepository;
+
+    public SavePostCommandHandler(
+        ISavedItemRepository savedItemRepository,
+        IPostRepository postRepository)
+    {
+        _savedItemRepository = savedItemRepository;
+        _postRepository = postRepository;
+    }
+
+    public async Task<bool> Handle(SavePostCommand request, CancellationToken cancellationToken)
+    {
+        // Check if post exists
+        var post = await _postRepository.GetByIdAsync(request.PostId, cancellationToken);
+        if (post == null)
+            return false;
+
+        // Check if already saved
+        if (await _savedItemRepository.IsSavedAsync(request.UserId, null, null, request.PostId, cancellationToken))
+            return true; // Already saved
+
+        var savedItem = new SavedItem
+        {
+            UserId = request.UserId,
+            PostId = request.PostId,
+            CreatedDate = DateTime.UtcNow
+        };
+
+        await _savedItemRepository.AddAsync(savedItem, cancellationToken);
+        return true;
+    }
+}
+
+/// <summary>
+/// Handler for unsaving a post
+/// </summary>
+public class UnsavePostCommandHandler : IRequestHandler<UnsavePostCommand>
+{
+    private readonly ISavedItemRepository _savedItemRepository;
+
+    public UnsavePostCommandHandler(ISavedItemRepository savedItemRepository)
+    {
+        _savedItemRepository = savedItemRepository;
+    }
+
+    public async Task Handle(UnsavePostCommand request, CancellationToken cancellationToken)
+    {
+        await _savedItemRepository.DeleteByPostAsync(request.UserId, request.PostId, cancellationToken);
     }
 }
