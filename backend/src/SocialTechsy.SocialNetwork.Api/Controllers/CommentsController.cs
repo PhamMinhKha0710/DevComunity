@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Commands.Comments;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
@@ -13,11 +14,13 @@ public class CommentsController : ControllerBase
 {
     private readonly ILogger<CommentsController> _logger;
     private readonly IMediator _mediator;
+    private readonly ICommentRepository _commentRepository;
 
-    public CommentsController(ILogger<CommentsController> logger, IMediator mediator)
+    public CommentsController(ILogger<CommentsController> logger, IMediator mediator, ICommentRepository commentRepository)
     {
         _logger = logger;
         _mediator = mediator;
+        _commentRepository = commentRepository;
     }
 
     private int GetCurrentUserId()
@@ -72,6 +75,52 @@ public class CommentsController : ControllerBase
             return NotFound(new { message = "Answer not found" });
 
         return Created($"/api/comments/{result.CommentId}", result);
+    }
+
+    [HttpPost("post/{postId:int}")]
+    [Authorize]
+    [ProducesResponseType(typeof(CommentDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CommentDto>> AddPostComment(
+        int postId,
+        [FromBody] CreateCommentRequest request,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Adding comment to post {PostId}", postId);
+
+        var result = await _mediator.Send(new CreatePostCommentCommand
+        {
+            PostId = postId,
+            UserId = GetCurrentUserId(),
+            Body = request.Body
+        }, cancellationToken);
+
+        if (result == null)
+            return NotFound(new { message = "Post not found" });
+
+        return Created($"/api/comments/{result.CommentId}", result);
+    }
+
+    [HttpGet("post/{postId:int}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IEnumerable<CommentDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<CommentDto>>> GetPostComments(
+        int postId,
+        CancellationToken cancellationToken)
+    {
+        var comments = await _commentRepository.GetByPostIdAsync(postId, cancellationToken);
+        
+        var dtos = comments.Select(c => new CommentDto
+        {
+            CommentId = c.CommentId,
+            Body = c.Body,
+            CreatedDate = c.CreatedDate,
+            UserId = c.UserId,
+            AuthorUsername = c.User?.Username,
+            AuthorProfilePicture = c.User?.ProfilePicture
+        });
+
+        return Ok(dtos);
     }
 
     [HttpPut("{id:int}")]
