@@ -37,3 +37,21 @@ public class UnsaveAnswerCommand : IRequest
     public int UserId { get; set; }
     public int AnswerId { get; set; }
 }
+
+/// <summary>
+/// Command to save a post
+/// </summary>
+public class SavePostCommand : IRequest<bool>
+{
+    public int UserId { get; set; }
+    public int PostId { get; set; }
+}
+
+/// <summary>
+/// Command to unsave a post
+/// </summary>
+public class UnsavePostCommand : IRequest
+{
+    public int UserId { get; set; }
+    public int PostId { get; set; }
+}

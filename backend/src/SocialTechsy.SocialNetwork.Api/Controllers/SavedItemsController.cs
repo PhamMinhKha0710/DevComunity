@@ -116,4 +116,38 @@ public class SavedItemsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPost("posts/{postId:int}")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SavePost(int postId, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Saving post {PostId}", postId);
+
+        var success = await _mediator.Send(new SavePostCommand
+        {
+            UserId = GetCurrentUserId(),
+            PostId = postId
+        }, cancellationToken);
+
+        if (!success)
+            return NotFound(new { message = "Post not found" });
+
+        return Created("", new { message = "Post saved" });
+    }
+
+    [HttpDelete("posts/{postId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UnsavePost(int postId, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Unsaving post {PostId}", postId);
+
+        await _mediator.Send(new UnsavePostCommand
+        {
+            UserId = GetCurrentUserId(),
+            PostId = postId
+        }, cancellationToken);
+
+        return NoContent();
+    }
 }

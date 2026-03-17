@@ -22,6 +22,7 @@ public class SavedItemRepository : ISavedItemRepository
         return await _context.SavedItems
             .Include(s => s.Question)
             .Include(s => s.Answer)
+            .Include(s => s.Post)
             .FirstOrDefaultAsync(s => s.SavedItemId == id, cancellationToken);
     }
 
@@ -34,12 +35,16 @@ public class SavedItemRepository : ISavedItemRepository
                 .ThenInclude(a => a!.User)
             .Include(s => s.Answer)
                 .ThenInclude(a => a!.Question)
+            .Include(s => s.Post)
+                .ThenInclude(p => p!.Author)
             .Where(s => s.UserId == userId);
 
         if (type?.ToLower() == "question")
             query = query.Where(s => s.QuestionId != null);
         else if (type?.ToLower() == "answer")
             query = query.Where(s => s.AnswerId != null);
+        else if (type?.ToLower() == "post")
+            query = query.Where(s => s.PostId != null);
 
         return await query
             .OrderByDescending(s => s.CreatedDate)
@@ -60,23 +65,25 @@ public class SavedItemRepository : ISavedItemRepository
         return await query.CountAsync(cancellationToken);
     }
 
-    public async Task<SavedItem?> FindAsync(int userId, int? questionId, int? answerId, CancellationToken cancellationToken = default)
+    public async Task<SavedItem?> FindAsync(int userId, int? questionId, int? answerId, int? postId, CancellationToken cancellationToken = default)
     {
         return await _context.SavedItems
             .FirstOrDefaultAsync(s => 
                 s.UserId == userId && 
                 s.QuestionId == questionId && 
-                s.AnswerId == answerId, 
+                s.AnswerId == answerId &&
+                s.PostId == postId, 
                 cancellationToken);
     }
 
-    public async Task<bool> IsSavedAsync(int userId, int? questionId, int? answerId, CancellationToken cancellationToken = default)
+    public async Task<bool> IsSavedAsync(int userId, int? questionId, int? answerId, int? postId, CancellationToken cancellationToken = default)
     {
         return await _context.SavedItems
             .AnyAsync(s => 
                 s.UserId == userId && 
                 s.QuestionId == questionId && 
-                s.AnswerId == answerId, 
+                s.AnswerId == answerId &&
+                s.PostId == postId, 
                 cancellationToken);
     }
 
@@ -114,6 +121,18 @@ public class SavedItemRepository : ISavedItemRepository
         var item = await _context.SavedItems
             .AsTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.AnswerId == answerId, cancellationToken);
+        if (item != null)
+        {
+            _context.SavedItems.Remove(item);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    public async Task DeleteByPostAsync(int userId, int postId, CancellationToken cancellationToken = default)
+    {
+        var item = await _context.SavedItems
+            .AsTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.PostId == postId, cancellationToken);
         if (item != null)
         {
             _context.SavedItems.Remove(item);
