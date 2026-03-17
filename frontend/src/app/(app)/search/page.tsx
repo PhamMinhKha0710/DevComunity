@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
 import { searchApi } from '@/lib/api/search.api';
+import { authorInitial } from '@/lib/utils';
 
 interface QuestionResult {
     questionId: number;
@@ -173,7 +174,7 @@ function SearchContent() {
                                             {user.profilePicture ? (
                                                 <img src={user.profilePicture} alt={user.username} className="w-full h-full rounded-full object-cover" />
                                             ) : (
-                                                user.username.charAt(0).toUpperCase()
+                                                authorInitial(user.username)
                                             )}
                                         </div>
                                         <div>

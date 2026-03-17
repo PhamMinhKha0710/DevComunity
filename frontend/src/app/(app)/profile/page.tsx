@@ -4,13 +4,34 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import type { Question, Answer } from '@/types';
+import { usersApi } from '@/lib/api/users.api';
 import AppLayout from '@/components/AppLayout';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 export default function ProfilePage() {
     const { user, isLoading } = useAuth();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState('questions');
+
+    const { data: questionsData } = useQuery({
+        queryKey: ['user', user?.userId, 'questions'],
+        queryFn: () => usersApi.getQuestions(user!.userId),
+        enabled: !!user?.userId,
+    });
+
+    const { data: answersData } = useQuery({
+        queryKey: ['user', user?.userId, 'answers'],
+        queryFn: () => usersApi.getAnswers(user!.userId),
+        enabled: !!user?.userId,
+    });
+
+    const questions: Question[] = Array.isArray(questionsData) ? questionsData : (questionsData?.items ?? []);
+    const answers: Answer[] = Array.isArray(answersData) ? answersData : (answersData?.items ?? []);
+    const questionCount = Array.isArray(questionsData) ? questionsData.length : (questionsData?.totalCount ?? questions.length);
+    const answerCount = Array.isArray(answersData) ? answersData.length : (answersData?.totalCount ?? answers.length);
 
     useEffect(() => {
         if (!isLoading && !user) {
@@ -38,12 +59,12 @@ export default function ProfilePage() {
 
     return (
         <AppLayout showRightSidebar={false}>
-            {/* Cover Banner */}
-            <div className="relative rounded-t-xl overflow-hidden">
-                <div className="h-48 bg-gradient-to-br from-[var(--primary)] via-blue-500 to-cyan-400"></div>
+            {/* Cover Banner - overflow only on gradient so avatar is not clipped */}
+            <div className="relative">
+                <div className="h-48 rounded-t-xl overflow-hidden bg-gradient-to-br from-[var(--primary)] via-blue-500 to-cyan-400"></div>
 
                 {/* Avatar overlapping banner */}
-                <div className="absolute -bottom-16 left-8">
+                <div className="absolute -bottom-16 left-8 z-10">
                     {user.profilePicture ? (
                         <img
                             src={user.profilePicture}
@@ -52,7 +73,7 @@ export default function ProfilePage() {
                         />
                     ) : (
                         <div className="size-32 rounded-full border-4 border-white dark:border-slate-900 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-white text-5xl font-bold shadow-lg">
-                            {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
+                            {authorInitial(user.displayName || user.username)}
                         </div>
                     )}
                 </div>
@@ -123,7 +144,7 @@ export default function ProfilePage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Questions</p>
-                                    <p className="text-3xl font-black text-slate-900 dark:text-white">0</p>
+                                    <p className="text-3xl font-black text-slate-900 dark:text-white">{questionCount}</p>
                                 </div>
                                 <span className="material-symbols-outlined text-[var(--primary)] text-2xl">help_center</span>
                             </div>
@@ -132,7 +153,7 @@ export default function ProfilePage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Answers</p>
-                                    <p className="text-3xl font-black text-slate-900 dark:text-white">0</p>
+                                    <p className="text-3xl font-black text-slate-900 dark:text-white">{answerCount}</p>
                                 </div>
                                 <span className="material-symbols-outlined text-indigo-500 text-2xl">forum</span>
                             </div>
@@ -158,31 +179,84 @@ export default function ProfilePage() {
 
                         <div className="p-6">
                             {activeTab === 'questions' && (
-                                <div className="text-center py-8">
-                                    <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">quiz</span>
-                                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No questions yet</h4>
-                                    <p className="text-slate-500 mb-4">You haven&apos;t asked any questions yet</p>
-                                    <Link
-                                        href="/questions/ask"
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl font-semibold text-sm hover:bg-[var(--primary)]/90 transition"
-                                    >
-                                        <span className="material-symbols-outlined text-sm">add</span>
-                                        Ask your first question
-                                    </Link>
-                                </div>
+                                questions.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {questions.map((q, index) => (
+                                            <Link
+                                                key={q.questionId}
+                                                href={`/questions/${q.questionId}`}
+                                                className={`block p-4 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition border border-slate-200 dark:border-slate-700 ${index > 0 ? 'mt-3' : ''}`}
+                                            >
+                                                <div className="flex justify-between items-start gap-3">
+                                                    <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2">{q.title}</h4>
+                                                    <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold ${q.hasAcceptedAnswer ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                                                        {q.answerCount} answers
+                                                    </span>
+                                                </div>
+                                                <div className="flex gap-4 text-slate-500 dark:text-slate-400 text-xs mt-2">
+                                                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">thumb_up</span>{q.score}</span>
+                                                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">visibility</span>{q.viewCount}</span>
+                                                    <RelativeTime value={q.createdDate} />
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">quiz</span>
+                                        <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No questions yet</h4>
+                                        <p className="text-slate-500 mb-4">You haven&apos;t asked any questions yet</p>
+                                        <Link
+                                            href="/questions/ask"
+                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl font-semibold text-sm hover:bg-[var(--primary)]/90 transition"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">add</span>
+                                            Ask your first question
+                                        </Link>
+                                    </div>
+                                )
                             )}
                             {activeTab === 'answers' && (
-                                <div className="text-center py-8">
-                                    <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">forum</span>
-                                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No answers yet</h4>
-                                    <p className="text-slate-500 mb-4">You haven&apos;t answered any questions yet</p>
-                                    <Link
-                                        href="/questions"
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold text-sm hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
-                                    >
-                                        Browse questions
-                                    </Link>
-                                </div>
+                                answers.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {answers.map((a, index) => (
+                                            <Link
+                                                key={a.answerId}
+                                                href={`/questions/${a.questionId}#answer-${a.answerId}`}
+                                                className={`block p-4 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition border border-slate-200 dark:border-slate-700 ${index > 0 ? 'mt-3' : ''}`}
+                                            >
+                                                <div className="flex justify-between items-start gap-3">
+                                                    <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2">
+                                                        {typeof a.body === 'string' ? a.body.replace(/<[^>]*>/g, '').slice(0, 150) : ''}
+                                                        {typeof a.body === 'string' && a.body.replace(/<[^>]*>/g, '').length > 150 ? '...' : ''}
+                                                    </p>
+                                                    {a.isAccepted && (
+                                                        <span className="shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/10 text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                            <span className="material-symbols-outlined text-sm">check_circle</span>
+                                                            Accepted
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-4 text-slate-500 dark:text-slate-400 text-xs mt-2">
+                                                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">thumb_up</span>{a.score}</span>
+                                                    <RelativeTime value={a.createdDate} />
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">forum</span>
+                                        <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No answers yet</h4>
+                                        <p className="text-slate-500 mb-4">You haven&apos;t answered any questions yet</p>
+                                        <Link
+                                            href="/questions"
+                                            className="inline-flex items-center gap-2 px-5 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold text-sm hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
+                                        >
+                                            Browse questions
+                                        </Link>
+                                    </div>
+                                )
                             )}
                             {activeTab === 'saved' && (
                                 <div className="text-center py-8">
@@ -277,7 +351,7 @@ export default function ProfilePage() {
                             ].map((community) => (
                                 <div key={community.name} className="flex items-center gap-3">
                                     <div className={`size-10 rounded-xl bg-gradient-to-br ${community.color} flex items-center justify-center text-white font-bold text-sm`}>
-                                        {community.name.charAt(0)}
+                                        {authorInitial(community.name)}
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-slate-900 dark:text-white">{community.name}</p>

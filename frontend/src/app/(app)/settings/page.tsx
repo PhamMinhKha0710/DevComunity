@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useAuthStore } from '@/lib/stores/authStore';
 import apiClient from '@/lib/api/client';
 import AppLayout from '@/components/AppLayout';
+import { authorInitial } from '@/lib/utils';
 
 export default function SettingsPage() {
     const { user, isLoading: authLoading, logout } = useAuth();
+    const refreshCurrentUser = useAuthStore((s) => s.refreshCurrentUser);
     const router = useRouter();
     const [activeTab, setActiveTab] = useState('profile');
     const [isSaving, setIsSaving] = useState(false);
@@ -64,10 +67,33 @@ export default function SettingsPage() {
         setMessage({ type: '', text: '' });
 
         try {
-            await apiClient.put('/users/profile', profile);
+            // Only send fields with actual values - empty fields are ignored (won't update DB)
+            const payload: Record<string, string> = {};
+            if (profile.displayName?.trim()) payload.displayName = profile.displayName.trim();
+            if (profile.bio?.trim()) payload.bio = profile.bio.trim();
+            if (profile.location?.trim()) payload.location = profile.location.trim();
+            if (profile.website?.trim()) payload.website = profile.website.trim();
+
+            // Don't send request if nothing to update
+            if (Object.keys(payload).length === 0) {
+                setMessage({ type: 'success', text: 'No changes to save' });
+                setIsSaving(false);
+                return;
+            }
+
+            await apiClient.put('/users/profile', payload);
+            // Refresh auth store so Navbar/Sidebar/other pages show updated avatar
+            await refreshCurrentUser();
             setMessage({ type: 'success', text: 'Profile updated successfully' });
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update profile' });
+            const data = err.response?.data;
+            const msg = data?.message
+                || (data?.errors && typeof data.errors === 'object'
+                    ? Object.values(data.errors).flat().join(' ')
+                    : null)
+                || data?.title
+                || 'Failed to update profile';
+            setMessage({ type: 'error', text: msg });
         } finally {
             setIsSaving(false);
         }
@@ -136,7 +162,7 @@ export default function SettingsPage() {
                         <div className="p-5 text-center border-b border-[var(--border-color)]">
                             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 p-0.5 mx-auto mb-3">
                                 <div className="w-full h-full rounded-full bg-[var(--bg-secondary)] flex items-center justify-center text-xl font-bold text-[var(--text-primary)]">
-                                    {user.displayName?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || '?'}
+                                    {authorInitial(user.displayName || user.username)}
                                 </div>
                             </div>
                             <h4 className="font-semibold text-[var(--text-primary)]">{user.displayName || user.username}</h4>

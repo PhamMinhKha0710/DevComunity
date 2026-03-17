@@ -8,6 +8,7 @@ import { usersApi } from '@/lib/api/users.api';
 import { followApi } from '@/lib/api/social.api';
 import AppLayout from '@/components/AppLayout';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 interface User {
     userId: number;
@@ -196,7 +197,7 @@ export default function UsersPage() {
                                             <img src={user.profilePicture} alt={user.displayName || user.username} className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
-                                                {(user.displayName || user.username || '?').substring(0, 2).toUpperCase()}
+                                                {authorInitial(user.displayName || user.username)}
                                             </div>
                                         )}
                                     </div>

@@ -7,6 +7,7 @@ import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { friendshipApi } from '@/lib/api/social.api';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 interface Friend {
     userId: number;
@@ -199,7 +200,7 @@ export default function FriendsPage() {
                                                         <img src={friend.profilePicture} alt="" className="h-full w-full object-cover" />
                                                     ) : (
                                                         <div className="h-full w-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
-                                                            {(friend.displayName || friend.username || '?').charAt(0).toUpperCase()}
+                                                            {authorInitial(friend.displayName || friend.username)}
                                                         </div>
                                                     )}
                                                 </div>
@@ -253,7 +254,7 @@ export default function FriendsPage() {
                                                         <img src={request.sender.profilePicture} alt="" className="h-full w-full object-cover" />
                                                     ) : (
                                                         <div className="h-full w-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
-                                                            {(request.sender.displayName || request.sender.username || '?').charAt(0).toUpperCase()}
+                                                            {authorInitial(request.sender.displayName || request.sender.username)}
                                                         </div>
                                                     )}
                                                 </div>
@@ -315,7 +316,7 @@ export default function FriendsPage() {
                                 <div key={person.name} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-sm font-bold">
-                                            {person.name.charAt(0)}
+                                            {authorInitial(person.name)}
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{person.name}</p>

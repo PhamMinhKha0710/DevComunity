@@ -1,13 +1,16 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Question, Tag } from '@/types';
 import { questionsApi } from '@/lib/api/questions.api';
+import { useHub } from '@/lib/signalr/useHub';
+import { HubConnectionState } from '@microsoft/signalr';
 import AppLayout from '@/components/AppLayout';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 const stripHtml = (html: string): string => {
     if (!html) return '';
@@ -23,6 +26,8 @@ function QuestionsContent() {
     const searchParams = useSearchParams();
     const [page, setPage] = useState(1);
     const [sortBy, setSortBy] = useState('newest');
+    const queryClient = useQueryClient();
+    const questionHub = useHub('question');
 
     const search = searchParams.get('search') || '';
     const tag = searchParams.get('tag') || '';
@@ -35,6 +40,46 @@ function QuestionsContent() {
     const questions: Question[] = data?.items || [];
     const totalPages = data?.totalPages || 1;
     const totalCount = data?.totalCount || 0;
+
+    const questionIds = questions.map((q) => q.questionId).join(',');
+
+    useEffect(() => {
+        if (questionHub.connectionState !== HubConnectionState.Connected || questions.length === 0) return;
+        questions.forEach((q) => {
+            questionHub.invoke('JoinQuestion', q.questionId).catch(() => {});
+        });
+        return () => {
+            questions.forEach((q) => {
+                questionHub.invoke('LeaveQuestion', q.questionId).catch(() => {});
+            });
+        };
+    }, [questionHub.connectionState, questionHub, questionIds, questions.length]);
+
+    const handleVoteChanged = useCallback(
+        (payload: { targetType: string; targetId: number; likeCount: number }) => {
+            if (payload.targetType !== 'question') return;
+            queryClient.setQueriesData(
+                { queryKey: ['questions'] },
+                (old: { items?: Question[] } | undefined) => {
+                    if (!old?.items) return old;
+                    return {
+                        ...old,
+                        items: old.items.map((q) =>
+                            q.questionId === payload.targetId ? { ...q, score: payload.likeCount } : q
+                        ),
+                    };
+                }
+            );
+        },
+        [queryClient]
+    );
+
+    useEffect(() => {
+        questionHub.on('VoteChanged', handleVoteChanged);
+        return () => {
+            questionHub.off('VoteChanged', handleVoteChanged);
+        };
+    }, [questionHub, handleVoteChanged]);
 
     const sortTabs = [
         { key: 'newest', label: 'Interesting' },
@@ -163,12 +208,26 @@ function QuestionsContent() {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="size-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
-                                            {question.authorUsername?.charAt(0).toUpperCase() || '?'}
-                                        </div>
-                                        <span className="text-xs font-bold text-[var(--primary)] hover:underline cursor-pointer">
-                                            {question.authorUsername || 'Anonymous'}
-                                        </span>
+                                        {question.authorProfilePicture ? (
+                                            <img
+                                                src={question.authorProfilePicture}
+                                                alt={question.authorUsername || ''}
+                                                className="size-6 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="size-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
+                                                {authorInitial(question.authorUsername)}
+                                            </div>
+                                        )}
+                                        {question.authorId ? (
+                                            <Link href={`/users/${question.authorId}`} className="text-xs font-bold text-[var(--primary)] hover:underline">
+                                                {question.authorUsername || 'Anonymous'}
+                                            </Link>
+                                        ) : (
+                                            <span className="text-xs font-bold text-[var(--primary)]">
+                                                {question.authorUsername || 'Anonymous'}
+                                            </span>
+                                        )}
                                         <RelativeTime
                                             value={question.createdDate}
                                             prefix="asked "

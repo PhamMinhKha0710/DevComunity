@@ -7,6 +7,7 @@ import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import apiClient from '@/lib/api/client';
 import RelativeTime from '@/components/RelativeTime';
+import { authorInitial } from '@/lib/utils';
 
 interface Group {
     groupId: number;
@@ -15,9 +16,12 @@ interface Group {
     isPrivate: boolean;
     memberCount: number;
     createdAt: string;
+    isMember?: boolean;
     creator: {
         userId: number;
         username: string;
+        displayName?: string;
+        profilePicture?: string | null;
     };
 }
 
@@ -44,6 +48,7 @@ export default function GroupDetailPage() {
     const [isMember, setIsMember] = useState(false);
     const [newPostContent, setNewPostContent] = useState('');
     const [posting, setPosting] = useState(false);
+    const [joinError, setJoinError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchGroupDetails();
@@ -59,10 +64,14 @@ export default function GroupDetailPage() {
         try {
             const [groupRes, postsRes] = await Promise.all([
                 apiClient.get<Group>(`/Groups/${id}`),
-                apiClient.get<{ items: Post[] }>(`/Newsfeed/groups/${id}`) // Correct endpoint for group posts
+                apiClient.get<{ items: Post[] }>(`/Newsfeed/groups/${id}`)
             ]);
-            setGroup(groupRes.data);
+            const groupData = groupRes.data;
+            setGroup(groupData);
             setPosts(postsRes.data.items || []);
+            const fromApi = groupData.isMember === true;
+            const isCreator = user && groupData.creator.userId === user.userId;
+            setIsMember(fromApi || !!isCreator);
         } catch (error) {
             console.error('Error fetching group details:', error);
         } finally {
@@ -71,22 +80,32 @@ export default function GroupDetailPage() {
     };
 
     const checkMembership = async () => {
+        if (!group) return;
+        if (user && group.creator.userId === user.userId) {
+            setIsMember(true);
+            return;
+        }
         try {
             const response = await apiClient.get<boolean>(`/Groups/${id}/isMember`);
             setIsMember(response.data);
         } catch (error) {
-            // Fallback: check my groups list if endpoint doesn't exist
             try {
                 const myGroupsRes = await apiClient.get<{ items: Group[] }>('/Groups/my');
                 const myGroups = myGroupsRes.data.items || [];
                 setIsMember(myGroups.some(g => g.groupId === Number(id)));
             } catch (e) {
-                console.error('Error checking membership:', e);
+                if (group.isMember !== undefined) setIsMember(group.isMember);
             }
         }
     };
 
     const handleJoinLeave = async () => {
+        if (!group || !user) return;
+        if (group.creator.userId === user.userId) {
+            setIsMember(true);
+            return;
+        }
+        setJoinError(null);
         try {
             if (isMember) {
                 await apiClient.post(`/Groups/${id}/leave`);
@@ -97,8 +116,16 @@ export default function GroupDetailPage() {
                 setIsMember(true);
                 setGroup(prev => prev ? { ...prev, memberCount: prev.memberCount + 1 } : null);
             }
-        } catch (error) {
-            console.error('Error changing membership:', error);
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            const message = err.response?.data?.message || 'Failed to change membership';
+            setJoinError(message);
+            // Refetch membership to sync state with server
+            try {
+                await checkMembership();
+            } catch (e) {
+                // ignore
+            }
         }
     };
 
@@ -151,8 +178,8 @@ export default function GroupDetailPage() {
                 <div className="h-32 bg-[var(--bg-tertiary)] relative border-b border-[var(--border-color)]">
                     <div className="absolute -bottom-12 left-8">
                         <div className="w-24 h-24 bg-[var(--bg-secondary)] rounded-2xl p-2 shadow-sm border border-[var(--border-color)]">
-                            <div className="w-full h-full interval bg-[var(--primary)] rounded-xl flex items-center justify-center text-white text-3xl font-bold">
-                                {group.name.charAt(0).toUpperCase()}
+                            <div className="w-full h-full bg-[var(--primary)] rounded-xl flex items-center justify-center text-white text-3xl font-bold">
+                                {authorInitial(group.name)}
                             </div>
                         </div>
                     </div>
@@ -179,19 +206,24 @@ export default function GroupDetailPage() {
                             </div>
                         </div>
                         {isAuthenticated && (
-                            <button
-                                onClick={handleJoinLeave}
-                                className={`px-6 py-2.5 rounded-xl font-medium transition flex items-center gap-2 ${isMember
-                                    ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500 border border-[var(--border-color)]'
-                                    : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
-                                    }`}
-                            >
-                                {isMember ? (
-                                    <><span className="material-symbols-outlined">logout</span> Leave Group</>
-                                ) : (
-                                    <><span className="material-symbols-outlined">person_add</span> Join Group</>
+                            <>
+                                <button
+                                    onClick={handleJoinLeave}
+                                    className={`px-6 py-2.5 rounded-xl font-medium transition flex items-center gap-2 ${isMember
+                                        ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500 border border-[var(--border-color)]'
+                                        : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]'
+                                        }`}
+                                >
+                                    {isMember ? (
+                                        <><span className="material-symbols-outlined">logout</span> Leave Group</>
+                                    ) : (
+                                        <><span className="material-symbols-outlined">person_add</span> Join Group</>
+                                    )}
+                                </button>
+                                {joinError && (
+                                    <p className="text-red-500 text-sm mt-2">{joinError}</p>
                                 )}
-                            </button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -204,9 +236,17 @@ export default function GroupDetailPage() {
                         <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
                             <form onSubmit={handleCreatePost}>
                                 <div className="flex gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold shrink-0">
-                                        {user?.username?.charAt(0).toUpperCase()}
-                                    </div>
+                                    {user?.profilePicture ? (
+                                        <img
+                                            src={user.profilePicture}
+                                            alt={user.displayName || user.username}
+                                            className="w-10 h-10 rounded-full object-cover shrink-0"
+                                        />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold shrink-0">
+                                            {authorInitial(user?.displayName || user?.username)}
+                                        </div>
+                                    )}
                                     <div className="flex-1">
                                         <textarea
                                             value={newPostContent}
@@ -235,9 +275,17 @@ export default function GroupDetailPage() {
                             {posts.map((post) => (
                                 <div key={post.postId} className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
                                     <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold">
-                                            {post.author.username?.charAt(0).toUpperCase()}
-                                        </div>
+                                        {post.author.profilePicture ? (
+                                            <img
+                                                src={post.author.profilePicture}
+                                                alt={post.author.displayName || post.author.username}
+                                                className="w-10 h-10 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold">
+                                                {authorInitial(post.author.displayName || post.author.username)}
+                                            </div>
+                                        )}
                                         <div>
                                             <Link href={`/users/${post.author.userId}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--primary)]">
                                                 {post.author.displayName || post.author.username}
@@ -290,10 +338,23 @@ export default function GroupDetailPage() {
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
                         <h3 className="font-bold text-[var(--text-primary)] mb-4">Admins</h3>
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
-                                A
-                            </div>
-                            <span className="text-sm font-medium text-[var(--text-primary)]">Admin User</span>
+                            {group.creator.profilePicture ? (
+                                <img
+                                    src={group.creator.profilePicture}
+                                    alt={group.creator.displayName || group.creator.username}
+                                    className="w-8 h-8 rounded-full object-cover"
+                                />
+                            ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+                                    {authorInitial(group.creator.displayName || group.creator.username)}
+                                </div>
+                            )}
+                            <Link
+                                href={`/users/${group.creator.userId}`}
+                                className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary)]"
+                            >
+                                {group.creator.displayName || group.creator.username}
+                            </Link>
                         </div>
                     </div>
                 </div>
