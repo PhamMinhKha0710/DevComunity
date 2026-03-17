@@ -21,6 +21,7 @@ public class SavedItemConfiguration : IEntityTypeConfiguration<SavedItem>
         // Indexes (split into two separate filtered indexes)
         builder.HasIndex(s => new { s.UserId, s.QuestionId }).HasFilter("[QuestionId] IS NOT NULL");
         builder.HasIndex(s => new { s.UserId, s.AnswerId }).HasFilter("[AnswerId] IS NOT NULL");
+        builder.HasIndex(s => new { s.UserId, s.PostId }).HasFilter("[PostId] IS NOT NULL");
 
         // Relationships
         builder.HasOne(s => s.User)
@@ -36,6 +37,11 @@ public class SavedItemConfiguration : IEntityTypeConfiguration<SavedItem>
         builder.HasOne(s => s.Answer)
             .WithMany()
             .HasForeignKey(s => s.AnswerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(s => s.Post)
+            .WithMany(p => p.SavedByUsers)
+            .HasForeignKey(s => s.PostId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

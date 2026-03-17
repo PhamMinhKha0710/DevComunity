@@ -13,10 +13,12 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<SocialTech
     public SocialTechsySocialNetworkDbContext CreateDbContext(string[] args)
     {
         // Build configuration from the API project's appsettings.json
+        var basePath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "src", "SocialTechsy.SocialNetwork.Api");
         var configuration = new ConfigurationBuilder()
-            .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "..", "SocialTechsy.SocialNetwork.Api"))
+            .SetBasePath(basePath)
             .AddJsonFile("appsettings.json", optional: false)
             .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddUserSecrets<SocialTechsySocialNetworkDbContext>(optional: true)
             .Build();
 
         var optionsBuilder = new DbContextOptionsBuilder<SocialTechsySocialNetworkDbContext>();
