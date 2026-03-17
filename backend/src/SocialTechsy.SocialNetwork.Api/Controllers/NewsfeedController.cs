@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 using SocialTechsy.SocialNetwork.Api.Hubs;
 using System.Security.Claims;
@@ -21,17 +22,26 @@ public class NewsfeedController : ControllerBase
     private readonly IPostRepository _postRepository;
     private readonly IGroupRepository _groupRepository;
     private readonly IHubContext<ActivityHub> _activityHub;
+    private readonly ILikeService _likeService;
+    private readonly ICommentRepository _commentRepository;
+    private readonly ISavedItemRepository _savedItemRepository;
 
     public NewsfeedController(
         ILogger<NewsfeedController> logger,
         IPostRepository postRepository,
         IGroupRepository groupRepository,
-        IHubContext<ActivityHub> activityHub)
+        IHubContext<ActivityHub> activityHub,
+        ILikeService likeService,
+        ICommentRepository commentRepository,
+        ISavedItemRepository savedItemRepository)
     {
         _logger = logger;
         _postRepository = postRepository;
         _groupRepository = groupRepository;
         _activityHub = activityHub;
+        _likeService = likeService;
+        _commentRepository = commentRepository;
+        _savedItemRepository = savedItemRepository;
     }
 
     private int GetCurrentUserId()
@@ -54,10 +64,11 @@ public class NewsfeedController : ControllerBase
         if (userId == 0) return Unauthorized();
 
         var (items, totalCount) = await _postRepository.GetNewsfeedAsync(userId, page, pageSize, cancellationToken);
+        var dtos = await EnrichWithEngagementAsync(items, userId, cancellationToken);
 
         return Ok(new PaginatedResponse<PostDto>
         {
-            Items = items.Select(MapToDto),
+            Items = dtos,
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
@@ -89,10 +100,11 @@ public class NewsfeedController : ControllerBase
         }
 
         var (items, totalCount) = await _postRepository.GetGroupPostsAsync(groupId, page, pageSize, cancellationToken);
+        var dtos = await EnrichWithEngagementAsync(items, userId, cancellationToken);
 
         return Ok(new PaginatedResponse<PostDto>
         {
-            Items = items.Select(MapToDto),
+            Items = dtos,
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
@@ -114,12 +126,14 @@ public class NewsfeedController : ControllerBase
         var (items, totalCount) = await _postRepository.GetUserPostsAsync(targetUserId, page, pageSize, cancellationToken);
 
         // Filter to only public posts for non-friends
-        var publicPosts = items.Where(p => p.GroupId == null);
+        var publicPosts = items.Where(p => p.GroupId == null).ToList();
+        var currentUserId = GetCurrentUserId();
+        var dtos = await EnrichWithEngagementAsync(publicPosts, currentUserId, cancellationToken);
 
         return Ok(new PaginatedResponse<PostDto>
         {
-            Items = publicPosts.Select(MapToDto),
-            TotalCount = publicPosts.Count(),
+            Items = dtos,
+            TotalCount = publicPosts.Count,
             Page = page,
             PageSize = pageSize
         });
@@ -213,7 +227,9 @@ public class NewsfeedController : ControllerBase
             }
         }
 
-        return Ok(MapToDto(post));
+        var currentUserId = GetCurrentUserId();
+        var dtos = await EnrichWithEngagementAsync(new[] { post }, currentUserId, cancellationToken);
+        return Ok(dtos[0]);
     }
 
     /// <summary>
@@ -240,7 +256,46 @@ public class NewsfeedController : ControllerBase
 
         _logger.LogInformation("User {UserId} updated post {PostId}", userId, postId);
 
-        return Ok(MapToDto(post));
+        var dtos = await EnrichWithEngagementAsync(new[] { post }, userId, cancellationToken);
+        return Ok(dtos[0]);
+    }
+
+    /// <summary>
+    /// Like a post
+    /// </summary>
+    [HttpPost("posts/{postId:int}/like")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LikePost(int postId, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        var post = await _postRepository.GetByIdAsync(postId, cancellationToken);
+        if (post == null) return NotFound(new { message = "Post not found" });
+
+        var count = await _likeService.LikeAsync("post", postId, userId);
+        _logger.LogInformation("User {UserId} liked post {PostId}, likeCount={Count}", userId, postId, count);
+        return Ok(new { likeCount = count, userLiked = true });
+    }
+
+    /// <summary>
+    /// Remove like from a post
+    /// </summary>
+    [HttpDelete("posts/{postId:int}/like")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnlikePost(int postId, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == 0) return Unauthorized();
+
+        var post = await _postRepository.GetByIdAsync(postId, cancellationToken);
+        if (post == null) return NotFound(new { message = "Post not found" });
+
+        var count = await _likeService.UnlikeAsync("post", postId, userId);
+        _logger.LogInformation("User {UserId} unliked post {PostId}, likeCount={Count}", userId, postId, count);
+        return Ok(new { likeCount = count, userLiked = false });
     }
 
     /// <summary>
@@ -276,6 +331,34 @@ public class NewsfeedController : ControllerBase
         _logger.LogInformation("User {UserId} deleted post {PostId}", userId, postId);
 
         return Ok(new { message = "Post deleted" });
+    }
+
+    private async Task<List<PostDto>> EnrichWithEngagementAsync(IEnumerable<Post> posts, int userId, CancellationToken cancellationToken)
+    {
+        var list = posts.ToList();
+        if (list.Count == 0) return new List<PostDto>();
+
+        var postIds = list.Select(p => p.PostId).ToArray();
+        var likeCounts = await _likeService.GetLikeCountsBatchAsync("post", postIds);
+
+        // Get comment counts for all posts
+        var commentCounts = new Dictionary<int, int>();
+        foreach (var pid in postIds)
+        {
+            commentCounts[pid] = await _commentRepository.GetCountByPostIdAsync(pid, cancellationToken);
+        }
+
+        var result = new List<PostDto>(list.Count);
+        foreach (var p in list)
+        {
+            var dto = MapToDto(p);
+            dto.LikeCount = (int)(likeCounts.GetValueOrDefault(p.PostId, 0));
+            dto.UserLiked = userId > 0 && await _likeService.IsLikedAsync("post", p.PostId, userId);
+            dto.CommentCount = commentCounts.GetValueOrDefault(p.PostId, 0);
+            dto.UserSaved = userId > 0 && await _savedItemRepository.IsSavedAsync(userId, null, null, p.PostId, cancellationToken);
+            result.Add(dto);
+        }
+        return result;
     }
 
     private static PostDto MapToDto(Post p) => new()
