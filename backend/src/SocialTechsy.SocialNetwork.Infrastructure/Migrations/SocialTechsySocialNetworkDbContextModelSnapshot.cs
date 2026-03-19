@@ -176,6 +176,9 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
+                    b.Property<int?>("PostId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("QuestionId")
                         .HasColumnType("int");
 
@@ -185,6 +188,8 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                     b.HasKey("CommentId");
 
                     b.HasIndex("AnswerId");
+
+                    b.HasIndex("PostId");
 
                     b.HasIndex("QuestionId");
 
@@ -878,6 +883,9 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
+                    b.Property<int?>("PostId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("QuestionId")
                         .HasColumnType("int");
 
@@ -888,10 +896,15 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
 
                     b.HasIndex("AnswerId");
 
+                    b.HasIndex("PostId");
+
                     b.HasIndex("QuestionId");
 
                     b.HasIndex("UserId", "AnswerId")
                         .HasFilter("[AnswerId] IS NOT NULL");
+
+                    b.HasIndex("UserId", "PostId")
+                        .HasFilter("[PostId] IS NOT NULL");
 
                     b.HasIndex("UserId", "QuestionId")
                         .HasFilter("[QuestionId] IS NOT NULL");
@@ -1194,6 +1207,11 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .HasForeignKey("AnswerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.Post", "Post")
+                        .WithMany("Comments")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.Question", "Question")
                         .WithMany("Comments")
                         .HasForeignKey("QuestionId")
@@ -1206,6 +1224,8 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Answer");
+
+                    b.Navigation("Post");
 
                     b.Navigation("Question");
 
@@ -1442,6 +1462,11 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .HasForeignKey("AnswerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.Post", "Post")
+                        .WithMany("SavedByUsers")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.Question", "Question")
                         .WithMany()
                         .HasForeignKey("QuestionId")
@@ -1454,6 +1479,8 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Answer");
+
+                    b.Navigation("Post");
 
                     b.Navigation("Question");
 
@@ -1566,6 +1593,13 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
             modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Message", b =>
                 {
                     b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Post", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("SavedByUsers");
                 });
 
             modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Question", b =>

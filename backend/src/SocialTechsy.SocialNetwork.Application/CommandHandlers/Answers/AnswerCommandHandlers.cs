@@ -3,7 +3,9 @@ using SocialTechsy.SocialNetwork.Application.Commands.Answers;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Common.Events;
 using SocialTechsy.SocialNetwork.Application.Common.Mappings;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 using SocialTechsy.SocialNetwork.Domain.Events;
 
@@ -16,36 +18,30 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
 {
     private readonly IAnswerRepository _answerRepository;
     private readonly IQuestionRepository _questionRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public CreateAnswerCommandHandler(
         IAnswerRepository answerRepository,
-        IQuestionRepository questionRepository)
+        IQuestionRepository questionRepository,
+        IUnitOfWork unitOfWork)
     {
         _answerRepository = answerRepository;
         _questionRepository = questionRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<AnswerDto?> Handle(CreateAnswerCommand request, CancellationToken cancellationToken)
     {
-        // Verify question exists
         if (!await _questionRepository.ExistsAsync(request.QuestionId, cancellationToken))
             return null;
 
-        var answer = new Answer
+        return await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            QuestionId = request.QuestionId,
-            Body = request.Body,
-            UserId = request.UserId,
-            ParentAnswerId = request.ParentAnswerId,
-            CreatedDate = DateTime.UtcNow,
-            IsAccepted = false,
-            Score = 0
-        };
-
-        var createdAnswer = await _answerRepository.AddAsync(answer, cancellationToken);
-
-        // Ensure CreatedDate is marked as UTC when serialized
-        return createdAnswer.ToDto();
+            var answer = Answer.Create(request.QuestionId, request.UserId, request.Body, request.ParentAnswerId);
+            var createdAnswer = await _answerRepository.AddAsync(answer, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+            return createdAnswer.ToDto();
+        }, cancellationToken);
     }
 }
 
@@ -55,23 +51,32 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
 public class UpdateAnswerCommandHandler : IRequestHandler<UpdateAnswerCommand, bool>
 {
     private readonly IAnswerRepository _answerRepository;
+    private readonly IQuestionEventDispatcher _dispatcher;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateAnswerCommandHandler(IAnswerRepository answerRepository)
+    public UpdateAnswerCommandHandler(
+        IAnswerRepository answerRepository,
+        IQuestionEventDispatcher dispatcher,
+        IUnitOfWork unitOfWork)
     {
         _answerRepository = answerRepository;
+        _dispatcher = dispatcher;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(UpdateAnswerCommand request, CancellationToken cancellationToken)
     {
         var answer = await _answerRepository.GetByIdAsync(request.AnswerId, cancellationToken);
-        
+
         if (answer == null || answer.UserId != request.UserId)
             return false;
 
-        answer.Body = request.Body;
-        answer.UpdatedDate = DateTime.UtcNow;
+        answer.Update(request.Body);
 
         await _answerRepository.UpdateAsync(answer, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _dispatcher.NotifyAnswerUpdatedAsync(answer.QuestionId, answer.AnswerId, answer.Body, cancellationToken);
+
         return true;
     }
 }
@@ -82,20 +87,23 @@ public class UpdateAnswerCommandHandler : IRequestHandler<UpdateAnswerCommand, b
 public class DeleteAnswerCommandHandler : IRequestHandler<DeleteAnswerCommand, bool>
 {
     private readonly IAnswerRepository _answerRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteAnswerCommandHandler(IAnswerRepository answerRepository)
+    public DeleteAnswerCommandHandler(IAnswerRepository answerRepository, IUnitOfWork unitOfWork)
     {
         _answerRepository = answerRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(DeleteAnswerCommand request, CancellationToken cancellationToken)
     {
         var answer = await _answerRepository.GetByIdAsync(request.AnswerId, cancellationToken);
-        
+
         if (answer == null || answer.UserId != request.UserId)
             return false;
 
         await _answerRepository.DeleteAsync(request.AnswerId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }
@@ -108,15 +116,21 @@ public class AcceptAnswerCommandHandler : IRequestHandler<AcceptAnswerCommand, A
     private readonly IAnswerRepository _answerRepository;
     private readonly IQuestionRepository _questionRepository;
     private readonly IDomainEventDispatcher _eventDispatcher;
+    private readonly IQuestionEventDispatcher _questionDispatcher;
+    private readonly IUnitOfWork _unitOfWork;
 
     public AcceptAnswerCommandHandler(
         IAnswerRepository answerRepository,
         IQuestionRepository questionRepository,
-        IDomainEventDispatcher eventDispatcher)
+        IDomainEventDispatcher eventDispatcher,
+        IQuestionEventDispatcher questionDispatcher,
+        IUnitOfWork unitOfWork)
     {
         _answerRepository = answerRepository;
         _questionRepository = questionRepository;
         _eventDispatcher = eventDispatcher;
+        _questionDispatcher = questionDispatcher;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<AcceptAnswerResult> Handle(AcceptAnswerCommand request, CancellationToken cancellationToken)
@@ -136,6 +150,9 @@ public class AcceptAnswerCommandHandler : IRequestHandler<AcceptAnswerCommand, A
 
         if (success)
         {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _questionDispatcher.NotifyAnswerAcceptedAsync(request.QuestionId, request.AnswerId, cancellationToken);
+
             await _eventDispatcher.DispatchAsync(new AnswerAcceptedEvent
             {
                 AnswerId = request.AnswerId,

@@ -23,7 +23,7 @@ export default function ReactionPicker({ onReact, onClose, currentReaction }: Re
 
     return (
         <div 
-            className="absolute bottom-full left-0 mb-2 bg-[var(--bg-secondary)] rounded-full shadow-lg border border-[var(--border-color)] p-1.5 flex gap-1 animate-reaction-pop z-50"
+            className="flex bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 p-1 flex gap-1 animate-reaction-pop z-50"
             onMouseLeave={onClose}
         >
             {REACTIONS.map((reaction) => (

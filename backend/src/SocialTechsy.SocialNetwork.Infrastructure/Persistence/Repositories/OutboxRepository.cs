@@ -17,7 +17,6 @@ public class OutboxRepository : IOutboxRepository
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
         await _context.OutboxMessages.AddAsync(message, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<List<OutboxMessage>> GetPendingAsync(int batchSize, CancellationToken cancellationToken = default)

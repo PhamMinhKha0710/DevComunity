@@ -24,14 +24,12 @@ public class PasswordResetTokenRepository : IPasswordResetTokenRepository
     public async Task<PasswordResetToken> AddAsync(PasswordResetToken resetToken, CancellationToken cancellationToken = default)
     {
         _context.PasswordResetTokens.Add(resetToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return resetToken;
     }
 
     public async Task UpdateAsync(PasswordResetToken resetToken, CancellationToken cancellationToken = default)
     {
         _context.PasswordResetTokens.Update(resetToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task InvalidateAllByUserIdAsync(int userId, CancellationToken cancellationToken = default)

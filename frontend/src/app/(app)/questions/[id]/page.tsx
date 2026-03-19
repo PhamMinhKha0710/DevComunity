@@ -67,12 +67,97 @@ export default function QuestionDetailPage() {
     [id, queryClient]
   );
 
+  const handleNewComment = useCallback(
+    (data: { targetType: string; targetId: number; comment: Comment }) => {
+      if (data.targetType === "answer") {
+        queryClient.setQueryData(["answers", id], (prev: unknown) => {
+          if (!prev) return prev;
+          const raw = prev as { items?: Answer[] };
+          const items = raw.items || (prev as Answer[]);
+          const updated = (Array.isArray(items) ? items : []).map((a: Answer) => {
+            if (a.answerId === data.targetId) {
+              const existingComments = a.comments || [];
+              if (!existingComments.find(c => c.commentId === data.comment.commentId)) {
+                return { ...a, comments: [...existingComments, data.comment] };
+              }
+            }
+            return a;
+          });
+          return raw.items ? { ...raw, items: updated } : updated;
+        });
+      }
+    },
+    [id, queryClient]
+  );
+
+  const handleAnswerUpdated = useCallback(
+    (data: { answerId: number; body: string }) => {
+      queryClient.setQueryData(["answers", id], (prev: unknown) => {
+        if (!prev) return prev;
+        const raw = prev as { items?: Answer[] };
+        const items = raw.items || (prev as Answer[]);
+        const updated = (Array.isArray(items) ? items : []).map((a: Answer) =>
+          a.answerId === data.answerId ? { ...a, body: data.body } : a
+        );
+        return raw.items ? { ...raw, items: updated } : updated;
+      });
+    },
+    [id, queryClient]
+  );
+
+  const handleAnswerAccepted = useCallback(
+    (data: { answerId: number }) => {
+      queryClient.setQueryData(["answers", id], (prev: unknown) => {
+        if (!prev) return prev;
+        const raw = prev as { items?: Answer[] };
+        const items = raw.items || (prev as Answer[]);
+        const updated = (Array.isArray(items) ? items : []).map((a: Answer) =>
+          a.answerId === data.answerId ? { ...a, isAccepted: true } : { ...a, isAccepted: false }
+        );
+        return raw.items ? { ...raw, items: updated } : updated;
+      });
+      queryClient.setQueryData<Question>(["question", id], (prev) => {
+        if (!prev) return prev;
+        return { ...prev, status: "Solved" };
+      });
+    },
+    [id, queryClient]
+  );
+
+  const handleNewAnswer = useCallback(
+    (data: { answer: Answer }) => {
+      queryClient.setQueryData(["answers", id], (prev: unknown) => {
+        if (!prev) return prev;
+        const raw = prev as { items?: Answer[] };
+        const items = raw.items || (prev as Answer[]);
+        if (items.find(a => a.answerId === data.answer.answerId)) {
+          return prev;
+        }
+        const updated = [...(Array.isArray(items) ? items : []), data.answer];
+        return raw.items ? { ...raw, items: updated } : updated;
+      });
+      queryClient.setQueryData<Question>(["question", id], (prev) => {
+        if (!prev) return prev;
+        return { ...prev, answerCount: (prev.answerCount || 0) + 1 };
+      });
+    },
+    [id, queryClient]
+  );
+
   useEffect(() => {
     questionHub.on("VoteChanged", handleVoteChanged);
+    questionHub.on("NewComment", handleNewComment);
+    questionHub.on("AnswerUpdated", handleAnswerUpdated);
+    questionHub.on("AnswerAccepted", handleAnswerAccepted);
+    questionHub.on("NewAnswer", handleNewAnswer);
     return () => {
       questionHub.off("VoteChanged", handleVoteChanged);
+      questionHub.off("NewComment", handleNewComment);
+      questionHub.off("AnswerUpdated", handleAnswerUpdated);
+      questionHub.off("AnswerAccepted", handleAnswerAccepted);
+      questionHub.off("NewAnswer", handleNewAnswer);
     };
-  }, [questionHub, handleVoteChanged]);
+  }, [questionHub, handleVoteChanged, handleNewComment, handleAnswerUpdated, handleAnswerAccepted, handleNewAnswer]);
 
   const { data: question, isLoading } = useQuery<Question>({
     queryKey: ["question", id],

@@ -1,9 +1,11 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Commands.Comments;
-using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Queries.Comments;
+using SocialTechsy.SocialNetwork.Api.Hubs;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
@@ -14,13 +16,16 @@ public class CommentsController : ControllerBase
 {
     private readonly ILogger<CommentsController> _logger;
     private readonly IMediator _mediator;
-    private readonly ICommentRepository _commentRepository;
+    private readonly IHubContext<ActivityHub> _activityHub;
 
-    public CommentsController(ILogger<CommentsController> logger, IMediator mediator, ICommentRepository commentRepository)
+    public CommentsController(
+        ILogger<CommentsController> logger,
+        IMediator mediator,
+        IHubContext<ActivityHub> activityHub)
     {
         _logger = logger;
         _mediator = mediator;
-        _commentRepository = commentRepository;
+        _activityHub = activityHub;
     }
 
     private int GetCurrentUserId()
@@ -98,6 +103,8 @@ public class CommentsController : ControllerBase
         if (result == null)
             return NotFound(new { message = "Post not found" });
 
+        await _activityHub.Clients.Group("activity_feed").SendAsync("NewPostComment", new { postId, comment = result });
+
         return Created($"/api/comments/{result.CommentId}", result);
     }
 
@@ -108,19 +115,8 @@ public class CommentsController : ControllerBase
         int postId,
         CancellationToken cancellationToken)
     {
-        var comments = await _commentRepository.GetByPostIdAsync(postId, cancellationToken);
-        
-        var dtos = comments.Select(c => new CommentDto
-        {
-            CommentId = c.CommentId,
-            Body = c.Body,
-            CreatedDate = c.CreatedDate,
-            UserId = c.UserId,
-            AuthorUsername = c.User?.Username,
-            AuthorProfilePicture = c.User?.ProfilePicture
-        });
-
-        return Ok(dtos);
+        var comments = await _mediator.Send(new GetPostCommentsQuery { PostId = postId }, cancellationToken);
+        return Ok(comments);
     }
 
     [HttpPut("{id:int}")]

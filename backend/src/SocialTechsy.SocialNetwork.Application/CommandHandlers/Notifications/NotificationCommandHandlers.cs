@@ -1,19 +1,19 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Notifications;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Notifications;
 
-/// <summary>
-/// Handler for marking a notification as read
-/// </summary>
 public class MarkNotificationReadCommandHandler : IRequestHandler<MarkNotificationReadCommand, bool>
 {
     private readonly INotificationRepository _notificationRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public MarkNotificationReadCommandHandler(INotificationRepository notificationRepository)
+    public MarkNotificationReadCommandHandler(INotificationRepository notificationRepository, IUnitOfWork unitOfWork)
     {
         _notificationRepository = notificationRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(MarkNotificationReadCommand request, CancellationToken cancellationToken)
@@ -23,13 +23,11 @@ public class MarkNotificationReadCommandHandler : IRequestHandler<MarkNotificati
             return false;
 
         await _notificationRepository.MarkAsReadAsync(request.NotificationId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }
 
-/// <summary>
-/// Handler for marking all notifications as read
-/// </summary>
 public class MarkAllNotificationsReadCommandHandler : IRequestHandler<MarkAllNotificationsReadCommand>
 {
     private readonly INotificationRepository _notificationRepository;
@@ -45,16 +43,15 @@ public class MarkAllNotificationsReadCommandHandler : IRequestHandler<MarkAllNot
     }
 }
 
-/// <summary>
-/// Handler for deleting a notification
-/// </summary>
 public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificationCommand, bool>
 {
     private readonly INotificationRepository _notificationRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteNotificationCommandHandler(INotificationRepository notificationRepository)
+    public DeleteNotificationCommandHandler(INotificationRepository notificationRepository, IUnitOfWork unitOfWork)
     {
         _notificationRepository = notificationRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
@@ -64,6 +61,7 @@ public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificati
             return false;
 
         await _notificationRepository.DeleteAsync(request.NotificationId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

@@ -45,7 +45,6 @@ public class FollowRepository : IFollowRepository
     {
         follow.CreatedAt = DateTime.UtcNow;
         await _context.UserFollows.AddAsync(follow, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return follow;
     }
 

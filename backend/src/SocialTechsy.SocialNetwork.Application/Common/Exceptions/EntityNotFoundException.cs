@@ -1,9 +1,11 @@
+using SocialTechsy.SocialNetwork.Shared.Exceptions;
+
 namespace SocialTechsy.SocialNetwork.Application.Common.Exceptions;
 
 /// <summary>
 /// Thrown when an entity is not found (maps to HTTP 404).
 /// </summary>
-public class EntityNotFoundException : Exception
+public class EntityNotFoundException : SharedException
 {
     public string EntityType { get; }
     public object? EntityId { get; }

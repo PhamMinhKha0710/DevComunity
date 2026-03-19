@@ -28,6 +28,13 @@ interface FriendRequest {
     createdAt: string;
 }
 
+interface SuggestedFriend {
+    userId: number;
+    username: string;
+    displayName: string | null;
+    profilePicture: string | null;
+}
+
 export default function FriendsPage() {
     const { isAuthenticated } = useAuth();
     const queryClient = useQueryClient();
@@ -49,6 +56,25 @@ export default function FriendsPage() {
         queryKey: ['friendRequests', 'pending'],
         queryFn: () => friendshipApi.getPending(),
         enabled: isAuthenticated,
+    });
+
+    const { data: suggestionsData, isLoading: loadingSuggestions } = useQuery({
+        queryKey: ['friendSuggestions'],
+        queryFn: () => friendshipApi.getSuggestions(5),
+        enabled: isAuthenticated,
+    });
+
+    const { data: networkGrowthData } = useQuery({
+        queryKey: ['networkGrowth'],
+        queryFn: () => friendshipApi.getNetworkGrowth(28),
+        enabled: isAuthenticated,
+    });
+
+    const sendRequestMutation = useMutation({
+        mutationFn: (targetUserId: number) => friendshipApi.sendRequest(targetUserId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['friendSuggestions'] });
+        },
     });
 
     const pendingRequests: FriendRequest[] = (() => {
@@ -82,6 +108,10 @@ export default function FriendsPage() {
 
     const handleDecline = (requestId: number) => {
         declineMutation.mutate(requestId);
+    };
+
+    const handleSendRequest = (targetUserId: number) => {
+        sendRequestMutation.mutate(targetUserId);
     };
 
     const filteredFriends = friends.filter(f =>
@@ -308,26 +338,48 @@ export default function FriendsPage() {
                             <Link href="/users" className="text-[var(--primary)] text-xs font-bold hover:underline">View All</Link>
                         </div>
                         <div className="space-y-4">
-                            {[
-                                { name: 'David Miller', role: 'Go Developer' },
-                                { name: 'Sophia Zhang', role: 'Data Scientist' },
-                                { name: 'Liam Patel', role: 'Product Designer' },
-                            ].map((person) => (
-                                <div key={person.name} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-sm font-bold">
-                                            {authorInitial(person.name)}
+                            {loadingSuggestions ? (
+                                <div className="space-y-3">
+                                    {[1, 2, 3].map((i) => (
+                                        <div key={i} className="flex items-center gap-3 animate-pulse">
+                                            <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                                            <div className="flex-1">
+                                                <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
+                                                <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{person.name}</p>
-                                            <p className="text-xs text-slate-500 truncate">{person.role}</p>
-                                        </div>
-                                    </div>
-                                    <button className="text-[var(--primary)] hover:bg-[var(--primary)]/10 p-1.5 rounded-lg transition">
-                                        <span className="material-symbols-outlined text-xl">person_add</span>
-                                    </button>
+                                    ))}
                                 </div>
-                            ))}
+                            ) : suggestionsData && suggestionsData.length > 0 ? (
+                                suggestionsData.map((person: SuggestedFriend) => (
+                                    <div key={person.userId} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-10 w-10 rounded-full overflow-hidden">
+                                                {person.profilePicture ? (
+                                                    <img src={person.profilePicture} alt="" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <div className="h-full w-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-sm font-bold">
+                                                        {authorInitial(person.displayName || person.username)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{person.displayName || person.username}</p>
+                                                <p className="text-xs text-slate-500 truncate">@{person.username}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleSendRequest(person.userId)}
+                                            className="text-[var(--primary)] hover:bg-[var(--primary)]/10 p-1.5 rounded-lg transition"
+                                            disabled={sendRequestMutation.isPending}
+                                        >
+                                            <span className="material-symbols-outlined text-xl">person_add</span>
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-sm text-slate-500 text-center py-2">No suggestions available</p>
+                            )}
                         </div>
                     </div>
 
@@ -335,21 +387,39 @@ export default function FriendsPage() {
                     <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800">
                         <h3 className="font-bold text-slate-900 dark:text-white mb-4">Network Growth</h3>
                         <div className="flex items-end gap-2 mb-4">
-                            <span className="text-3xl font-black text-slate-900 dark:text-white">+{friends.length}</span>
+                            <span className="text-3xl font-black text-slate-900 dark:text-white">+{networkGrowthData?.totalConnections || 0}</span>
                             <span className="text-xs text-green-500 font-bold pb-1 flex items-center">
                                 <span className="material-symbols-outlined text-xs">trending_up</span>
                                 This month
                             </span>
                         </div>
-                        {/* Simple Bar Graph */}
+                        {/* Dynamic Bar Graph */}
                         <div className="flex items-end gap-1.5 h-16 w-full">
-                            <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-1/2 rounded-t-sm"></div>
-                            <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-2/3 rounded-t-sm"></div>
-                            <div className="flex-1 bg-[var(--primary)]/20 h-3/4 rounded-t-sm"></div>
-                            <div className="flex-1 bg-[var(--primary)]/40 h-1/2 rounded-t-sm"></div>
-                            <div className="flex-1 bg-[var(--primary)]/60 h-2/3 rounded-t-sm"></div>
-                            <div className="flex-1 bg-[var(--primary)] h-full rounded-t-sm"></div>
-                            <div className="flex-1 bg-[var(--primary)]/80 h-3/4 rounded-t-sm"></div>
+                            {(() => {
+                                const weeksData = networkGrowthData?.weeksData || [0, 0, 0, 0];
+                                const maxValue = Math.max(...weeksData, 1);
+                                const heights = weeksData.map((v: number) => Math.max(v / maxValue, 0.1));
+                                return (
+                                    <>
+                                        <div
+                                            className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-t-sm transition-all duration-300"
+                                            style={{ height: `${heights[0] * 100}%` }}
+                                        ></div>
+                                        <div
+                                            className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-t-sm transition-all duration-300"
+                                            style={{ height: `${heights[1] * 100}%` }}
+                                        ></div>
+                                        <div
+                                            className="flex-1 bg-[var(--primary)]/20 rounded-t-sm transition-all duration-300"
+                                            style={{ height: `${heights[2] * 100}%` }}
+                                        ></div>
+                                        <div
+                                            className="flex-1 bg-[var(--primary)]/40 rounded-t-sm transition-all duration-300"
+                                            style={{ height: `${heights[3] * 100}%` }}
+                                        ></div>
+                                    </>
+                                );
+                            })()}
                         </div>
                         <div className="flex justify-between mt-2">
                             <span className="text-[10px] text-slate-400 uppercase font-bold">Week 1</span>
@@ -357,7 +427,7 @@ export default function FriendsPage() {
                         </div>
                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
                             <div className="text-xs text-slate-500">Total Connections</div>
-                            <div className="text-xs font-bold text-slate-900 dark:text-white">{friends.length}</div>
+                            <div className="text-xs font-bold text-slate-900 dark:text-white">{networkGrowthData?.totalConnections || 0}</div>
                         </div>
                     </div>
 

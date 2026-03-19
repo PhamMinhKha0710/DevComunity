@@ -42,14 +42,12 @@ public class VoteRepository : IVoteRepository
     public async Task<Vote> AddAsync(Vote vote, CancellationToken cancellationToken = default)
     {
         await _context.Votes.AddAsync(vote, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return vote;
     }
 
     public async Task UpdateAsync(Vote vote, CancellationToken cancellationToken = default)
     {
         _context.Votes.Update(vote);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int voteId, CancellationToken cancellationToken = default)
@@ -58,32 +56,28 @@ public class VoteRepository : IVoteRepository
         if (vote != null)
         {
             _context.Votes.Remove(vote);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 
     public async Task<int> GetScoreAsync(int? questionId, int? answerId, CancellationToken cancellationToken = default)
     {
-        var votes = await _context.Votes
+        return await _context.Votes
             .Where(v => v.QuestionId == questionId && v.AnswerId == answerId)
-            .ToListAsync(cancellationToken);
-        return votes.Sum(v => v.IsUpvote ? 1 : -1);
+            .SumAsync(v => v.IsUpvote ? 1 : -1, cancellationToken);
     }
 
     public async Task<int> GetQuestionScoreAsync(int questionId, CancellationToken cancellationToken = default)
     {
-        var votes = await _context.Votes
+        return await _context.Votes
             .Where(v => v.QuestionId == questionId)
-            .ToListAsync(cancellationToken);
-        return votes.Sum(v => v.IsUpvote ? 1 : -1);
+            .SumAsync(v => v.IsUpvote ? 1 : -1, cancellationToken);
     }
 
     public async Task<int> GetAnswerScoreAsync(int answerId, CancellationToken cancellationToken = default)
     {
-        var votes = await _context.Votes
+        return await _context.Votes
             .Where(v => v.AnswerId == answerId)
-            .ToListAsync(cancellationToken);
-        return votes.Sum(v => v.IsUpvote ? 1 : -1);
+            .SumAsync(v => v.IsUpvote ? 1 : -1, cancellationToken);
     }
 }
 

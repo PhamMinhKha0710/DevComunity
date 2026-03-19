@@ -29,7 +29,6 @@ const socialNavItems: NavItem[] = [
 const personalNavItems: NavItem[] = [
     { name: 'Notifications', href: '/notifications', icon: 'bi-bell', requireAuth: true },
     { name: 'Saved Items', href: '/saved', icon: 'bi-bookmark', requireAuth: true },
-    { name: 'Chat', href: '/chat', icon: 'bi-chat-dots', requireAuth: true },
     { name: 'Settings', href: '/settings', icon: 'bi-gear', requireAuth: true },
 ];
 

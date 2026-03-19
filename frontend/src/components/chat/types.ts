@@ -4,6 +4,8 @@ export interface RealtimeMessage extends ChatMessage {
     status?: 'sending' | 'sent' | 'delivered' | 'read';
     senderAvatar?: string;
     senderDisplayName?: string;
+    isEdited?: boolean;
+    editedAt?: string;
 }
 
 /**

@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using SocialTechsy.SocialNetwork.Application.Commands.Votes;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
+using SocialTechsy.SocialNetwork.Api.Hubs;
 using SocialTechsy.SocialNetwork.Domain.Enums;
 using System.Security.Claims;
 
@@ -15,15 +17,37 @@ public class VotesController : ControllerBase
     private readonly ILogger<VotesController> _logger;
     private readonly IMediator _mediator;
     private readonly ILikeService? _likeService;
+    private readonly IHubContext<QuestionHub>? _questionHub;
 
     public VotesController(
         ILogger<VotesController> logger,
         IMediator mediator,
-        ILikeService? likeService = null)
+        ILikeService? likeService = null,
+        IHubContext<QuestionHub>? questionHub = null)
     {
         _logger = logger;
         _mediator = mediator;
         _likeService = likeService;
+        _questionHub = questionHub;
+    }
+
+    private async Task EmitVoteChangedAsync(int questionId, string targetType, int targetId, int likeCount, int likedByUserId)
+    {
+        if (_questionHub == null) return;
+        try
+        {
+            await _questionHub.Clients.Group($"question_{questionId}").SendAsync("VoteChanged", new
+            {
+                targetType,
+                targetId,
+                likeCount,
+                likedByUserId
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to emit VoteChanged for question {QuestionId}", questionId);
+        }
     }
 
     private int GetCurrentUserId()
@@ -108,6 +132,7 @@ public class VotesController : ControllerBase
         if (!result.Success)
             return BadRequest(new { message = result.Message });
 
+        await EmitVoteChangedAsync(questionId, "question", questionId, result.Score, userId);
         return Ok(new { score = result.Score, userVote = result.UserVote });
     }
 
@@ -140,6 +165,8 @@ public class VotesController : ControllerBase
         if (!result.Success)
             return BadRequest(new { message = result.Message });
 
+        if (result.QuestionId.HasValue)
+            await EmitVoteChangedAsync(result.QuestionId.Value, "answer", answerId, result.Score, userId);
         return Ok(new { score = result.Score, userVote = result.UserVote });
     }
 
@@ -155,6 +182,8 @@ public class VotesController : ControllerBase
         _logger.LogInformation("User {UserId} removing vote from question {QuestionId}", userId, questionId);
 
         var result = await _mediator.Send(new RemoveVoteCommand { UserId = userId, QuestionId = questionId }, cancellationToken);
+        if (result.Success)
+            await EmitVoteChangedAsync(questionId, "question", questionId, result.Score, userId);
         return Ok(new { score = result.Score });
     }
 
@@ -170,6 +199,8 @@ public class VotesController : ControllerBase
         _logger.LogInformation("User {UserId} removing vote from answer {AnswerId}", userId, answerId);
 
         var result = await _mediator.Send(new RemoveVoteCommand { UserId = userId, AnswerId = answerId }, cancellationToken);
+        if (result.Success && result.QuestionId.HasValue)
+            await EmitVoteChangedAsync(result.QuestionId.Value, "answer", answerId, result.Score, userId);
         return Ok(new { score = result.Score });
     }
 }

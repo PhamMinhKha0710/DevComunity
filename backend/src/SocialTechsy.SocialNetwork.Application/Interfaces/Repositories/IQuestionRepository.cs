@@ -32,11 +32,6 @@ public interface IQuestionRepository
     Task<(IEnumerable<Question> Items, int TotalCount)> GetByUserIdAsync(int userId, int page, int pageSize, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Replaces all tags for a question (creates tags by name if they do not exist).
-    /// </summary>
-    Task SetTagsForQuestionAsync(int questionId, IReadOnlyList<string> tagNames, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets paginated questions with optimized query (no tracking, minimal includes).
     /// </summary>
     Task<(IEnumerable<Question> Items, int TotalCount)> GetPaginatedOptimizedAsync(

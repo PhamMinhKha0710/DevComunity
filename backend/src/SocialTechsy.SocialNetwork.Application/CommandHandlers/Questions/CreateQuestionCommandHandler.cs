@@ -1,6 +1,7 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
@@ -14,56 +15,68 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
 public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionCommand, QuestionDto>
 {
     private readonly IQuestionRepository _questionRepository;
+    private readonly ITagRepository _tagRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService? _cacheService;
 
     public CreateQuestionCommandHandler(
         IQuestionRepository questionRepository,
+        ITagRepository tagRepository,
         IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
         ICacheService? cacheService = null)
     {
         _questionRepository = questionRepository;
+        _tagRepository = tagRepository;
         _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
         _cacheService = cacheService;
     }
 
     public async Task<QuestionDto> Handle(CreateQuestionCommand request, CancellationToken cancellationToken)
     {
-        var question = new Question
+        return await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            Title = request.Title,
-            Body = request.Body,
-            UserId = request.UserId,
-            CreatedDate = DateTime.UtcNow,
-            Status = QuestionStatus.Open.ToString().ToLowerInvariant(),
-            ViewCount = 0,
-            Score = 0
-        };
+            var question = Question.Create(request.UserId, request.Title, request.Body);
 
-        var createdQuestion = await _questionRepository.AddAsync(question, cancellationToken);
+            await _questionRepository.AddAsync(question, ct);
 
-        if (request.Tags?.Count > 0)
-            await _questionRepository.SetTagsForQuestionAsync(createdQuestion.QuestionId, request.Tags, cancellationToken);
+            if (request.Tags?.Count > 0)
+            {
+                var tagNames = request.Tags
+                    .Select(t => t?.Trim())
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
-        // Award reputation for asking a question (+2)
-        await _userRepository.UpdateReputationAsync(
-            request.UserId, 
-            CommandHandlers.Votes.ReputationPoints.AskQuestion, 
-            cancellationToken);
+                foreach (var tagName in tagNames!)
+                {
+                    var tag = await _tagRepository.GetOrCreateAsync(tagName!, ct);
+                    question.QuestionTags.Add(new QuestionTag { TagId = tag.TagId });
+                }
+            }
 
-        // Invalidate questions list cache
-        _cacheService?.RemoveByPrefix("questions:page:");
-        _cacheService?.RemoveByPrefix("search:");
+            await _userRepository.UpdateReputationAsync(
+                request.UserId,
+                Shared.Constants.ReputationPoints.AskQuestion,
+                ct);
 
-        return new QuestionDto
-        {
-            QuestionId = createdQuestion.QuestionId,
-            Title = createdQuestion.Title,
-            Body = createdQuestion.Body,
-            CreatedDate = DateTime.SpecifyKind(createdQuestion.CreatedDate, DateTimeKind.Utc),
-            Status = createdQuestion.Status,
-            ViewCount = createdQuestion.ViewCount,
-            Score = createdQuestion.Score
-        };
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            _cacheService?.RemoveByPrefix("questions:page:");
+            _cacheService?.RemoveByPrefix("search:");
+
+            return new QuestionDto
+            {
+                QuestionId = question.QuestionId,
+                Title = question.Title,
+                Body = question.Body,
+                CreatedDate = DateTime.SpecifyKind(question.CreatedDate, DateTimeKind.Utc),
+                Status = question.Status,
+                ViewCount = question.ViewCount,
+                Score = 0
+            };
+        }, cancellationToken);
     }
 }

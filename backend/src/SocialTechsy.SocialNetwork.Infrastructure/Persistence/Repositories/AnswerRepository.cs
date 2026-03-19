@@ -51,14 +51,12 @@ public class AnswerRepository : IAnswerRepository
     public async Task<Answer> AddAsync(Answer answer, CancellationToken cancellationToken = default)
     {
         await _context.Answers.AddAsync(answer, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return answer;
     }
 
     public async Task UpdateAsync(Answer answer, CancellationToken cancellationToken = default)
     {
         _context.Answers.Update(answer);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -67,7 +65,6 @@ public class AnswerRepository : IAnswerRepository
         if (answer != null)
         {
             _context.Answers.Remove(answer);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 
