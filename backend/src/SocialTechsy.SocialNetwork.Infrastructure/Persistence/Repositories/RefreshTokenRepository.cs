@@ -31,14 +31,12 @@ public class RefreshTokenRepository : IRefreshTokenRepository
     public async Task<RefreshToken> AddAsync(RefreshToken refreshToken, CancellationToken cancellationToken = default)
     {
         _context.RefreshTokens.Add(refreshToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return refreshToken;
     }
 
     public async Task UpdateAsync(RefreshToken refreshToken, CancellationToken cancellationToken = default)
     {
         _context.RefreshTokens.Update(refreshToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task RevokeAllByUserIdAsync(int userId, CancellationToken cancellationToken = default)

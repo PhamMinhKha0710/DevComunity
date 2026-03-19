@@ -105,7 +105,6 @@ public class PostRepository : IPostRepository
     {
         post.CreatedAt = DateTime.UtcNow;
         await _context.Posts.AddAsync(post, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return post;
     }
 
@@ -113,7 +112,6 @@ public class PostRepository : IPostRepository
     {
         post.UpdatedAt = DateTime.UtcNow;
         _context.Posts.Update(post);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int postId, CancellationToken cancellationToken = default)

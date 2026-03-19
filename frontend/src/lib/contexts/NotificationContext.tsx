@@ -108,12 +108,48 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             store.markAllAsRead();
         };
 
+        const handleReputationChanged = (data: { newScore: number, delta: number, reason: string }) => {
+            const isGain = data.delta > 0;
+            const sign = isGain ? '+' : '';
+            toast(`Danh tiếng ${sign}${data.delta} điểm (${data.reason})`, {
+                icon: isGain ? '🚀' : '📉',
+                duration: 4000,
+                style: { 
+                    borderRadius: '12px', 
+                    background: isGain ? 'linear-gradient(to right, #10b981, #059669)' : 'linear-gradient(to right, #ef4444, #dc2626)', 
+                    color: '#fff', 
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                },
+            });
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+        };
+
+        const handleBadgeEarned = (data: { badgeName: string; badgeType: string; description?: string }) => {
+            const badgeEmoji = data.badgeType === 'gold' ? '🥇' : data.badgeType === 'silver' ? '🥈' : '🥉';
+            toast.success(`${badgeEmoji} Bạn đã đạt huy hiệu mới: ${data.badgeName}!`, {
+                icon: badgeEmoji,
+                duration: 6000,
+                style: { 
+                    borderRadius: '12px', 
+                    background: 'linear-gradient(to right, #6366f1, #8b5cf6)', 
+                    color: '#fff', 
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)'
+                },
+            });
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+            queryClient.invalidateQueries({ queryKey: ['badges'] });
+        };
+
         hub.on('ReceiveNotification', handleReceive);
         hub.on('NotificationRead', handleRead);
         hub.on('AllNotificationsRead', handleAllRead);
         hub.on('FriendRequestReceived', handleFriendRequestReceived);
         hub.on('FriendRequestAccepted', handleFriendRequestAccepted);
         hub.on('FriendRequestRejected', handleFriendRequestRejected);
+        hub.on('ReputationChanged', handleReputationChanged);
+        hub.on('BadgeEarned', handleBadgeEarned);
 
         return () => {
             hub.off('ReceiveNotification', handleReceive);
@@ -122,8 +158,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             hub.off('FriendRequestReceived', handleFriendRequestReceived);
             hub.off('FriendRequestAccepted', handleFriendRequestAccepted);
             hub.off('FriendRequestRejected', handleFriendRequestRejected);
+            hub.off('ReputationChanged', handleReputationChanged);
+            hub.off('BadgeEarned', handleBadgeEarned);
         };
-    }, [user, hub]);
+    }, [user, hub, queryClient]);
 
     const markAsRead = useCallback(async (notificationId: number) => {
         try {

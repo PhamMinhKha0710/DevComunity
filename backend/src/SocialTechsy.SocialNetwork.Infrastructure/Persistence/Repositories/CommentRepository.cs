@@ -61,14 +61,12 @@ public class CommentRepository : ICommentRepository
     public async Task<Comment> AddAsync(Comment comment, CancellationToken cancellationToken = default)
     {
         await _context.Comments.AddAsync(comment, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return comment;
     }
 
     public async Task UpdateAsync(Comment comment, CancellationToken cancellationToken = default)
     {
         _context.Comments.Update(comment);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -77,7 +75,6 @@ public class CommentRepository : ICommentRepository
         if (comment != null)
         {
             _context.Comments.Remove(comment);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 }

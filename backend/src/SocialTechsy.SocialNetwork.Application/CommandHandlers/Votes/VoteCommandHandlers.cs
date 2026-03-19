@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Votes;
 using SocialTechsy.SocialNetwork.Application.Common.Events;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
@@ -28,6 +29,7 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
     private readonly IQuestionRepository _questionRepository;
     private readonly IUserRepository _userRepository;
     private readonly IDomainEventDispatcher _eventDispatcher;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILikeService? _likeService;
     private readonly IActivityLogService? _activityLog;
     private readonly IOutboxRepository? _outboxRepository;
@@ -37,6 +39,7 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
         IQuestionRepository questionRepository,
         IUserRepository userRepository,
         IDomainEventDispatcher eventDispatcher,
+        IUnitOfWork unitOfWork,
         ILikeService? likeService = null,
         IActivityLogService? activityLog = null,
         IOutboxRepository? outboxRepository = null)
@@ -45,6 +48,7 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
         _questionRepository = questionRepository;
         _userRepository = userRepository;
         _eventDispatcher = eventDispatcher;
+        _unitOfWork = unitOfWork;
         _likeService = likeService;
         _activityLog = activityLog;
         _outboxRepository = outboxRepository;
@@ -69,22 +73,15 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
 
         if (existingVote != null)
         {
-            existingVote.IsUpvote = isUpvote;
+            existingVote.ChangeDirection(isUpvote);
             await _voteRepository.UpdateAsync(existingVote, cancellationToken);
         }
         else
         {
-            var vote = new Vote
-            {
-                UserId = request.UserId,
-                QuestionId = request.QuestionId,
-                IsUpvote = isUpvote,
-                CreatedDate = DateTime.UtcNow
-            };
+            var vote = Vote.Create(request.UserId, isUpvote, request.QuestionId, null);
             await _voteRepository.AddAsync(vote, cancellationToken);
         }
 
-        // Redis counter -- still updated here for fast reads; consumer will reconcile
         long likeCount = 0;
         if (_likeService != null && isUpvote)
         {
@@ -113,7 +110,6 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
             VoterDisplayName = voter?.DisplayName ?? voter?.Username ?? "Someone"
         }, cancellationToken);
 
-        // Write to SQL outbox (same transaction) instead of fire-and-forget RabbitMQ
         if (_outboxRepository != null && isUpvote && (isNewVote || isDirectionChange))
         {
             var likeEvent = new LikeEvent
@@ -135,6 +131,8 @@ public class VoteQuestionCommandHandler : IRequestHandler<VoteQuestionCommand, V
             }, cancellationToken);
         }
 
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
         var score = _likeService != null
             ? (int)likeCount
             : await _voteRepository.GetQuestionScoreAsync(request.QuestionId, cancellationToken);
@@ -154,6 +152,7 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
     private readonly IAnswerRepository _answerRepository;
     private readonly IUserRepository _userRepository;
     private readonly IDomainEventDispatcher _eventDispatcher;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILikeService? _likeService;
     private readonly IActivityLogService? _activityLog;
     private readonly IOutboxRepository? _outboxRepository;
@@ -163,6 +162,7 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
         IAnswerRepository answerRepository,
         IUserRepository userRepository,
         IDomainEventDispatcher eventDispatcher,
+        IUnitOfWork unitOfWork,
         ILikeService? likeService = null,
         IActivityLogService? activityLog = null,
         IOutboxRepository? outboxRepository = null)
@@ -171,6 +171,7 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
         _answerRepository = answerRepository;
         _userRepository = userRepository;
         _eventDispatcher = eventDispatcher;
+        _unitOfWork = unitOfWork;
         _likeService = likeService;
         _activityLog = activityLog;
         _outboxRepository = outboxRepository;
@@ -195,18 +196,12 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
 
         if (existingVote != null)
         {
-            existingVote.IsUpvote = isUpvote;
+            existingVote.ChangeDirection(isUpvote);
             await _voteRepository.UpdateAsync(existingVote, cancellationToken);
         }
         else
         {
-            var vote = new Vote
-            {
-                UserId = request.UserId,
-                AnswerId = request.AnswerId,
-                IsUpvote = isUpvote,
-                CreatedDate = DateTime.UtcNow
-            };
+            var vote = Vote.Create(request.UserId, isUpvote, null, request.AnswerId);
             await _voteRepository.AddAsync(vote, cancellationToken);
         }
 
@@ -257,6 +252,8 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
             }, cancellationToken);
         }
 
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
         var score = _likeService != null
             ? (int)likeCount
             : await _voteRepository.GetAnswerScoreAsync(request.AnswerId, cancellationToken);
@@ -265,7 +262,8 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
         {
             Success = true,
             Score = score,
-            UserVote = request.VoteType
+            UserVote = request.VoteType,
+            QuestionId = answer.QuestionId
         };
     }
 }
@@ -273,15 +271,21 @@ public class VoteAnswerCommandHandler : IRequestHandler<VoteAnswerCommand, VoteR
 public class RemoveVoteCommandHandler : IRequestHandler<RemoveVoteCommand, VoteResult>
 {
     private readonly IVoteRepository _voteRepository;
+    private readonly IAnswerRepository? _answerRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILikeService? _likeService;
     private readonly IActivityLogService? _activityLog;
 
     public RemoveVoteCommandHandler(
         IVoteRepository voteRepository,
+        IAnswerRepository? answerRepository = null,
+        IUnitOfWork unitOfWork = null!,
         ILikeService? likeService = null,
         IActivityLogService? activityLog = null)
     {
         _voteRepository = voteRepository;
+        _answerRepository = answerRepository;
+        _unitOfWork = unitOfWork;
         _likeService = likeService;
         _activityLog = activityLog;
     }
@@ -300,6 +304,7 @@ public class RemoveVoteCommandHandler : IRequestHandler<RemoveVoteCommand, VoteR
                 if (_activityLog != null)
                     _ = _activityLog.LogUnlikeAsync("question", request.QuestionId.Value, request.UserId);
             }
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             var score = _likeService != null
                 ? (int)await _likeService.GetLikeCountAsync("question", request.QuestionId.Value)
                 : await _voteRepository.GetQuestionScoreAsync(request.QuestionId.Value, cancellationToken);
@@ -317,10 +322,17 @@ public class RemoveVoteCommandHandler : IRequestHandler<RemoveVoteCommand, VoteR
                 if (_activityLog != null)
                     _ = _activityLog.LogUnlikeAsync("answer", request.AnswerId.Value, request.UserId);
             }
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             var score = _likeService != null
                 ? (int)await _likeService.GetLikeCountAsync("answer", request.AnswerId.Value)
                 : await _voteRepository.GetAnswerScoreAsync(request.AnswerId.Value, cancellationToken);
-            return new VoteResult { Success = true, Score = score };
+            int? questionId = null;
+            if (_answerRepository != null)
+            {
+                var answer = await _answerRepository.GetByIdAsync(request.AnswerId.Value, cancellationToken);
+                questionId = answer?.QuestionId;
+            }
+            return new VoteResult { Success = true, Score = score, QuestionId = questionId };
         }
 
         return new VoteResult { Success = false, Message = "Invalid vote target" };
@@ -333,4 +345,6 @@ public class VoteResult
     public int Score { get; set; }
     public VoteType? UserVote { get; set; }
     public string? Message { get; set; }
+    /// <summary>Set when voting on an answer, so API can emit SignalR to the question room.</summary>
+    public int? QuestionId { get; set; }
 }

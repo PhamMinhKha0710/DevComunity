@@ -66,10 +66,11 @@ public class GetQuestionByIdQueryHandler : IRequestHandler<GetQuestionByIdQuery,
 
         var dto = question.ToDetailDto();
 
-        // Get score
-        dto.Score = _likeService != null
+        // Get score (like count) — ensure non-negative; new questions have 0 likes
+        var rawScore = _likeService != null
             ? (int)await _likeService.GetLikeCountAsync("question", request.QuestionId)
             : await _voteRepository.GetQuestionScoreAsync(request.QuestionId, cancellationToken);
+        dto.Score = Math.Max(0, rawScore);
 
         // Get view count
         if (_viewService != null)

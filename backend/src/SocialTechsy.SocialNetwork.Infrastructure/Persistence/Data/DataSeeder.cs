@@ -41,43 +41,23 @@ public class DataSeeder
             // 1. Seed Users
             var users = new List<User>
             {
-                new User
-                {
-                    Username = "admin",
-                    Email = "admin@SocialTechsy.SocialNetwork.com",
-                    DisplayName = "Administrator",
-                    PasswordHash = _passwordHasher.HashPassword("Admin@123"),
-                    Bio = "System Administrator",
-                    Location = "Hanoi, Vietnam",
-                    ReputationPoints = 1000,
-                    IsEmailVerified = true,
-                    CreatedDate = DateTime.UtcNow
-                },
-                new User
-                {
-                    Username = "jdoe",
-                    Email = "john.doe@example.com",
-                    DisplayName = "John Doe",
-                    PasswordHash = _passwordHasher.HashPassword("User@123"),
-                    Bio = "Full-stack Developer | React & .NET",
-                    Location = "New York, USA",
-                    ReputationPoints = 150,
-                    IsEmailVerified = true,
-                    CreatedDate = DateTime.UtcNow
-                },
-                new User
-                {
-                    Username = "alice",
-                    Email = "alice.smith@example.com",
-                    DisplayName = "Alice Smith",
-                    PasswordHash = _passwordHasher.HashPassword("User@123"),
-                    Bio = "Data Scientist & Python Enthusiast",
-                    Location = "London, UK",
-                    ReputationPoints = 320,
-                    IsEmailVerified = true,
-                    CreatedDate = DateTime.UtcNow
-                }
+                User.Create("admin", "admin@SocialTechsy.SocialNetwork.com", _passwordHasher.HashPassword("Admin@123"), "Administrator"),
+                User.Create("jdoe", "john.doe@example.com", _passwordHasher.HashPassword("User@123"), "John Doe"),
+                User.Create("alice", "alice.smith@example.com", _passwordHasher.HashPassword("User@123"), "Alice Smith")
             };
+
+            foreach (var u in users.Take(1))
+            {
+                u.UpdateProfile("Administrator", "System Administrator", "Hanoi, Vietnam", null);
+            }
+            foreach (var u in users.Skip(1).Take(1))
+            {
+                u.UpdateProfile("John Doe", "Full-stack Developer | React & .NET", "New York, USA", null);
+            }
+            foreach (var u in users.Skip(2).Take(1))
+            {
+                u.UpdateProfile("Alice Smith", "Data Scientist & Python Enthusiast", "London, UK", null);
+            }
 
             await _context.Users.AddRangeAsync(users);
             await _context.SaveChangesAsync();
@@ -107,34 +87,16 @@ public class DataSeeder
 
             var questions = new List<Question>
             {
-                new Question
-                {
-                    UserId = user1.UserId,
-                    Title = "How to use useEffect in React?",
-                    Body = "<p>I'm trying to understand how <code>useEffect</code> works. When exactly does it run?</p><p>Does it run on every render?</p>",
-                    Score = 5,
-                    ViewCount = 42,
-                    CreatedDate = DateTime.UtcNow.AddDays(-5),
-                    QuestionTags = new List<QuestionTag>
-                    {
-                        new QuestionTag { Tag = jsTag },
-                        new QuestionTag { Tag = reactTag }
-                    }
-                },
-                new Question
-                {
-                    UserId = user2.UserId,
-                    Title = "Dependency Injection in .NET Core not working",
-                    Body = "<p>I registered my service as Scoped but I get a runtime error saying it cannot be resolved.</p><pre><code>services.AddScoped<IMyService, MyService>();</code></pre><p>Any ideas?</p>",
-                    Score = 3,
-                    ViewCount = 15,
-                    CreatedDate = DateTime.UtcNow.AddDays(-2),
-                    QuestionTags = new List<QuestionTag>
-                    {
-                        new QuestionTag { Tag = csharpTag }
-                    }
-                }
+                Question.Create(user1.UserId, "How to use useEffect in React?", "<p>I'm trying to understand how <code>useEffect</code> works. When exactly does it run?</p><p>Does it run on every render?</p>"),
+                Question.Create(user2.UserId, "Dependency Injection in .NET Core not working", "<p>I registered my service as Scoped but I get a runtime error saying it cannot be resolved.</p><pre><code>services.AddScoped<IMyService, MyService>();</code></pre><p>Any ideas?</p>")
             };
+
+            await _context.Questions.AddRangeAsync(questions);
+            await _context.SaveChangesAsync();
+
+            questions[0].QuestionTags.Add(new QuestionTag { QuestionId = questions[0].QuestionId, TagId = jsTag.TagId });
+            questions[0].QuestionTags.Add(new QuestionTag { QuestionId = questions[0].QuestionId, TagId = reactTag.TagId });
+            questions[1].QuestionTags.Add(new QuestionTag { QuestionId = questions[1].QuestionId, TagId = csharpTag.TagId });
 
             await _context.Questions.AddRangeAsync(questions);
             await _context.SaveChangesAsync();
@@ -143,16 +105,9 @@ public class DataSeeder
             var q1 = questions[0];
             var answers = new List<Answer>
             {
-                new Answer
-                {
-                    QuestionId = q1.QuestionId,
-                    UserId = user2.UserId, // Alice answers John
-                    Body = "<p><code>useEffect</code> runs after every render by default. However, you can pass a dependency array as the second argument to control when it runs.</p><ul><li><code>[]</code>: Runs only once on mount</li><li><code>[prop]</code>: Runs when prop changes</li></ul>",
-                    Score = 8,
-                    IsAccepted = true,
-                    CreatedDate = DateTime.UtcNow.AddDays(-4)
-                }
+                Answer.Create(q1.QuestionId, user2.UserId, "<p><code>useEffect</code> runs after every render by default. However, you can pass a dependency array as the second argument to control when it runs.</p><ul><li><code>[]</code>: Runs only once on mount</li><li><code>[prop]</code>: Runs when prop changes</li></ul>")
             };
+            answers[0].Accept();
 
             await _context.Answers.AddRangeAsync(answers);
             

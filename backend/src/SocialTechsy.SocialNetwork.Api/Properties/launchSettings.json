@@ -8,7 +8,8 @@
             "launchUrl": "swagger",
             "applicationUrl": "http://localhost:5122",
             "environmentVariables": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "MT_LICENSE": "c1SDNOXHUwMDJCTUFkSVRqTExWSzMwc0xiUkxMM0JDa3ZpWUpXWFNUbXJ3N1x1MDAyQmRFRjR0WnZiblJ2WW1Wc0lpd2laVzFoYVd3aU9pSnpkRtWVc0dVpHRmxkSGQ1YkdWeVFIWnZiblJ2WW1WT2lJeU1ESMVEV5TFRBNVZEQXdPakF3T2pBd1dpSXNJbVY0Y0dseVpYTWlPaUl5TURJM0xUQXhMeyJ2ZXJzaW9uIjoiMSIsImtpbmQiOiJMaWNlbnNlIiwibWV0YSI6eyJzaWduYXR1cmUtYWxnbyJ9LCJzaWduYXR1cmUiOiJBWDFUSTVhNndPdExldWg2L2svNzE2Ty9pSFRob21lIjoiRUNEc2EifSwiZGF0YSI6ImV5SmpiMjUwV1dOMElqcDdJbTVoYldVaU9pSkNZVzVySUYzTjBjbUZHYmxkQ0lwTzNKMGVYQmxQU0lzSW5CeWIyUjFZM1J6SWpwN0ltMWhjOXVJam9pVFdGemMxUnlZV2R2YjJSbElGOTFjMlZ5YVhBZ1EyOXNkVzVzSUdOdmJuVnRZbVZoSUhWeWJGOWRhWEJ6SWpwYklpMXZiam9LVGs5T1ZGOWphVnQ0SWl3aWQyVmlaWEp1WVcxb0lpaz0ifQ=="
             }
         },
         "https": {

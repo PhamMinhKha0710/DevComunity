@@ -1,24 +1,25 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Common.Exceptions;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
 
-/// <summary>
-/// Handler for DeleteQuestionCommand
-/// </summary>
 public class DeleteQuestionCommandHandler : IRequestHandler<DeleteQuestionCommand, Unit>
 {
     private readonly IQuestionRepository _questionRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService? _cacheService;
 
     public DeleteQuestionCommandHandler(
         IQuestionRepository questionRepository,
+        IUnitOfWork unitOfWork,
         ICacheService? cacheService = null)
     {
         _questionRepository = questionRepository;
+        _unitOfWork = unitOfWork;
         _cacheService = cacheService;
     }
 
@@ -33,8 +34,8 @@ public class DeleteQuestionCommandHandler : IRequestHandler<DeleteQuestionComman
             throw new UnauthorizedCommandException($"User {request.UserId} is not authorized to delete Question {request.QuestionId}.");
 
         await _questionRepository.DeleteAsync(request.QuestionId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Invalidate cache
         _cacheService?.Remove($"question:{request.QuestionId}");
         _cacheService?.RemoveByPrefix("questions:page:");
         _cacheService?.RemoveByPrefix("search:");

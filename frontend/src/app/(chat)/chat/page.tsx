@@ -124,12 +124,35 @@ function ChatContent() {
             fetchConversations();
         };
 
+        const onMessageEdited = (data: { messageId: number | string; newContent: string; editedAt: string }) => {
+            const msgId = Number(data.messageId);
+            setMessages(prev => prev.map(m =>
+                Number(m.messageId) === msgId ? { ...m, content: data.newContent, editedAt: data.editedAt, isEdited: true } : m
+            ));
+        };
+
+        const onMessageDeleted = (data: { messageId: number | string }) => {
+            const msgId = Number(data.messageId);
+            setMessages(prev => prev.filter(m => Number(m.messageId) !== msgId));
+        };
+
+        const onDeliveryStatusUpdated = (data: { messageId: number | string; status: string }) => {
+            const msgId = Number(data.messageId);
+            const newStatus = data.status as 'sending' | 'sent' | 'delivered' | 'read';
+            setMessages(prev => prev.map(m =>
+                Number(m.messageId) === msgId ? { ...m, status: newStatus } : m
+            ));
+        };
+
         chatHub.on('ReceiveMessage', onReceiveMessage);
         chatHub.on('UserTyping', onTyping);
         chatHub.on('MessagesRead', onMessagesRead);
         chatHub.on('ReceiveReaction', onReceiveReaction);
         chatHub.on('RemoveReaction', onRemoveReaction);
         chatHub.on('NewMessageNotification', onNewMessageNotification);
+        chatHub.on('MessageEdited', onMessageEdited);
+        chatHub.on('MessageDeleted', onMessageDeleted);
+        chatHub.on('DeliveryStatusUpdated', onDeliveryStatusUpdated);
         return () => {
             chatHub.off('ReceiveMessage', onReceiveMessage);
             chatHub.off('UserTyping', onTyping);
@@ -137,6 +160,9 @@ function ChatContent() {
             chatHub.off('ReceiveReaction', onReceiveReaction);
             chatHub.off('RemoveReaction', onRemoveReaction);
             chatHub.off('NewMessageNotification', onNewMessageNotification);
+            chatHub.off('MessageEdited', onMessageEdited);
+            chatHub.off('MessageDeleted', onMessageDeleted);
+            chatHub.off('DeliveryStatusUpdated', onDeliveryStatusUpdated);
         };
     }, [chatHub.connectionState, fetchConversations]);
 
@@ -438,7 +464,7 @@ function ChatContent() {
         }
     };
 
-    const handleToggleReaction = async (messageId: number, reactionType: string) => {
+    const handleToggleReaction = async (messageId: number | string, reactionType: string) => {
         if (chatHub.connectionState !== HubConnectionState.Connected || !selectedConversation || !user) return;
         const numericId = Number(messageId);
         const msg = messages.find(m => m.messageId === numericId || Number(m.messageId) === numericId);

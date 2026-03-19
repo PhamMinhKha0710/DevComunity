@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
-using SocialTechsy.SocialNetwork.Infrastructure.Redis;
+using SocialTechsy.SocialNetwork.Infrastructure.Caching;
 
 namespace SocialTechsy.SocialNetwork.Api.Hubs;
 

@@ -24,14 +24,12 @@ public class OAuthLoginSessionRepository : IOAuthLoginSessionRepository
     public async Task<OAuthLoginSession> AddAsync(OAuthLoginSession session, CancellationToken cancellationToken = default)
     {
         _context.OAuthLoginSessions.Add(session);
-        await _context.SaveChangesAsync(cancellationToken);
         return session;
     }
 
     public async Task UpdateAsync(OAuthLoginSession session, CancellationToken cancellationToken = default)
     {
         _context.OAuthLoginSessions.Update(session);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task CleanupExpiredSessionsAsync(CancellationToken cancellationToken = default)

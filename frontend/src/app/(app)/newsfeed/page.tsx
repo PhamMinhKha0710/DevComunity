@@ -11,6 +11,9 @@ import { newsfeedApi } from '@/lib/api/newsfeed.api';
 import { votesApi } from '@/lib/api/votes.api';
 import { savedItemsApi } from '@/lib/api/savedItems.api';
 import { commentsApi } from '@/lib/api/comments.api';
+import { tagsApi } from '@/lib/api/tags.api';
+import { usersApi } from '@/lib/api/users.api';
+import { followApi } from '@/lib/api/social.api';
 import { useHub } from '@/lib/signalr/useHub';
 import RelativeTime from '@/components/RelativeTime';
 import { authorInitial } from '@/lib/utils';
@@ -33,6 +36,15 @@ interface Post {
     userSaved?: boolean;
 }
 
+interface PostComment {
+    commentId: number;
+    body: string;
+    createdDate: string;
+    userId: number;
+    authorUsername: string;
+    authorProfilePicture: string | null;
+}
+
 export default function NewsfeedPage() {
     const { isAuthenticated, user: currentUser } = useAuth();
     const queryClient = useQueryClient();
@@ -49,6 +61,42 @@ export default function NewsfeedPage() {
     });
 
     const posts: Post[] = postsData?.items || [];
+
+    const { data: postComments = [], isLoading: commentsLoading } = useQuery({
+        queryKey: ['comments', 'post', commentOpenPostId],
+        queryFn: () => commentsApi.listByPost(commentOpenPostId!),
+        enabled: isAuthenticated && commentOpenPostId != null,
+    });
+
+    const { data: trendingTagsData } = useQuery({
+        queryKey: ['tags', 'trending'],
+        queryFn: () => tagsApi.list({ page: 1, pageSize: 5, sortBy: 'popular' }),
+        enabled: isAuthenticated,
+    });
+
+    const { data: whoToFollowData, refetch: refetchWhoToFollow } = useQuery({
+        queryKey: ['users', 'whoToFollow'],
+        queryFn: () => usersApi.list({ page: 1, pageSize: 6, sortBy: 'reputation' }),
+        enabled: isAuthenticated,
+    });
+
+    const followUserMutation = useMutation({
+        mutationFn: (userId: number) => followApi.follow(userId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['users', 'whoToFollow'] });
+            toast.success('Đã theo dõi');
+        },
+        onError: () => {
+            toast.error('Không thể theo dõi');
+        },
+    });
+
+    const trendingTopics = trendingTagsData?.items ?? [];
+    const whoToFollowUsers = useMemo(() => {
+        const items = whoToFollowData?.items ?? [];
+        if (!currentUser?.userId) return items;
+        return items.filter((u: { userId: number }) => u.userId !== currentUser.userId).slice(0, 3);
+    }, [whoToFollowData?.items, currentUser?.userId]);
 
     // Filter posts based on active tab
     const filteredPosts = useMemo(() => {
@@ -68,17 +116,33 @@ export default function NewsfeedPage() {
         queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
     }, [queryClient]);
 
+    const handleNewPostComment = useCallback((payload: { postId: number }) => {
+        const { postId } = payload;
+        queryClient.invalidateQueries({ queryKey: ['comments', 'post', postId] });
+        queryClient.setQueryData(['newsfeed'], (old: { items?: Post[] } | undefined) => {
+            if (!old?.items) return old;
+            return {
+                ...old,
+                items: old.items.map((p) =>
+                    p.postId === postId ? { ...p, commentCount: (p.commentCount ?? 0) + 1 } : p
+                ),
+            };
+        });
+    }, [queryClient]);
+
     useEffect(() => {
         if (activityHub.connectionState !== HubConnectionState.Connected) return;
         activityHub.on('NewPost', handleNewPost);
         activityHub.on('NewGroupPost', handleNewPost);
         activityHub.on('NewQuestion', handleNewPost);
+        activityHub.on('NewPostComment', handleNewPostComment);
         return () => {
             activityHub.off('NewPost', handleNewPost);
             activityHub.off('NewGroupPost', handleNewPost);
             activityHub.off('NewQuestion', handleNewPost);
+            activityHub.off('NewPostComment', handleNewPostComment);
         };
-    }, [activityHub, handleNewPost]);
+    }, [activityHub, handleNewPost, handleNewPostComment]);
 
     const createPostMutation = useMutation({
         mutationFn: (content: string) => newsfeedApi.createPost({ content, groupId: null }),
@@ -149,8 +213,19 @@ export default function NewsfeedPage() {
     const commentMutation = useMutation({
         mutationFn: ({ postId, body }: { postId: number; body: string }) =>
             commentsApi.addToPost(postId, body),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
+        onSuccess: (_data, { postId }) => {
+            queryClient.invalidateQueries({ queryKey: ['comments', 'post', postId] });
+            queryClient.setQueryData(['newsfeed'], (old: { items?: Post[] } | undefined) => {
+                if (!old?.items) return old;
+                return {
+                    ...old,
+                    items: old.items.map((p) =>
+                        p.postId === postId
+                            ? { ...p, commentCount: (p.commentCount ?? 0) + 1 }
+                            : p
+                    ),
+                };
+            });
         },
     });
 
@@ -380,7 +455,41 @@ export default function NewsfeedPage() {
                                     {commentOpenPostId === post.postId && (
                                         <div className="px-5 pb-4 pt-2 border-t border-slate-100 dark:border-slate-800">
                                             <div className="ml-0 pl-0 space-y-3">
-                                                <p className="text-sm text-slate-500">Chưa có bình luận.</p>
+                                                {commentsLoading ? (
+                                                    <p className="text-sm text-slate-500">Đang tải bình luận...</p>
+                                                ) : (postComments as PostComment[]).length > 0 ? (
+                                                    <ul className="space-y-3">
+                                                        {(postComments as PostComment[]).map((c) => (
+                                                            <li key={c.commentId} className="flex gap-2.5">
+                                                                {c.authorProfilePicture ? (
+                                                                    <img
+                                                                        src={c.authorProfilePicture}
+                                                                        alt=""
+                                                                        className="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-0.5"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-0.5">
+                                                                        {authorInitial(c.authorUsername)}
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-sm text-slate-900 dark:text-white">
+                                                                        <span className="font-medium">{c.authorUsername}</span>
+                                                                        {' '}
+                                                                        <span className="text-slate-500 font-normal">
+                                                                            <RelativeTime value={c.createdDate} />
+                                                                        </span>
+                                                                    </p>
+                                                                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-0.5 break-words">
+                                                                        {c.body}
+                                                                    </p>
+                                                                </div>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p className="text-sm text-slate-500">Chưa có bình luận.</p>
+                                                )}
                                                 {currentUser && (
                                                     <div className="flex gap-2.5">
                                                         {currentUser.profilePicture ? (
@@ -435,17 +544,17 @@ export default function NewsfeedPage() {
                     <div className="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
                         <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Trending Topics</h4>
                         <div className="flex flex-col gap-4">
-                            {[
-                                { tag: '#Web3', posts: '1.2k posts this week' },
-                                { tag: '#AIRevolution', posts: '856 posts this week' },
-                                { tag: '#RemoteWork', posts: '432 posts this week' },
-                            ].map((topic) => (
-                                <div key={topic.tag}>
-                                    <p className="text-xs font-bold text-[var(--primary)]">{topic.tag}</p>
-                                    <p className="text-xs text-slate-500">{topic.posts}</p>
-                                </div>
-                            ))}
-                            <button className="text-xs font-bold text-slate-400 hover:text-[var(--primary)] transition-colors mt-2 text-left">View more</button>
+                            {trendingTopics.length > 0 ? (
+                                trendingTopics.map((topic: { tagId: number; tagName: string; questionCount: number }) => (
+                                    <Link key={topic.tagId} href={`/questions?tag=${encodeURIComponent(topic.tagName)}`}>
+                                        <p className="text-xs font-bold text-[var(--primary)]">#{topic.tagName}</p>
+                                        <p className="text-xs text-slate-500">{topic.questionCount} câu hỏi</p>
+                                    </Link>
+                                ))
+                            ) : (
+                                <p className="text-xs text-slate-500">Đang tải...</p>
+                            )}
+                            <Link href="/questions" className="text-xs font-bold text-slate-400 hover:text-[var(--primary)] transition-colors mt-2 text-left block">Xem thêm</Link>
                         </div>
                     </div>
 
@@ -453,29 +562,40 @@ export default function NewsfeedPage() {
                     <div className="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
                         <div className="flex items-center justify-between mb-4">
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white">Who to follow</h4>
-                            <button className="text-xs font-bold text-[var(--primary)]">Refresh</button>
+                            <button type="button" onClick={() => refetchWhoToFollow()} className="text-xs font-bold text-[var(--primary)] hover:underline">Refresh</button>
                         </div>
                         <div className="flex flex-col gap-5">
-                            {[
-                                { name: 'David G.', role: 'Product Manager' },
-                                { name: 'Elena R.', role: 'Cloud Architect' },
-                                { name: 'Sam T.', role: 'DevOps Engineer' },
-                            ].map((person) => (
-                                <div key={person.name} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
-                                            {authorInitial(person.name)}
+                            {whoToFollowUsers.length > 0 ? (
+                                whoToFollowUsers.map((person: { userId: number; username: string; displayName: string | null; profilePicture: string | null }) => (
+                                    <div key={person.userId} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Link href={`/users/${person.userId}`} className="flex items-center gap-3 min-w-0">
+                                                {person.profilePicture ? (
+                                                    <img src={person.profilePicture} alt="" className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
+                                                ) : (
+                                                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                                        {authorInitial(person.displayName || person.username)}
+                                                    </div>
+                                                )}
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{person.displayName || person.username}</p>
+                                                    <p className="text-[10px] text-slate-500 truncate">@{person.username}</p>
+                                                </div>
+                                            </Link>
                                         </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-900 dark:text-white">{person.name}</p>
-                                            <p className="text-[10px] text-slate-500">{person.role}</p>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => followUserMutation.mutate(person.userId)}
+                                            disabled={followUserMutation.isPending}
+                                            className="p-1.5 rounded-lg text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)] hover:text-white transition-all flex-shrink-0"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">person_add</span>
+                                        </button>
                                     </div>
-                                    <button className="p-1.5 rounded-lg text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)] hover:text-white transition-all">
-                                        <span className="material-symbols-outlined text-sm">person_add</span>
-                                    </button>
-                                </div>
-                            ))}
+                                ))
+                            ) : (
+                                <p className="text-xs text-slate-500">Đang tải hoặc không có gợi ý.</p>
+                            )}
                         </div>
                     </div>
 

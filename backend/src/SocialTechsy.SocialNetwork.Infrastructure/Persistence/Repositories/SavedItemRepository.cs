@@ -90,7 +90,6 @@ public class SavedItemRepository : ISavedItemRepository
     public async Task<SavedItem> AddAsync(SavedItem savedItem, CancellationToken cancellationToken = default)
     {
         await _context.SavedItems.AddAsync(savedItem, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return savedItem;
     }
 
@@ -100,7 +99,6 @@ public class SavedItemRepository : ISavedItemRepository
         if (item != null)
         {
             _context.SavedItems.Remove(item);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -112,7 +110,6 @@ public class SavedItemRepository : ISavedItemRepository
         if (item != null)
         {
             _context.SavedItems.Remove(item);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -124,7 +121,6 @@ public class SavedItemRepository : ISavedItemRepository
         if (item != null)
         {
             _context.SavedItems.Remove(item);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -136,7 +132,6 @@ public class SavedItemRepository : ISavedItemRepository
         if (item != null)
         {
             _context.SavedItems.Remove(item);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 }

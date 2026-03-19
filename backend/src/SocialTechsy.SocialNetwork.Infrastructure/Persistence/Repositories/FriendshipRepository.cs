@@ -1,4 +1,5 @@
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
@@ -69,17 +70,13 @@ public class FriendshipRepository : IFriendshipRepository
 
     public async Task<Friendship> AddAsync(Friendship friendship, CancellationToken cancellationToken = default)
     {
-        friendship.CreatedAt = DateTime.UtcNow;
-        friendship.Status = FriendshipStatus.Pending;
         await _context.Friendships.AddAsync(friendship, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return friendship;
     }
 
     public async Task UpdateAsync(Friendship friendship, CancellationToken cancellationToken = default)
     {
         _context.Friendships.Update(friendship);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int friendshipId, CancellationToken cancellationToken = default)
@@ -102,7 +99,80 @@ public class FriendshipRepository : IFriendshipRepository
     {
         return await _context.Friendships
             .CountAsync(f => f.Status == FriendshipStatus.Accepted &&
-                (f.RequesterId == userId || f.AddresseeId == userId), 
+                (f.RequesterId == userId || f.AddresseeId == userId),
                 cancellationToken);
+    }
+
+    public async Task<IEnumerable<FriendDto>> GetSuggestedFriendsAsync(int userId, int limit = 5, CancellationToken cancellationToken = default)
+    {
+        var existingFriendIds = await _context.Friendships
+            .Where(f => f.RequesterId == userId || f.AddresseeId == userId)
+            .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId)
+            .ToListAsync(cancellationToken);
+
+        existingFriendIds.Add(userId);
+
+        var currentUserTagIds = await _context.TagPreferences
+            .Where(tp => tp.UserId == userId && tp.IsFollowed)
+            .Select(tp => tp.TagId)
+            .ToListAsync(cancellationToken);
+
+        var suggestions = await _context.Users
+            .Where(u => !existingFriendIds.Contains(u.UserId))
+            .Select(u => new
+            {
+                u.UserId,
+                u.Username,
+                u.DisplayName,
+                u.ProfilePicture,
+                CommonTags = _context.TagPreferences
+                    .Count(tp => currentUserTagIds.Contains(tp.TagId) && tp.UserId == u.UserId && tp.IsFollowed)
+            })
+            .OrderByDescending(x => x.CommonTags)
+            .ThenBy(x => Guid.NewGuid())
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        return suggestions.Select(u => new FriendDto
+        {
+            UserId = u.UserId,
+            Username = u.Username,
+            DisplayName = u.DisplayName,
+            ProfilePicture = u.ProfilePicture,
+            FriendsSince = DateTime.UtcNow
+        });
+    }
+
+    public async Task<NetworkGrowthDto> GetNetworkGrowthAsync(int userId, int days = 28, CancellationToken cancellationToken = default)
+    {
+        var startDate = DateTime.UtcNow.AddDays(-days);
+
+        var acceptedFriendships = await _context.Friendships
+            .Where(f => f.Status == FriendshipStatus.Accepted &&
+                        f.RespondedAt.HasValue &&
+                        f.RespondedAt >= startDate &&
+                        (f.RequesterId == userId || f.AddresseeId == userId))
+            .Select(f => f.RespondedAt!.Value)
+            .ToListAsync(cancellationToken);
+
+        var totalConnections = acceptedFriendships.Count;
+
+        var weeksData = new List<int>(4) { 0, 0, 0, 0 };
+        var now = DateTime.UtcNow;
+
+        foreach (var date in acceptedFriendships)
+        {
+            var daysDiff = (now - date).TotalDays;
+            if (daysDiff <= 7) weeksData[0]++;
+            else if (daysDiff <= 14) weeksData[1]++;
+            else if (daysDiff <= 21) weeksData[2]++;
+            else weeksData[3]++;
+        }
+
+        return new NetworkGrowthDto
+        {
+            TotalConnections = totalConnections,
+            WeeksData = weeksData
+        };
     }
 }

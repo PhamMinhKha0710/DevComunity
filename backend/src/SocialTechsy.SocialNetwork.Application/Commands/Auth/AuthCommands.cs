@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Auth;
@@ -10,13 +9,8 @@ namespace SocialTechsy.SocialNetwork.Application.Commands.Auth;
 /// </summary>
 public class LoginCommand : IRequest<AuthResponse>
 {
-    [Required]
     public string Email { get; set; } = null!;
-
-    [Required]
-    [MinLength(6)]
     public string Password { get; set; } = null!;
-
     public bool RememberMe { get; set; } = false;
 }
 
@@ -25,29 +19,15 @@ public class LoginCommand : IRequest<AuthResponse>
 /// </summary>
 public class RegisterCommand : IRequest<AuthResponse>
 {
-    [Required]
-    [StringLength(50, MinimumLength = 3)]
     public string Username { get; set; } = null!;
-
-    [Required]
-    [EmailAddress]
     public string Email { get; set; } = null!;
-
-    [Required]
-    [MinLength(6)]
     public string Password { get; set; } = null!;
-
-    [Required]
-    [Compare("Password")]
     public string ConfirmPassword { get; set; } = null!;
-
-    [StringLength(100)]
     public string? DisplayName { get; set; }
 }
 
 public class RefreshTokenCommand : IRequest<AuthResponse>
 {
-    [Required]
     public string RefreshToken { get; set; } = null!;
 }
 
@@ -56,8 +36,6 @@ public class RefreshTokenCommand : IRequest<AuthResponse>
 /// </summary>
 public class ForgotPasswordCommand : IRequest<ForgotPasswordResponse>
 {
-    [Required]
-    [EmailAddress]
     public string Email { get; set; } = null!;
 }
 
@@ -66,23 +44,21 @@ public class ForgotPasswordCommand : IRequest<ForgotPasswordResponse>
 /// </summary>
 public class ResetPasswordCommand : IRequest<AuthResponse>
 {
-    [Required]
     public string Token { get; set; } = null!;
-
-    [Required]
-    [EmailAddress]
     public string Email { get; set; } = null!;
-
-    [Required]
-    [MinLength(6)]
     public string NewPassword { get; set; } = null!;
-
-    [Required]
-    [Compare("NewPassword")]
     public string ConfirmPassword { get; set; } = null!;
 }
 
 public class LogoutCommand : IRequest
 {
     public int UserId { get; set; }
+}
+
+/// <summary>
+/// Command for exchanging an OAuth code for authentication tokens
+/// </summary>
+public class ExchangeOAuthCodeCommand : IRequest<AuthResponse>
+{
+    public string Code { get; set; } = null!;
 }

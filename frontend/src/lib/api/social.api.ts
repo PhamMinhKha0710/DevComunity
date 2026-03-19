@@ -26,4 +26,10 @@ export const friendshipApi = {
 
     reject: (requestId: number) =>
         apiClient.put(`/Friendship/reject/${requestId}`).then(r => r.data),
+
+    getSuggestions: (limit = 5) =>
+        apiClient.get(`/Friendship/suggestions?limit=${limit}`).then(r => r.data),
+
+    getNetworkGrowth: (days = 28) =>
+        apiClient.get(`/Friendship/analytics/growth?days=${days}`).then(r => r.data),
 };

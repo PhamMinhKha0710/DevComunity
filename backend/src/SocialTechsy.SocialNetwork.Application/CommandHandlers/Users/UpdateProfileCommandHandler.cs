@@ -1,5 +1,6 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Users;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
@@ -9,11 +10,13 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
 {
     private readonly IUserRepository _userRepository;
     private readonly ICacheService _cacheService;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateProfileCommandHandler(IUserRepository userRepository, ICacheService cacheService)
+    public UpdateProfileCommandHandler(IUserRepository userRepository, ICacheService cacheService, IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
         _cacheService = cacheService;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
@@ -22,17 +25,10 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
         if (user == null)
             return false;
 
-        // Only update fields that are provided - leave others unchanged in DB
-        if (request.DisplayName != null)
-            user.DisplayName = request.DisplayName;
-        if (request.Bio != null)
-            user.Bio = request.Bio;
-        if (request.Location != null)
-            user.Location = request.Location;
-        if (request.Website != null)
-            user.Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website.Trim();
+        user.UpdateProfile(request.DisplayName, request.Bio, request.Location, request.Website?.Trim());
 
         await _userRepository.UpdateAsync(user, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _cacheService.RemoveByPrefix($"user:{request.UserId}");
 

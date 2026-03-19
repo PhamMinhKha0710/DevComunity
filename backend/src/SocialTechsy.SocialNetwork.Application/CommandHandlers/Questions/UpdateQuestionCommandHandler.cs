@@ -1,7 +1,9 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Common.Exceptions;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
+using SocialTechsy.SocialNetwork.Domain.Entities;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
@@ -12,40 +14,61 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Questions;
 public class UpdateQuestionCommandHandler : IRequestHandler<UpdateQuestionCommand, Unit>
 {
     private readonly IQuestionRepository _questionRepository;
+    private readonly ITagRepository _tagRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService? _cacheService;
 
     public UpdateQuestionCommandHandler(
         IQuestionRepository questionRepository,
+        ITagRepository tagRepository,
+        IUnitOfWork unitOfWork,
         ICacheService? cacheService = null)
     {
         _questionRepository = questionRepository;
+        _tagRepository = tagRepository;
+        _unitOfWork = unitOfWork;
         _cacheService = cacheService;
     }
 
     public async Task<Unit> Handle(UpdateQuestionCommand request, CancellationToken cancellationToken)
     {
-        var question = await _questionRepository.GetByIdForUpdateAsync(request.QuestionId, cancellationToken);
+        return await _unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            var question = await _questionRepository.GetByIdForUpdateAsync(request.QuestionId, ct);
 
-        if (question == null)
-            throw new EntityNotFoundException("Question", request.QuestionId);
+            if (question == null)
+                throw new EntityNotFoundException("Question", request.QuestionId);
 
-        if (question.UserId != request.UserId)
-            throw new UnauthorizedCommandException($"User {request.UserId} is not authorized to update Question {request.QuestionId}.");
+            if (question.UserId != request.UserId)
+                throw new UnauthorizedCommandException($"User {request.UserId} is not authorized to update Question {request.QuestionId}.");
 
-        question.Title = request.Title;
-        question.Body = request.Body;
-        question.UpdatedDate = DateTime.UtcNow;
+            question.Update(request.Title, request.Body);
 
-        await _questionRepository.UpdateAsync(question, cancellationToken);
+            if (request.Tags != null)
+            {
+                var tagNames = request.Tags
+                    .Select(t => t?.Trim())
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
-        if (request.Tags != null)
-            await _questionRepository.SetTagsForQuestionAsync(request.QuestionId, request.Tags, cancellationToken);
+                question.QuestionTags.Clear();
 
-        // Invalidate cache
-        _cacheService?.Remove($"question:{request.QuestionId}");
-        _cacheService?.RemoveByPrefix("questions:page:");
-        _cacheService?.RemoveByPrefix("search:");
+                foreach (var tagName in tagNames!)
+                {
+                    var tag = await _tagRepository.GetOrCreateAsync(tagName!, ct);
+                    question.QuestionTags.Add(new QuestionTag { TagId = tag.TagId, QuestionId = question.QuestionId });
+                }
+            }
 
-        return Unit.Value;
+            await _questionRepository.UpdateAsync(question, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            _cacheService?.Remove($"question:{request.QuestionId}");
+            _cacheService?.RemoveByPrefix("questions:page:");
+            _cacheService?.RemoveByPrefix("search:");
+
+            return Unit.Value;
+        }, cancellationToken);
     }
 }

@@ -38,6 +38,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SocialTechsy.SocialNetwork.Application\SocialTechsy.SocialNetwork.Application.csproj" />
     <ProjectReference Include="..\SocialTechsy.SocialNetwork.Infrastructure\SocialTechsy.SocialNetwork.Infrastructure.csproj" />
+    <ProjectReference Include="..\SocialTechsy.SocialNetwork.Shared\SocialTechsy.SocialNetwork.Shared.csproj" />
   </ItemGroup>
 
 </Project>

@@ -65,14 +65,12 @@ public class CodeRepository : ICodeRepository
     public async Task<Repository> AddAsync(Repository repository, CancellationToken cancellationToken = default)
     {
         await _context.Repositories.AddAsync(repository, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return repository;
     }
 
     public async Task UpdateAsync(Repository repository, CancellationToken cancellationToken = default)
     {
         _context.Repositories.Update(repository);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -81,7 +79,6 @@ public class CodeRepository : ICodeRepository
         if (repo != null)
         {
             _context.Repositories.Remove(repo);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 

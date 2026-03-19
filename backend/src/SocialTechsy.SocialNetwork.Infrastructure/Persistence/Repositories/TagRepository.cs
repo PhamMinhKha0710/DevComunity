@@ -67,7 +67,6 @@ public class TagRepository : ITagRepository
     public async Task<Tag> AddAsync(Tag tag, CancellationToken cancellationToken = default)
     {
         await _context.Tags.AddAsync(tag, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return tag;
     }
 
@@ -78,7 +77,6 @@ public class TagRepository : ITagRepository
         {
             tag = new Tag { TagName = tagName };
             await _context.Tags.AddAsync(tag, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
         }
         return tag;
     }

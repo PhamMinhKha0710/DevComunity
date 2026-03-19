@@ -16,7 +16,7 @@ interface MessageListProps {
     typingUsers: string[];
     onlineUsers: Set<string>;
     onReply: (msg: RealtimeMessage) => void;
-    onToggleReaction: (messageId: number, type: string) => void;
+    onToggleReaction: (messageId: number | string, type: string) => void;
     onOpenLightbox: (url: string, type: 'image' | 'video', fileName?: string) => void;
     onAudioCall?: () => void;
     onVideoCall?: () => void;
@@ -29,14 +29,14 @@ export default function MessageList({
     typingUsers, onlineUsers, onReply, onToggleReaction, onOpenLightbox,
     onAudioCall, onVideoCall, onInfoClick, messagesEndRef,
 }: MessageListProps) {
-    const [showReactionPicker, setShowReactionPicker] = useState<number | null>(null);
+    const [showReactionPicker, setShowReactionPicker] = useState<number | string | null>(null);
     const groupedMessages = useMemo(() => buildMessageGroups(messages), [messages]);
 
     const participantOnline = selectedConversation
         ? isParticipantOnline(selectedConversation, currentUser.userId, onlineUsers)
         : false;
 
-    const handleToggleReaction = (messageId: number, type: string) => {
+    const handleToggleReaction = (messageId: number | string, type: string) => {
         setShowReactionPicker(null);
         onToggleReaction(messageId, type);
     };
@@ -122,19 +122,28 @@ export default function MessageList({
                             <div className={`flex ${group.senderId === currentUser.userId ? 'flex-row-reverse' : ''} items-start gap-3`}>
                                 {group.senderId !== currentUser.userId ? (
                                     <div className={`size-9 rounded-full overflow-hidden shrink-0 mt-1 ${group.showAvatar ? 'visible' : 'invisible'}`}>
-                                        {otherParticipant?.profilePicture ? (
-                                            <img src={otherParticipant.profilePicture} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
-                                                {authorInitial(otherParticipant?.displayName || otherParticipant?.username)}
-                                            </div>
-                                        )}
+                                        {(() => {
+                                            const sender = selectedConversation?.participants?.find(p => p.userId === group.senderId);
+                                            const avatar = group.messages[0].senderAvatar || sender?.profilePicture || otherParticipant?.profilePicture;
+                                            const name = group.messages[0].senderDisplayName || sender?.displayName || sender?.username || otherParticipant?.displayName || otherParticipant?.username;
+                                            return avatar ? (
+                                                <img src={avatar} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
+                                                    {authorInitial(name)}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 ) : (
                                     <div className={`size-9 rounded-full overflow-hidden shrink-0 mt-1 ${group.showAvatar ? 'visible' : 'invisible'}`}>
-                                        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
-                                            {authorInitial(currentUser.displayName || currentUser.username) || 'U'}
-                                        </div>
+                                        {currentUser.profilePicture ? (
+                                            <img src={currentUser.profilePicture} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
+                                                {authorInitial(currentUser.displayName || currentUser.username) || 'U'}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

@@ -2,9 +2,10 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Queries.Repositories;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Repositories;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Repositories;
-using SocialTechsy.SocialNetwork.Infrastructure.External.Gitea;
+using SocialTechsy.SocialNetwork.Application.Queries.Questions;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
@@ -15,16 +16,13 @@ public class RepositoriesController : ControllerBase
 {
     private readonly ILogger<RepositoriesController> _logger;
     private readonly IMediator _mediator;
-    private readonly IGiteaService _giteaService;
 
     public RepositoriesController(
         ILogger<RepositoriesController> logger,
-        IMediator mediator,
-        IGiteaService giteaService)
+        IMediator mediator)
     {
         _logger = logger;
         _mediator = mediator;
-        _giteaService = giteaService;
     }
 
     private int GetCurrentUserId()
@@ -73,31 +71,12 @@ public class RepositoriesController : ControllerBase
     {
         _logger.LogInformation("Getting files for repository {RepositoryId}, path: {Path}, branch: {Branch}", id, path, branch);
 
-        if (!_giteaService.IsConfigured)
+        var files = await _mediator.Send(new GetRepositoryFilesQuery
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                new { message = "Git integration is not configured" });
-        }
-
-        var repository = await _mediator.Send(new GetRepositoryByIdQuery { RepositoryId = id }, cancellationToken);
-        if (repository == null)
-            return NotFound(new { message = $"Repository with ID {id} not found" });
-
-        var contents = await _giteaService.GetDirectoryContentsAsync(
-            repository.OwnerUsername,
-            repository.Name,
-            path,
-            branch,
-            cancellationToken);
-
-        var files = contents.Select(c => new RepositoryFileDto
-        {
-            Name = c.Name,
-            Path = c.Path,
-            Type = c.Type == "dir" ? "tree" : "blob",
-            Size = c.Size,
-            Sha = c.Sha
-        }).ToList();
+            RepositoryId = id,
+            Path = path,
+            Branch = branch
+        }, cancellationToken);
 
         return Ok(files);
     }
@@ -117,52 +96,17 @@ public class RepositoriesController : ControllerBase
         if (string.IsNullOrEmpty(path))
             return BadRequest(new { message = "Path is required" });
 
-        if (!_giteaService.IsConfigured)
+        var content = await _mediator.Send(new GetFileContentQuery
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                new { message = "Git integration is not configured" });
-        }
-
-        var repository = await _mediator.Send(new GetRepositoryByIdQuery { RepositoryId = id }, cancellationToken);
-        if (repository == null)
-            return NotFound(new { message = $"Repository with ID {id} not found" });
-
-        var content = await _giteaService.GetFileContentAsync(
-            repository.OwnerUsername,
-            repository.Name,
-            path,
-            branch,
-            cancellationToken);
+            RepositoryId = id,
+            FilePath = path,
+            Branch = branch
+        }, cancellationToken);
 
         if (content == null)
             return NotFound(new { message = $"File not found: {path}" });
 
-        var decodedContent = "";
-        if (!string.IsNullOrEmpty(content.Content) && content.Encoding == "base64")
-        {
-            try
-            {
-                var bytes = Convert.FromBase64String(content.Content);
-                decodedContent = System.Text.Encoding.UTF8.GetString(bytes);
-            }
-            catch
-            {
-                decodedContent = content.Content;
-            }
-        }
-        else
-        {
-            decodedContent = content.Content ?? "";
-        }
-
-        return Ok(new FileContentDto
-        {
-            Path = content.Path,
-            Content = decodedContent,
-            Encoding = "utf-8",
-            Size = content.Size,
-            Sha = content.Sha
-        });
+        return Ok(content);
     }
 
     [HttpGet("{id:int}/commits")]
@@ -178,42 +122,15 @@ public class RepositoriesController : ControllerBase
     {
         _logger.LogInformation("Getting commits for repository {RepositoryId}, page: {Page}", id, page);
 
-        if (!_giteaService.IsConfigured)
+        var result = await _mediator.Send(new GetCommitsQuery
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                new { message = "Git integration is not configured" });
-        }
-
-        var repository = await _mediator.Send(new GetRepositoryByIdQuery { RepositoryId = id }, cancellationToken);
-        if (repository == null)
-            return NotFound(new { message = $"Repository with ID {id} not found" });
-
-        var giteaCommits = await _giteaService.GetCommitsAsync(
-            repository.OwnerUsername,
-            repository.Name,
-            page,
-            pageSize,
-            branch,
-            cancellationToken);
-
-        var commits = giteaCommits.Select(c => new CommitDto
-        {
-            Sha = c.Sha,
-            Message = c.Commit.Message,
-            AuthorName = c.Commit.Author.Name,
-            AuthorEmail = c.Commit.Author.Email,
-            AuthorAvatar = c.Author?.AvatarUrl,
-            CommittedAt = c.Commit.Author.Date,
-            Url = c.HtmlUrl
-        }).ToList();
-
-        return Ok(new PaginatedResponse<CommitDto>
-        {
-            Items = commits,
+            RepositoryId = id,
             Page = page,
             PageSize = pageSize,
-            TotalCount = commits.Count
-        });
+            Branch = branch
+        }, cancellationToken);
+
+        return Ok(result);
     }
 
     [HttpPost]
