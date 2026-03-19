@@ -5,7 +5,7 @@ using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 using SocialTechsy.SocialNetwork.Infrastructure.IdGeneration;
 using SocialTechsy.SocialNetwork.Infrastructure.MongoDB.Models;
-using SocialTechsy.SocialNetwork.Infrastructure.Redis;
+using SocialTechsy.SocialNetwork.Infrastructure.Caching;
 
 namespace SocialTechsy.SocialNetwork.Infrastructure.MongoDB;
 
@@ -628,13 +628,7 @@ public class MongoChatRepository : IChatRepository
                 UserId = p.UserId,
                 JoinedDate = p.JoinedDate,
                 LastReadDate = p.LastReadDate,
-                User = new User
-                {
-                    UserId = p.User.UserId,
-                    Username = p.User.Username,
-                    DisplayName = p.User.DisplayName,
-                    ProfilePicture = p.User.ProfilePicture
-                }
+                User = User.CreateProjected(p.User.UserId, p.User.Username, p.User.DisplayName, p.User.ProfilePicture)
             }).ToList()
         };
     }
@@ -655,13 +649,7 @@ public class MongoChatRepository : IChatRepository
             AttachmentFileName = doc.AttachmentFileName,
             AttachmentSize = doc.AttachmentSize,
             ReplyToMessageId = doc.ReplyToMessageId,
-            Sender = new User
-            {
-                UserId = doc.Sender.UserId,
-                Username = doc.Sender.Username,
-                DisplayName = doc.Sender.DisplayName,
-                ProfilePicture = doc.Sender.ProfilePicture
-            },
+            Sender = User.CreateProjected(doc.Sender.UserId, doc.Sender.Username, doc.Sender.DisplayName, doc.Sender.ProfilePicture),
             Reactions = doc.Reactions.Select(r => new MessageReaction
             {
                 MessageReactionId = r.MessageReactionId,
@@ -669,13 +657,7 @@ public class MongoChatRepository : IChatRepository
                 UserId = r.UserId,
                 ReactionType = r.ReactionType,
                 CreatedAt = r.CreatedAt,
-                User = new User
-                {
-                    UserId = r.User.UserId,
-                    Username = r.User.Username,
-                    DisplayName = r.User.DisplayName,
-                    ProfilePicture = r.User.ProfilePicture
-                }
+                User = User.CreateProjected(r.User.UserId, r.User.Username, r.User.DisplayName, r.User.ProfilePicture)
             }).ToList()
         };
     }
@@ -689,13 +671,7 @@ public class MongoChatRepository : IChatRepository
             UserId = embed.UserId,
             ReactionType = embed.ReactionType,
             CreatedAt = embed.CreatedAt,
-            User = new User
-            {
-                UserId = embed.User.UserId,
-                Username = embed.User.Username,
-                DisplayName = embed.User.DisplayName,
-                ProfilePicture = embed.User.ProfilePicture
-            }
+            User = User.CreateProjected(embed.User.UserId, embed.User.Username, embed.User.DisplayName, embed.User.ProfilePicture)
         };
     }
 }

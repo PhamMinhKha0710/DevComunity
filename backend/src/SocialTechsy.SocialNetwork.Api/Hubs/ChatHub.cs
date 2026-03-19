@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Chat;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Chat;
 using SocialTechsy.SocialNetwork.Domain.Enums;
-using SocialTechsy.SocialNetwork.Infrastructure.Redis;
+using SocialTechsy.SocialNetwork.Infrastructure.Caching;
 
 namespace SocialTechsy.SocialNetwork.Api.Hubs;
 

@@ -23,6 +23,20 @@ public class FriendDto
     public DateTime FriendsSince { get; set; }
 }
 
+public class FriendshipStatusDto
+{
+    public bool AreFriends { get; set; }
+    public bool RequestPending { get; set; }
+    public int? FriendshipId { get; set; }
+    public bool IsSentByMe { get; set; }
+}
+
+public class NetworkGrowthDto
+{
+    public int TotalConnections { get; set; }
+    public List<int> WeeksData { get; set; } = new();
+}
+
 // ============ Follow DTOs ============
 
 public class FollowDto
@@ -112,6 +126,12 @@ public class CreatePostRequest
 public class UpdatePostRequest
 {
     public string Content { get; set; } = null!;
+}
+
+public class LikeResultDto
+{
+    public long LikeCount { get; set; }
+    public bool UserLiked { get; set; }
 }
 
 // ============ User Summary DTO ============

@@ -4,8 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
 using SocialTechsy.SocialNetwork.Application.Queries.Tags;
 using SocialTechsy.SocialNetwork.Application.Queries.Questions;
-using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
-using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Application.Commands.Tags;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
@@ -16,19 +15,13 @@ public class TagsController : ControllerBase
 {
     private readonly ILogger<TagsController> _logger;
     private readonly IMediator _mediator;
-    private readonly ITagPreferenceRepository _tagPreferenceRepository;
-    private readonly ITagRepository _tagRepository;
 
     public TagsController(
         ILogger<TagsController> logger,
-        IMediator mediator,
-        ITagPreferenceRepository tagPreferenceRepository,
-        ITagRepository tagRepository)
+        IMediator mediator)
     {
         _logger = logger;
         _mediator = mediator;
-        _tagPreferenceRepository = tagPreferenceRepository;
-        _tagRepository = tagRepository;
     }
 
     private int GetCurrentUserId()
@@ -104,16 +97,7 @@ public class TagsController : ControllerBase
 
         _logger.LogInformation("Getting tag preferences for user {UserId}", userId);
 
-        var preferences = await _tagPreferenceRepository.GetUserPreferencesAsync(userId, cancellationToken);
-
-        var result = preferences.Select(p => new TagPreferenceDto
-        {
-            TagId = p.TagId,
-            TagName = p.Tag?.TagName ?? "",
-            IsFollowed = p.IsFollowed,
-            IsIgnored = p.IsIgnored
-        });
-
+        var result = await _mediator.Send(new GetUserTagPreferencesQuery { UserId = userId }, cancellationToken);
         return Ok(result);
     }
 
@@ -125,67 +109,48 @@ public class TagsController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
 
-        var preferences = await _tagPreferenceRepository.GetFollowedTagsAsync(userId, cancellationToken);
-
-        var result = preferences.Select(p => new TagPreferenceDto
-        {
-            TagId = p.TagId,
-            TagName = p.Tag?.TagName ?? "",
-            IsFollowed = true,
-            IsIgnored = false
-        });
-
+        var result = await _mediator.Send(new GetFollowedTagsQuery { UserId = userId }, cancellationToken);
         return Ok(result);
     }
 
     [HttpPost("{tagId:int}/follow")]
     [Authorize]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> FollowTag(int tagId, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(TagPreferenceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<TagPreferenceDto>> FollowTag(int tagId, CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
 
-        var tag = await _tagRepository.GetByIdAsync(tagId, cancellationToken);
-        if (tag == null)
-            return NotFound(new { message = "Tag not found" });
-
         _logger.LogInformation("User {UserId} following tag {TagId}", userId, tagId);
 
-        await _tagPreferenceRepository.UpsertAsync(new TagPreference
+        var result = await _mediator.Send(new FollowTagCommand
         {
-            UserId = userId,
             TagId = tagId,
-            IsFollowed = true,
-            IsIgnored = false
+            UserId = userId
         }, cancellationToken);
-        return Ok(new { message = $"Now following tag: {tag.TagName}" });
+
+        return Ok(result);
     }
 
     [HttpPost("{tagId:int}/ignore")]
     [Authorize]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> IgnoreTag(int tagId, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(TagPreferenceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<TagPreferenceDto>> IgnoreTag(int tagId, CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
 
-        var tag = await _tagRepository.GetByIdAsync(tagId, cancellationToken);
-        if (tag == null)
-            return NotFound(new { message = "Tag not found" });
-
         _logger.LogInformation("User {UserId} ignoring tag {TagId}", userId, tagId);
 
-        await _tagPreferenceRepository.UpsertAsync(new TagPreference
+        var result = await _mediator.Send(new IgnoreTagCommand
         {
-            UserId = userId,
             TagId = tagId,
-            IsFollowed = false,
-            IsIgnored = true
+            UserId = userId
         }, cancellationToken);
-        return Ok(new { message = $"Now ignoring tag: {tag.TagName}" });
+
+        return Ok(result);
     }
 
     [HttpDelete("{tagId:int}/preference")]
@@ -199,19 +164,15 @@ public class TagsController : ControllerBase
 
         _logger.LogInformation("User {UserId} removing preference for tag {TagId}", userId, tagId);
 
-        var deleted = await _tagPreferenceRepository.DeleteAsync(userId, tagId, cancellationToken);
+        var deleted = await _mediator.Send(new RemoveTagPreferenceCommand
+        {
+            TagId = tagId,
+            UserId = userId
+        }, cancellationToken);
 
         if (!deleted)
             return NotFound(new { message = "No preference found for this tag" });
 
         return Ok(new { message = "Tag preference removed" });
     }
-}
-
-public class TagPreferenceDto
-{
-    public int TagId { get; set; }
-    public string TagName { get; set; } = "";
-    public bool IsFollowed { get; set; }
-    public bool IsIgnored { get; set; }
 }

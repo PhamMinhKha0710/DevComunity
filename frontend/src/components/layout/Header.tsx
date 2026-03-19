@@ -4,21 +4,48 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useNotifications } from '@/lib/contexts/NotificationContext';
+import { useChatContext } from '@/lib/contexts/ChatContext';
 import { useState, useEffect, useRef } from 'react';
+import { chatApi } from '@/lib/api/chat.api';
+import { useQuery } from '@tanstack/react-query';
+import { Conversation } from '@/types';
+import { useRouter } from 'next/navigation';
+import { authorInitial } from '@/lib/utils';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
 
 export default function Header() {
     const { user, isLoading, logout } = useAuth();
     const { unreadCount } = useNotifications();
+    const { totalUnreadChats } = useChatContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+    const [isChatDropdownOpen, setIsChatDropdownOpen] = useState(false);
+    const [chatClickTimeout, setChatClickTimeout] = useState<NodeJS.Timeout | null>(null);
     const dropdownRef = useRef<HTMLLIElement>(null);
+    const chatDropdownRef = useRef<HTMLLIElement>(null);
+    const router = useRouter();
+
+    const { data: recentChats = [] } = useQuery<Conversation[]>({
+        queryKey: ['recentChats'],
+        queryFn: async () => {
+            const data = await chatApi.getConversations();
+            return Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+        },
+        enabled: isChatDropdownOpen && !!user,
+    });
 
     // Close profile dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsProfileDropdownOpen(false);
+            }
+            if (chatDropdownRef.current && !chatDropdownRef.current.contains(event.target as Node)) {
+                setIsChatDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -147,10 +174,93 @@ export default function Header() {
                                         </li>
 
                                         {/* Chat */}
-                                        <li className="nav-item mx-1">
-                                            <Link href="/chat" className="nav-link d-flex align-items-center p-2 nav-icon-btn" title="Messages">
+                                        <li className="nav-item dropdown mx-1" ref={chatDropdownRef}>
+                                            <button
+                                                className="nav-link d-flex align-items-center p-2 nav-icon-btn bg-transparent border-0"
+                                                title="Messages"
+                                                onClick={() => {
+                                                    if (chatClickTimeout) {
+                                                        clearTimeout(chatClickTimeout);
+                                                        setChatClickTimeout(null);
+                                                        router.push('/chat');
+                                                    } else {
+                                                        const timeout = setTimeout(() => {
+                                                            setIsChatDropdownOpen(true);
+                                                            setChatClickTimeout(null);
+                                                        }, 250);
+                                                        setChatClickTimeout(timeout);
+                                                    }
+                                                }}
+                                                onDoubleClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (chatClickTimeout) {
+                                                        clearTimeout(chatClickTimeout);
+                                                        setChatClickTimeout(null);
+                                                    }
+                                                    router.push('/chat');
+                                                }}
+                                            >
                                                 <i className="bi bi-chat fs-5"></i>
-                                            </Link>
+                                                {totalUnreadChats > 0 && (
+                                                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.65rem' }}>
+                                                        {totalUnreadChats > 99 ? '99+' : totalUnreadChats}
+                                                    </span>
+                                                )}
+                                            </button>
+                                            <div className={`dropdown-menu dropdown-menu-end p-0 shadow-lg border-0 rounded-4 ${isChatDropdownOpen ? 'show' : ''}`}
+                                                style={isChatDropdownOpen ? { display: 'block', position: 'absolute', right: 0, width: '340px', zIndex: 1050 } : {}}>
+                                                <div className="p-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top-4">
+                                                    <h6 className="mb-0 fw-bold">Recent Messages</h6>
+                                                </div>
+                                                <div className="list-group list-group-flush" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                                                    {recentChats.slice(0, 5).map(chat => {
+                                                        const otherParticipant = chat.participants.find(p => p.userId !== user?.userId) || chat.participants[0];
+                                                        return (
+                                                            <button
+                                                                key={chat.conversationId}
+                                                                className="list-group-item list-group-item-action p-3 border-0 border-bottom text-start"
+                                                                onClick={() => { setIsChatDropdownOpen(false); router.push(`/chat?id=${chat.conversationId}`); }}
+                                                            >
+                                                                <div className="d-flex align-items-center gap-3">
+                                                                    {otherParticipant?.profilePicture ? (
+                                                                        <img src={otherParticipant.profilePicture} className="rounded-circle object-cover flex-shrink-0" width="44" height="44" alt="" />
+                                                                    ) : (
+                                                                        <div className="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style={{ width: 44, height: 44 }}>
+                                                                            {authorInitial(otherParticipant?.displayName || otherParticipant?.username || 'U')}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="min-w-0 flex-grow-1">
+                                                                        <div className="d-flex justify-content-between align-items-baseline mb-1">
+                                                                            <h6 className="mb-0 text-truncate fw-semibold text-dark" style={{ fontSize: '0.9rem' }}>
+                                                                                {chat.isGroupChat ? chat.title : (otherParticipant?.displayName || otherParticipant?.username)}
+                                                                            </h6>
+                                                                            {chat.lastMessageDate && (
+                                                                                <small className="text-muted flex-shrink-0 ms-2" style={{ fontSize: '0.75rem' }}>
+                                                                                    {dayjs(chat.lastMessageDate).fromNow()}
+                                                                                </small>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className={`mb-0 text-truncate ${chat.unreadCount > 0 ? 'fw-bold text-dark' : 'text-muted'}`} style={{ fontSize: '0.85rem' }}>
+                                                                            {chat.lastMessagePreview || 'Started a conversation'}
+                                                                        </p>
+                                                                    </div>
+                                                                    {chat.unreadCount > 0 && (
+                                                                        <span className="badge bg-primary rounded-pill">{chat.unreadCount}</span>
+                                                                    )}
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                    {recentChats.length === 0 && (
+                                                        <div className="p-4 text-center text-muted">No recent messages</div>
+                                                    )}
+                                                </div>
+                                                <div className="p-2 border-top text-center bg-light rounded-bottom-4">
+                                                    <button onClick={() => { setIsChatDropdownOpen(false); router.push('/chat'); }} className="btn btn-link text-decoration-none btn-sm w-100 fw-medium">
+                                                        See all in Messenger
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </li>
 
                                         {/* User Dropdown - React controlled */}

@@ -16,6 +16,9 @@ public class UnitOfWork : IUnitOfWork
         _context = context;
     }
 
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => await _context.SaveChangesAsync(cancellationToken);
+
     public async Task<T> ExecuteInTransactionAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken = default)

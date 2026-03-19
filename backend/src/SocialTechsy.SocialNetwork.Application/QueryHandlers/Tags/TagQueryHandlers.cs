@@ -24,7 +24,7 @@ public class GetTagsQueryHandler : IRequestHandler<GetTagsQuery, PaginatedRespon
         var result = await _cacheService.GetOrCreateAsync(cacheKey, async () =>
         {
             var (items, totalCount) = await _tagRepository.GetPaginatedAsync(
-                request.Page, request.PageSize, request.Search, request.Sort, cancellationToken);
+                request.Page, request.PageSize, request.Search, request.Sort ?? "popular", cancellationToken);
 
             return new PaginatedResponse<TagDto>
             {

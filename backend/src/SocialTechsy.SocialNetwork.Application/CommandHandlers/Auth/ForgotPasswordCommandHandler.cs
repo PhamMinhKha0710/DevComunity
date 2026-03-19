@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 
@@ -11,20 +12,22 @@ public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordComman
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordResetTokenRepository _resetTokenRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public ForgotPasswordCommandHandler(
         IUserRepository userRepository,
-        IPasswordResetTokenRepository resetTokenRepository)
+        IPasswordResetTokenRepository resetTokenRepository,
+        IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
         _resetTokenRepository = resetTokenRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ForgotPasswordResponse> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
         var user = await _userRepository.GetByEmailAsync(request.Email, cancellationToken);
 
-        // Always return success to prevent email enumeration
         if (user == null)
         {
             return new ForgotPasswordResponse
@@ -51,9 +54,8 @@ public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordComman
         };
 
         await _resetTokenRepository.AddAsync(resetToken, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // In production, send email with reset link containing the token.
-        // For now, return the token in the response for development/testing.
         return new ForgotPasswordResponse
         {
             Success = true,

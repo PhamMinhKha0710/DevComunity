@@ -1,6 +1,7 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
@@ -12,15 +13,18 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAuthTokenIssuer _authTokenIssuer;
+    private readonly IUnitOfWork _unitOfWork;
 
     public RegisterCommandHandler(
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
-        IAuthTokenIssuer authTokenIssuer)
+        IAuthTokenIssuer authTokenIssuer,
+        IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _authTokenIssuer = authTokenIssuer;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<AuthResponse> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -43,38 +47,38 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
             };
         }
 
-        var user = new User
+        return await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            Username = request.Username,
-            Email = request.Email,
-            PasswordHash = _passwordHasher.HashPassword(request.Password),
-            DisplayName = request.DisplayName ?? request.Username,
-            CreatedDate = DateTime.UtcNow,
-            ReputationPoints = 1,
-            IsEmailVerified = false
-        };
+            var user = User.Create(
+                request.Username,
+                request.Email,
+                _passwordHasher.HashPassword(request.Password),
+                request.DisplayName);
 
-        var createdUser = await _userRepository.AddAsync(user, cancellationToken);
+            var createdUser = await _userRepository.AddAsync(user, ct);
 
-        var (accessToken, refreshTokenString) =
-            await _authTokenIssuer.IssueTokensAsync(createdUser, 7, cancellationToken);
+            var (accessToken, refreshTokenString) =
+                await _authTokenIssuer.IssueTokensAsync(createdUser, 7, ct);
 
-        return new AuthResponse
-        {
-            Success = true,
-            Message = "Registration successful",
-            AccessToken = accessToken,
-            RefreshToken = refreshTokenString,
-            ExpiresAt = DateTime.UtcNow.AddHours(1),
-            User = new UserDto
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return new AuthResponse
             {
-                UserId = createdUser.UserId,
-                Username = createdUser.Username,
-                Email = createdUser.Email,
-                DisplayName = createdUser.DisplayName,
-                ReputationPoints = createdUser.ReputationPoints,
-                IsEmailVerified = createdUser.IsEmailVerified
-            }
-        };
+                Success = true,
+                Message = "Registration successful",
+                AccessToken = accessToken,
+                RefreshToken = refreshTokenString,
+                ExpiresAt = DateTime.UtcNow.AddHours(1),
+                User = new UserDto
+                {
+                    UserId = createdUser.UserId,
+                    Username = createdUser.Username,
+                    Email = createdUser.Email,
+                    DisplayName = createdUser.DisplayName,
+                    ReputationPoints = createdUser.ReputationPoints,
+                    IsEmailVerified = createdUser.IsEmailVerified
+                }
+            };
+        }, cancellationToken);
     }
 }

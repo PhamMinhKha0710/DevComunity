@@ -1,7 +1,7 @@
 import apiClient from './client';
 
 export const tagsApi = {
-    list: (params?: { pageSize?: number }) =>
+    list: (params?: { page?: number; pageSize?: number; sortBy?: string; search?: string }) =>
         apiClient.get('/tags', { params }).then(r => r.data),
 
     getPreferences: () =>

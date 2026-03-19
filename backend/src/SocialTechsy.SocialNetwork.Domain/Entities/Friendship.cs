@@ -15,14 +15,48 @@ public enum FriendshipStatus
 /// </summary>
 public class Friendship
 {
-    public int FriendshipId { get; set; }
-    public int RequesterId { get; set; }  // Người gửi yêu cầu
-    public int AddresseeId { get; set; }  // Người nhận yêu cầu
-    public FriendshipStatus Status { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? RespondedAt { get; set; }
+    public int FriendshipId { get; private set; }
+    public int RequesterId { get; private set; }
+    public int AddresseeId { get; private set; }
+    public FriendshipStatus Status { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+    public DateTime? RespondedAt { get; private set; }
 
     // Navigation properties
     public virtual User Requester { get; set; } = null!;
     public virtual User Addressee { get; set; } = null!;
+
+    private Friendship() { }
+
+    public static Friendship Create(int requesterId, int addresseeId)
+    {
+        if (requesterId == addresseeId)
+            throw new InvalidOperationException("Cannot send friend request to yourself.");
+
+        return new Friendship
+        {
+            RequesterId = requesterId,
+            AddresseeId = addresseeId,
+            Status = FriendshipStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
+
+    public void Accept()
+    {
+        if (Status != FriendshipStatus.Pending)
+            throw new InvalidOperationException("Can only accept pending friend requests.");
+        Status = FriendshipStatus.Accepted;
+        RespondedAt = DateTime.UtcNow;
+    }
+
+    public void Reject()
+    {
+        if (Status != FriendshipStatus.Pending)
+            throw new InvalidOperationException("Can only reject pending friend requests.");
+        Status = FriendshipStatus.Rejected;
+        RespondedAt = DateTime.UtcNow;
+    }
+
+    public void Cancel() => Reject();
 }

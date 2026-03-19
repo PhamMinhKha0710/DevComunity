@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { useChatContext } from '@/lib/contexts/ChatContext';
 import { authorInitial } from '@/lib/utils';
 
 interface NavItem {
@@ -21,7 +20,6 @@ const navItems: NavItem[] = [
     { name: 'Newsfeed', href: '/newsfeed', icon: 'newspaper', requireAuth: true },
     { name: 'Groups', href: '/groups', icon: 'groups', requireAuth: true },
     { name: 'Friends', href: '/friends', icon: 'person_add', requireAuth: true },
-    { name: 'Chat', href: '/chat', icon: 'chat_bubble', requireAuth: true },
     { name: 'Saved', href: '/saved', icon: 'bookmark', requireAuth: true },
     { name: 'Repositories', href: '/repositories', icon: 'folder_code', requireAuth: true },
 ];
@@ -29,7 +27,6 @@ const navItems: NavItem[] = [
 export default function ModernSidebar() {
     const pathname = usePathname();
     const { user, isAuthenticated } = useAuth();
-    const { totalUnreadChats } = useChatContext();
 
     const isActive = (href: string) => {
         if (href === '/') return pathname === '/';
@@ -70,11 +67,6 @@ export default function ModernSidebar() {
                                 <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
                                 <span className="text-sm">{item.name}</span>
                             </div>
-                            {item.href === '/chat' && totalUnreadChats > 0 && (
-                                <span className="bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    {totalUnreadChats > 9 ? '9+' : totalUnreadChats}
-                                </span>
-                            )}
                         </Link>
                     );
                 })}

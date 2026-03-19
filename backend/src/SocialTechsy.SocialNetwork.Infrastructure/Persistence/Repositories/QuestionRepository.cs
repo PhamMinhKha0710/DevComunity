@@ -12,15 +12,12 @@ public class QuestionRepository : IQuestionRepository
 {
     private readonly SocialTechsySocialNetworkDbContext _context;
     private readonly bool _fullTextEnabled;
-    private readonly ITagRepository _tagRepository;
 
     public QuestionRepository(
         SocialTechsySocialNetworkDbContext context,
-        ITagRepository tagRepository,
         bool fullTextEnabled = false)
     {
         _context = context;
-        _tagRepository = tagRepository;
         _fullTextEnabled = fullTextEnabled;
     }
 
@@ -139,67 +136,23 @@ public class QuestionRepository : IQuestionRepository
             "active" => query.OrderByDescending(q => q.UpdatedDate ?? q.CreatedDate),
             "votes" => query.OrderByDescending(q => q.Score),
             "unanswered" => query.Where(q => !q.Answers.Any()).OrderByDescending(q => q.CreatedDate),
-            _ => query.OrderByDescending(q => q.CreatedDate) // newest
+            _ => query.OrderByDescending(q => q.CreatedDate)
         };
-    }
-
-    public async Task SetTagsForQuestionAsync(int questionId, IReadOnlyList<string> tagNames, CancellationToken cancellationToken = default)
-    {
-        // Remove existing tags
-        var existing = await _context.QuestionTags
-            .Where(qt => qt.QuestionId == questionId)
-            .ToListAsync(cancellationToken);
-        _context.QuestionTags.RemoveRange(existing);
-
-        var names = (tagNames ?? Array.Empty<string>())
-            .Select(s => s?.Trim())
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (names.Count == 0)
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-            return;
-        }
-
-        // Batch: Get or create all tags at once
-        var tags = new List<Domain.Entities.Tag>();
-        foreach (var name in names)
-        {
-            var tag = await _tagRepository.GetOrCreateAsync(name!, cancellationToken);
-            tags.Add(tag);
-        }
-
-        // Batch add all QuestionTags
-        var questionTags = tags.Select(t => new QuestionTag
-        {
-            QuestionId = questionId,
-            TagId = t.TagId
-        }).ToList();
-
-        await _context.QuestionTags.AddRangeAsync(questionTags, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Question> AddAsync(Question question, CancellationToken cancellationToken = default)
     {
         await _context.Questions.AddAsync(question, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return question;
     }
 
     public async Task UpdateAsync(Question question, CancellationToken cancellationToken = default)
     {
-        // If the entity was loaded in this context (e.g. via GetByIdAsync), it is already tracked.
-        // Calling Update() would mark the entire graph (User, Answers, QuestionTags, Comments) as Modified
-        // and can cause 500 errors on SaveChanges. Only attach/update when detached.
         var entry = _context.Entry(question);
         if (entry.State == EntityState.Detached)
         {
             _context.Questions.Update(question);
         }
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -208,7 +161,6 @@ public class QuestionRepository : IQuestionRepository
         if (question != null)
         {
             _context.Questions.Remove(question);
-            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 

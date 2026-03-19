@@ -79,13 +79,12 @@ public class TagPreferenceRepository : ITagPreferenceRepository
             existing = preference;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
         return existing;
     }
 
     public async Task<bool> DeleteAsync(
-        int userId, 
-        int tagId, 
+        int userId,
+        int tagId,
         CancellationToken cancellationToken = default)
     {
         var preference = await _context.TagPreferences
@@ -96,7 +95,6 @@ public class TagPreferenceRepository : ITagPreferenceRepository
             return false;
 
         _context.TagPreferences.Remove(preference);
-        await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
 

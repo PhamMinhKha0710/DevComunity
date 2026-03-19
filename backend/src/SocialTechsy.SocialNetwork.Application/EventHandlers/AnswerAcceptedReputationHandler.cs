@@ -1,8 +1,8 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.CommandHandlers.Votes;
 using SocialTechsy.SocialNetwork.Application.Common.Events;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Events;
+using SocialTechsy.SocialNetwork.Shared.Constants;
 
 namespace SocialTechsy.SocialNetwork.Application.EventHandlers;
 

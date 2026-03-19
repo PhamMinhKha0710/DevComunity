@@ -57,7 +57,6 @@ public class ChatRepository : IChatRepository
     public async Task<Conversation> CreateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
         await _context.Conversations.AddAsync(conversation, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return conversation;
     }
 
@@ -106,15 +105,13 @@ public class ChatRepository : IChatRepository
     public async Task<Message> AddMessageAsync(Message message, CancellationToken cancellationToken = default)
     {
         await _context.Messages.AddAsync(message, cancellationToken);
-        
-        // Update conversation's last message time
+
         var conversation = await _context.Conversations.FindAsync(new object[] { message.ConversationId }, cancellationToken);
         if (conversation != null)
         {
             conversation.LastMessageDate = message.SentDate;
         }
-        
-        await _context.SaveChangesAsync(cancellationToken);
+
         return message;
     }
 
@@ -129,7 +126,6 @@ public class ChatRepository : IChatRepository
         }
 
         _context.ConversationParticipants.Remove(participant);
-        await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
 
@@ -192,20 +188,17 @@ public class ChatRepository : IChatRepository
     public async Task<MessageReaction> AddReactionAsync(MessageReaction reaction, CancellationToken cancellationToken = default)
     {
         await _context.MessageReactions.AddAsync(reaction, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return reaction;
     }
 
     public async Task UpdateReactionAsync(MessageReaction reaction, CancellationToken cancellationToken = default)
     {
         _context.MessageReactions.Update(reaction);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task RemoveReactionAsync(MessageReaction reaction, CancellationToken cancellationToken = default)
     {
         _context.MessageReactions.Remove(reaction);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 }
 

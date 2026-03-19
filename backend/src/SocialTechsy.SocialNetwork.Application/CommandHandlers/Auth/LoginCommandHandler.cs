@@ -45,7 +45,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponse>
             };
         }
 
-        user.LastLoginDate = DateTime.UtcNow;
+        user.RecordLogin();
         await _userRepository.UpdateAsync(user, cancellationToken);
 
         var (accessToken, refreshTokenString) =

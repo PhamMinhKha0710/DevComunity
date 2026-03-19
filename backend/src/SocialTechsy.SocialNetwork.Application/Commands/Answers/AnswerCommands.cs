@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Answers;
 using SocialTechsy.SocialNetwork.Application.Common;
@@ -12,13 +11,8 @@ namespace SocialTechsy.SocialNetwork.Application.Commands.Answers;
 public class CreateAnswerCommand : IRequest<AnswerDto?>
 {
     public int QuestionId { get; set; }
-    
-    [Required]
-    [MinLength(30)]
     public string Body { get; set; } = null!;
-    
     public int? ParentAnswerId { get; set; }
-    
     public int UserId { get; set; }
 }
 
@@ -28,11 +22,7 @@ public class CreateAnswerCommand : IRequest<AnswerDto?>
 public class UpdateAnswerCommand : IRequest<bool>
 {
     public int AnswerId { get; set; }
-    
-    [Required]
-    [MinLength(30)]
     public string Body { get; set; } = null!;
-    
     public int UserId { get; set; }
 }
 

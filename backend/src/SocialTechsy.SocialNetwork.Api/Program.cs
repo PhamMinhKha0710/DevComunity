@@ -7,7 +7,9 @@ using System.IO.Compression;
 using System.Text;
 using System.Threading.RateLimiting;
 using SocialTechsy.SocialNetwork.Application;
-using SocialTechsy.SocialNetwork.Infrastructure;
+using SocialTechsy.SocialNetwork.Infrastructure.DependencyInjection;
+using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
+using SocialTechsy.SocialNetwork.Api.Hubs;
 using SocialTechsy.SocialNetwork.Api;
 using OpenTelemetry.Trace;
 using Serilog;
@@ -59,8 +61,13 @@ if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>(
 // SignalR-based handlers (needs API layer for hub contexts)
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.ILikeNotificationHandler,
     SocialTechsy.SocialNetwork.Api.Services.SignalRLikeNotificationHandler>();
+builder.Services.AddSingleton<INotificationDispatcher, NotificationDispatcher>();
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IChatPushHandler,
     SocialTechsy.SocialNetwork.Api.Services.SignalRChatPushHandler>();
+builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IQuestionEventDispatcher,
+    SocialTechsy.SocialNetwork.Api.Services.SignalRQuestionEventDispatcher>();
+builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IReputationEventDispatcher,
+    SocialTechsy.SocialNetwork.Api.Services.SignalRReputationEventDispatcher>();
 
 // Health checks
 var healthChecksBuilder = builder.Services.AddHealthChecks()
@@ -394,7 +401,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Sync Redis sequences from MongoDB counters on startup to prevent duplicate IDs
-var redisCacheService = app.Services.GetService<SocialTechsy.SocialNetwork.Infrastructure.Redis.RedisChatCacheService>();
+var redisCacheService = app.Services.GetService<SocialTechsy.SocialNetwork.Infrastructure.Caching.RedisChatCacheService>();
 var mongoDb = app.Services.GetService<MongoDB.Driver.IMongoDatabase>();
 if (redisCacheService != null && mongoDb != null)
 {

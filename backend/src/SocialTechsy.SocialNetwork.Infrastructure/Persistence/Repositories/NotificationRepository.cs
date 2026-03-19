@@ -59,7 +59,6 @@ public class NotificationRepository : INotificationRepository
     public async Task<Notification> AddAsync(Notification notification, CancellationToken cancellationToken = default)
     {
         await _context.Notifications.AddAsync(notification, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return notification;
     }
 

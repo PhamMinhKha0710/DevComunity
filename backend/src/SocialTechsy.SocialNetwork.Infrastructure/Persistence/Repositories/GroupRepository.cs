@@ -64,21 +64,17 @@ public class GroupRepository : IGroupRepository
 
     public async Task<Group> AddAsync(Group group, CancellationToken cancellationToken = default)
     {
-        group.CreatedAt = DateTime.UtcNow;
         await _context.Groups.AddAsync(group, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return group;
     }
 
     public async Task UpdateAsync(Group group, CancellationToken cancellationToken = default)
     {
         _context.Groups.Update(group);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(int groupId, CancellationToken cancellationToken = default)
     {
-        // Delete members first, then group
         await _context.GroupMembers.Where(m => m.GroupId == groupId).ExecuteDeleteAsync(cancellationToken);
         await _context.Groups.Where(g => g.GroupId == groupId).ExecuteDeleteAsync(cancellationToken);
     }
@@ -106,7 +102,6 @@ public class GroupRepository : IGroupRepository
     {
         member.JoinedAt = DateTime.UtcNow;
         await _context.GroupMembers.AddAsync(member, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
         return member;
     }
 

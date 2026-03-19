@@ -6,6 +6,11 @@ namespace SocialTechsy.SocialNetwork.Application.Interfaces;
 public interface IUnitOfWork
 {
     /// <summary>
+    /// Saves all changes made in this context to the database.
+    /// </summary>
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Executes the given operation within a database transaction.
     /// Commits on success, rolls back on exception.
     /// </summary>
