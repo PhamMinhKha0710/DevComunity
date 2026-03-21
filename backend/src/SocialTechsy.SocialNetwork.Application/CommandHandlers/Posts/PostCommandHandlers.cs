@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 using SocialTechsy.SocialNetwork.Application.Commands.Posts;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -13,17 +14,20 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, PostD
 {
     private readonly IPostRepository _postRepository;
     private readonly IGroupRepository _groupRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IActivityEventDispatcher _activityDispatcher;
     private readonly ILogger<CreatePostCommandHandler> _logger;
 
     public CreatePostCommandHandler(
         IPostRepository postRepository,
         IGroupRepository groupRepository,
+        IUnitOfWork unitOfWork,
         IActivityEventDispatcher activityDispatcher,
         ILogger<CreatePostCommandHandler> logger)
     {
         _postRepository = postRepository;
         _groupRepository = groupRepository;
+        _unitOfWork = unitOfWork;
         _activityDispatcher = activityDispatcher;
         _logger = logger;
     }
@@ -46,22 +50,27 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, PostD
             AuthorId = request.AuthorId,
             GroupId = request.GroupId,
             Content = request.Content,
+            MediaUrls = request.MediaUrls,
+            Visibility = request.Visibility,
             CreatedAt = DateTime.UtcNow
         };
 
         var created = await _postRepository.AddAsync(post, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} created post {PostId}", request.AuthorId, created.PostId);
+
+        var result = await _postRepository.GetByIdAsync(created.PostId, cancellationToken);
 
         try
         {
             if (request.GroupId.HasValue)
             {
-                await _activityDispatcher.BroadcastNewGroupPostAsync(request.GroupId.Value, MapToDto(created), cancellationToken);
+                await _activityDispatcher.BroadcastNewGroupPostAsync(request.GroupId.Value, MapToDto(result!), cancellationToken);
             }
             else
             {
-                await _activityDispatcher.BroadcastNewPostAsync(MapToDto(created), cancellationToken);
+                await _activityDispatcher.BroadcastNewPostAsync(MapToDto(result!), cancellationToken);
             }
         }
         catch (Exception ex)
@@ -69,7 +78,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, PostD
             _logger.LogError(ex, "Error broadcasting new post");
         }
 
-        return MapToDto(created);
+        return MapToDto(result!);
     }
 
     private static PostDto MapToDto(Post p) => new()
@@ -85,6 +94,8 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, PostD
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,
+        MediaUrls = p.MediaUrls,
+        Visibility = p.Visibility,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt
     };
@@ -96,6 +107,7 @@ public class UpdatePostCommandHandler : IRequestHandler<UpdatePostCommand, PostD
     private readonly ILikeService _likeService;
     private readonly ICommentRepository _commentRepository;
     private readonly ISavedItemRepository _savedItemRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdatePostCommandHandler> _logger;
 
     public UpdatePostCommandHandler(
@@ -103,12 +115,14 @@ public class UpdatePostCommandHandler : IRequestHandler<UpdatePostCommand, PostD
         ILikeService likeService,
         ICommentRepository commentRepository,
         ISavedItemRepository savedItemRepository,
+        IUnitOfWork unitOfWork,
         ILogger<UpdatePostCommandHandler> logger)
     {
         _postRepository = postRepository;
         _likeService = likeService;
         _commentRepository = commentRepository;
         _savedItemRepository = savedItemRepository;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -122,7 +136,9 @@ public class UpdatePostCommandHandler : IRequestHandler<UpdatePostCommand, PostD
             throw new UnauthorizedAccessException("Only the author can edit this post");
 
         post.Content = request.Content;
+        post.MediaUrls = request.MediaUrls;
         await _postRepository.UpdateAsync(post, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} updated post {PostId}", request.UserId, request.PostId);
 
@@ -149,6 +165,8 @@ public class UpdatePostCommandHandler : IRequestHandler<UpdatePostCommand, PostD
             GroupId = p.GroupId,
             GroupName = p.Group?.Name,
             Content = p.Content,
+            MediaUrls = p.MediaUrls,
+            Visibility = p.Visibility,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt,
             LikeCount = (int)likeCount,

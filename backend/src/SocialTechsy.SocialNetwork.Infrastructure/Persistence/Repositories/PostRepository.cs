@@ -1,5 +1,6 @@
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,7 @@ public class PostRepository : IPostRepository
     }
 
     public async Task<(IEnumerable<Post> Items, int TotalCount)> GetNewsfeedAsync(
-        int userId, int page, int pageSize, CancellationToken cancellationToken = default)
+        int userId, int page, int pageSize, string? filter = null, CancellationToken cancellationToken = default)
     {
         // Use subqueries instead of loading IDs into memory to avoid large IN clauses
         var friendIdsQuery = _context.Friendships
@@ -45,12 +46,30 @@ public class PostRepository : IPostRepository
         var query = _context.Posts
             .Include(p => p.Author)
             .Include(p => p.Group)
-            .Where(p =>
+            .AsQueryable();
+
+        if (filter?.ToLower() == "following")
+        {
+            query = query.Where(p => followingIdsQuery.Contains(p.AuthorId));
+        }
+        else if (filter?.ToLower() == "friends")
+        {
+            query = query.Where(p => friendIdsQuery.Contains(p.AuthorId));
+        }
+        else if (filter?.ToLower() == "groups")
+        {
+            query = query.Where(p => p.GroupId != null && userGroupsQuery.Contains(p.GroupId.Value));
+        }
+        else // default: foryou / all
+        {
+            query = query.Where(p =>
                 (p.GroupId == null && (
                     p.AuthorId == userId ||
                     friendIdsQuery.Contains(p.AuthorId) ||
-                    followingIdsQuery.Contains(p.AuthorId))) ||
+                    followingIdsQuery.Contains(p.AuthorId) ||
+                    p.Visibility == PostVisibility.Public)) ||
                 (p.GroupId != null && userGroupsQuery.Contains(p.GroupId.Value)));
+        }
 
         var totalCount = await query.CountAsync(cancellationToken);
 

@@ -13,17 +13,20 @@ public class FollowCommandHandler : IRequestHandler<FollowCommand, bool>
 {
     private readonly IFollowRepository _followRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<FollowCommandHandler> _logger;
 
     public FollowCommandHandler(
         IFollowRepository followRepository,
         IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
         IPublishEndpoint publishEndpoint,
         ILogger<FollowCommandHandler> logger)
     {
         _followRepository = followRepository;
         _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
         _publishEndpoint = publishEndpoint;
         _logger = logger;
     }
@@ -45,6 +48,7 @@ public class FollowCommandHandler : IRequestHandler<FollowCommand, bool>
         };
 
         await _followRepository.FollowAsync(follow, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} followed user {TargetId}", request.FollowerId, request.FollowingId);
 

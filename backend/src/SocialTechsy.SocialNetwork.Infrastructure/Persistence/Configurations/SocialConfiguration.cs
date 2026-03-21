@@ -116,6 +116,9 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
             .IsRequired()
             .HasMaxLength(5000);
 
+        builder.Property(p => p.MediaUrls)
+            .HasMaxLength(2000);
+
         builder.HasOne(p => p.Author)
             .WithMany()
             .HasForeignKey(p => p.AuthorId)

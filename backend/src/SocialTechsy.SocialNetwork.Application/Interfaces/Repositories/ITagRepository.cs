@@ -18,4 +18,9 @@ public interface ITagRepository
     Task<Tag> AddAsync(Tag tag, CancellationToken cancellationToken = default);
     Task<Tag> GetOrCreateAsync(string tagName, CancellationToken cancellationToken = default);
     Task<IEnumerable<Tag>> GetPopularTagsAsync(int count = 10, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns question count per tag id (tags with zero questions are omitted from the dictionary).</summary>
+    Task<Dictionary<int, int>> GetQuestionCountsByTagIdsAsync(
+        IEnumerable<int> tagIds,
+        CancellationToken cancellationToken = default);
 }

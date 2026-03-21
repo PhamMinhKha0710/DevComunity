@@ -1,6 +1,6 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
@@ -57,10 +57,11 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
 
             var createdUser = await _userRepository.AddAsync(user, ct);
 
+            // Persist user to get its ID before creating tokens (RefreshToken has FK to UserId)
+            await _unitOfWork.SaveChangesAsync(ct);
+
             var (accessToken, refreshTokenString) =
                 await _authTokenIssuer.IssueTokensAsync(createdUser, 7, ct);
-
-            await _unitOfWork.SaveChangesAsync(ct);
 
             return new AuthResponse
             {

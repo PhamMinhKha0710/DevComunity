@@ -124,3 +124,14 @@ public enum AttachmentType
     Document,
     Other
 }
+
+/// <summary>
+/// Visibility levels for a post
+/// </summary>
+public enum PostVisibility
+{
+    Public,
+    Friends,
+    Following,
+    Private
+}

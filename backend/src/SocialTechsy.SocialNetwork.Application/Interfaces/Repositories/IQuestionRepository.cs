@@ -31,6 +31,9 @@ public interface IQuestionRepository
     Task IncrementViewCountByDeltaAsync(int id, long delta, CancellationToken cancellationToken = default);
     Task<(IEnumerable<Question> Items, int TotalCount)> GetByUserIdAsync(int userId, int page, int pageSize, CancellationToken cancellationToken = default);
 
+    /// <summary>Adds a QuestionTag join-row directly (avoids EF navigation confusion when QuestionId is auto-generated).</summary>
+    void AddQuestionTag(QuestionTag questionTag);
+
     /// <summary>
     /// Gets paginated questions with optimized query (no tracking, minimal includes).
     /// </summary>

@@ -1,5 +1,5 @@
 using SocialTechsy.SocialNetwork.Domain.Entities;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 
 namespace SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 

@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Entities;

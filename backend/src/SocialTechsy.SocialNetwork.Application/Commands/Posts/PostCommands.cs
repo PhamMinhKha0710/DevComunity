@@ -1,5 +1,6 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 
 namespace SocialTechsy.SocialNetwork.Application.Commands.Posts;
 
@@ -11,6 +12,8 @@ public class CreatePostCommand : IRequest<PostDto>
     public int AuthorId { get; set; }
     public string Content { get; set; } = null!;
     public int? GroupId { get; set; }
+    public string? MediaUrls { get; set; }
+    public PostVisibility Visibility { get; set; }
 }
 
 /// <summary>
@@ -21,6 +24,7 @@ public class UpdatePostCommand : IRequest<PostDto>
     public int PostId { get; set; }
     public int UserId { get; set; }
     public string Content { get; set; } = null!;
+    public string? MediaUrls { get; set; }
 }
 
 /// <summary>

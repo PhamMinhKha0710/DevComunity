@@ -1,8 +1,11 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Application.Queries.Posts;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Posts;
 
@@ -28,7 +31,7 @@ public class GetNewsfeedQueryHandler : IRequestHandler<GetNewsfeedQuery, Paginat
     public async Task<PaginatedResponse<PostDto>> Handle(GetNewsfeedQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _postRepository.GetNewsfeedAsync(
-            request.UserId, request.Page, request.PageSize, cancellationToken);
+            request.UserId, request.Page, request.PageSize, request.Filter, cancellationToken);
 
         var dtos = await EnrichWithEngagementAsync(items, request.UserId, cancellationToken);
 
@@ -84,6 +87,8 @@ public class GetNewsfeedQueryHandler : IRequestHandler<GetNewsfeedQuery, Paginat
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,
+        MediaUrls = p.MediaUrls,
+        Visibility = p.Visibility,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt
     };
@@ -181,6 +186,8 @@ public class GetGroupPostsQueryHandler : IRequestHandler<GetGroupPostsQuery, Pag
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,
+        MediaUrls = p.MediaUrls,
+        Visibility = p.Visibility,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt
     };
@@ -265,6 +272,8 @@ public class GetUserPostsQueryHandler : IRequestHandler<GetUserPostsQuery, Pagin
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,
+        MediaUrls = p.MediaUrls,
+        Visibility = p.Visibility,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt
     };
@@ -355,6 +364,8 @@ public class GetPostQueryHandler : IRequestHandler<GetPostQuery, PostDto?>
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,
+        MediaUrls = p.MediaUrls,
+        Visibility = p.Visibility,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt
     };

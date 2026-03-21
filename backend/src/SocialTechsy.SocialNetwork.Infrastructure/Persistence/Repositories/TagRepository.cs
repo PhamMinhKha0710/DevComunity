@@ -38,8 +38,7 @@ public class TagRepository : ITagRepository
         string sort = "popular",
         CancellationToken cancellationToken = default)
     {
-        var query = _context.Tags
-            .AsQueryable();
+        var query = _context.Tags.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -84,8 +83,24 @@ public class TagRepository : ITagRepository
     public async Task<IEnumerable<Tag>> GetPopularTagsAsync(int count = 10, CancellationToken cancellationToken = default)
     {
         return await _context.Tags
+            .Include(t => t.QuestionTags)
             .OrderByDescending(t => t.QuestionTags.Count)
             .Take(count)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Dictionary<int, int>> GetQuestionCountsByTagIdsAsync(
+        IEnumerable<int> tagIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = tagIds.Distinct().ToList();
+        if (idList.Count == 0)
+            return new Dictionary<int, int>();
+
+        return await _context.QuestionTags
+            .Where(qt => idList.Contains(qt.TagId))
+            .GroupBy(qt => qt.TagId)
+            .Select(g => new { g.Key, Cnt = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Cnt, cancellationToken);
     }
 }

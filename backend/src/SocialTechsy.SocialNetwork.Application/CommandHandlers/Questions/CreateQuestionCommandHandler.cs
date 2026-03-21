@@ -1,6 +1,7 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
@@ -53,7 +54,12 @@ public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionComman
                 foreach (var tagName in tagNames!)
                 {
                     var tag = await _tagRepository.GetOrCreateAsync(tagName!, ct);
-                    question.QuestionTags.Add(new QuestionTag { TagId = tag.TagId });
+                    var questionTag = new QuestionTag
+                    {
+                        QuestionId = question.QuestionId,
+                        TagId = tag.TagId
+                    };
+                    _questionRepository.AddQuestionTag(questionTag);
                 }
             }
 

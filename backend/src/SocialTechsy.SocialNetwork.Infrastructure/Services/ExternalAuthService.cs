@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
@@ -12,6 +13,7 @@ public class ExternalAuthService : IExternalAuthService
     private readonly IUserRepository _userRepository;
     private readonly IOAuthLoginSessionRepository _oauthSessionRepository;
     private readonly IAuthTokenIssuer _authTokenIssuer;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ExternalAuthService> _logger;
 
@@ -19,12 +21,14 @@ public class ExternalAuthService : IExternalAuthService
         IUserRepository userRepository,
         IOAuthLoginSessionRepository oauthSessionRepository,
         IAuthTokenIssuer authTokenIssuer,
+        IUnitOfWork unitOfWork,
         IConfiguration configuration,
         ILogger<ExternalAuthService> logger)
     {
         _userRepository = userRepository;
         _oauthSessionRepository = oauthSessionRepository;
         _authTokenIssuer = authTokenIssuer;
+        _unitOfWork = unitOfWork;
         _configuration = configuration;
         _logger = logger;
     }
@@ -54,6 +58,7 @@ public class ExternalAuthService : IExternalAuthService
             {
                 existingUserByEmail.LinkOAuthProvider(provider, providerKey, avatarUrl);
                 await _userRepository.UpdateAsync(existingUserByEmail, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
                 user = existingUserByEmail;
             }
             else
@@ -64,6 +69,8 @@ public class ExternalAuthService : IExternalAuthService
                 user.VerifyEmail();
                 user.SetProfilePicture(avatarUrl);
                 user = await _userRepository.AddAsync(user, cancellationToken);
+                // Persist user to get its ID before creating tokens
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
         else
@@ -75,6 +82,7 @@ public class ExternalAuthService : IExternalAuthService
             }
             user.LinkOAuthProvider(provider, providerKey, avatarUrl);
             await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         var (accessToken, refreshTokenString) = await _authTokenIssuer.IssueTokensAsync(user, 7, cancellationToken);
@@ -93,6 +101,8 @@ public class ExternalAuthService : IExternalAuthService
             ExpiresAt = DateTime.UtcNow.AddMinutes(5)
         };
         await _oauthSessionRepository.AddAsync(session, cancellationToken);
+        // Persist session so the endpoint frontend exchange can retrieve it
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "http://localhost:3000";
         return OAuthProcessingResult.Success(user.UserId, accessToken, refreshTokenString, code, frontendBaseUrl, provider);

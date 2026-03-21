@@ -65,7 +65,7 @@ public class DataSeeder
             // 2. Seed Tags
             var tags = new List<Tag>
             {
-                new Tag { TagName = "javascript", Description = "Programming language of the web", UsageCount = 0 },
+                new Tag { TagName = "javascript", Description = "Popular web programming language", UsageCount = 0 },
                 new Tag { TagName = "csharp", Description = "Multi-paradigm programming language by Microsoft", UsageCount = 0 },
                 new Tag { TagName = "python", Description = "Interpreted, high-level programming language", UsageCount = 0 },
                 new Tag { TagName = "react", Description = "A JavaScript library for building user interfaces", UsageCount = 0 },

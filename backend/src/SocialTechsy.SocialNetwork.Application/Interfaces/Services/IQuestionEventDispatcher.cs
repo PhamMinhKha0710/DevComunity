@@ -1,4 +1,5 @@
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 
 namespace SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
