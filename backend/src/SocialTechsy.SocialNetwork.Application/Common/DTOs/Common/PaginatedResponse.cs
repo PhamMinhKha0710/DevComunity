@@ -1,4 +1,4 @@
-namespace SocialTechsy.SocialNetwork.Application.Common.DTOs;
+namespace SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 
 /// <summary>
 /// Paginated list response

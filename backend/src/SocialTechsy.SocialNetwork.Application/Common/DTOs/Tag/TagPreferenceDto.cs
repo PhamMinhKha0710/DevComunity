@@ -1,4 +1,4 @@
-namespace SocialTechsy.SocialNetwork.Application.Common.DTOs;
+namespace SocialTechsy.SocialNetwork.Application.Common.DTOs.Tag;
 
 /// <summary>
 /// DTO for tag preference

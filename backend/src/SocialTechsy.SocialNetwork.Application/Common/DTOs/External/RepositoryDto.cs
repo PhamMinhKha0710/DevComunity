@@ -1,4 +1,4 @@
-namespace SocialTechsy.SocialNetwork.Application.Common.DTOs;
+namespace SocialTechsy.SocialNetwork.Application.Common.DTOs.External;
 
 /// <summary>
 /// DTO for repository response

@@ -1,4 +1,4 @@
-namespace SocialTechsy.SocialNetwork.Application.Common.DTOs;
+namespace SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
 
 /// <summary>
 /// Request to exchange an OAuth auth code for tokens.

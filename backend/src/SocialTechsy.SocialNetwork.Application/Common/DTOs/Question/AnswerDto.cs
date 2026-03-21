@@ -1,4 +1,6 @@
-namespace SocialTechsy.SocialNetwork.Application.Common.DTOs;
+namespace SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
+
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 
 /// <summary>
 /// DTO for answer response

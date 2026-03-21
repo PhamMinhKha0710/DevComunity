@@ -1,4 +1,4 @@
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
 
 namespace SocialTechsy.SocialNetwork.Application.Queries.Search;
 
