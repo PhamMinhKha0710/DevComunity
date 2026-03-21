@@ -17,11 +17,15 @@ public class NotificationDispatcher : INotificationDispatcher
 
     public async Task DispatchAsync(Notification notification, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation(
+            "NotificationDispatcher.DispatchAsync START: NotificationId={NotificationId}, UserId={UserId}, Type={Type}",
+            notification.NotificationId, notification.UserId, notification.Type);
         try
         {
             await _hubContext.Clients.Group($"user_{notification.UserId}")
                 .SendAsync("ReceiveNotification", notification, cancellationToken);
-            _logger.LogInformation("SignalR generic notification pushed to User {UserId}", notification.UserId);
+            _logger.LogInformation("SignalR generic notification pushed to User {UserId}, NotificationId={NotificationId}",
+                notification.UserId, notification.NotificationId);
         }
         catch (Exception ex)
         {

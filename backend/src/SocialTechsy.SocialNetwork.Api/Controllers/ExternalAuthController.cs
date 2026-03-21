@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using System.Security.Claims;
 
@@ -7,18 +9,24 @@ namespace SocialTechsy.SocialNetwork.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableCors("ReactApp")]
 public class ExternalAuthController : ControllerBase
 {
     private readonly ILogger<ExternalAuthController> _logger;
     private readonly IExternalAuthService _externalAuthService;
+    private readonly IConfiguration _configuration;
 
     public ExternalAuthController(
         ILogger<ExternalAuthController> logger,
-        IExternalAuthService externalAuthService)
+        IExternalAuthService externalAuthService,
+        IConfiguration configuration)
     {
         _logger = logger;
         _externalAuthService = externalAuthService;
+        _configuration = configuration;
     }
+
+    private string FrontendBaseUrl => _configuration["Frontend:BaseUrl"] ?? "http://localhost:3000";
 
     [HttpGet("login/{provider}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -54,7 +62,7 @@ public class ExternalAuthController : ControllerBase
     {
         if (string.IsNullOrEmpty(provider))
         {
-            return Redirect("/auth?error=" + Uri.EscapeDataString("Unknown OAuth provider"));
+            return Redirect($"{FrontendBaseUrl}/auth?error=" + Uri.EscapeDataString("Unknown OAuth provider"));
         }
 
         const string externalCookieScheme = "ExternalCookie";
@@ -62,7 +70,7 @@ public class ExternalAuthController : ControllerBase
 
         if (externalLoginInfo?.Principal == null)
         {
-            return Redirect("/auth?error=" + Uri.EscapeDataString("External authentication failed"));
+            return Redirect($"{FrontendBaseUrl}/auth?error=" + Uri.EscapeDataString("External authentication failed"));
         }
 
         var providerKey = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -78,7 +86,7 @@ public class ExternalAuthController : ControllerBase
 
         if (string.IsNullOrEmpty(providerKey))
         {
-            return Redirect("/auth?error=" + Uri.EscapeDataString("Failed to get provider key"));
+            return Redirect($"{FrontendBaseUrl}/auth?error=" + Uri.EscapeDataString("Failed to get provider key"));
         }
 
         _logger.LogInformation("External login callback from {Provider} with email {Email}", provider, email);
@@ -87,7 +95,7 @@ public class ExternalAuthController : ControllerBase
             provider, providerKey, email, name, avatar, cancellationToken);
 
         if (string.IsNullOrEmpty(result.RedirectUrl))
-            return Redirect("/auth?error=" + Uri.EscapeDataString(result.Error ?? "Unknown error"));
+            return Redirect($"{FrontendBaseUrl}/auth?error=" + Uri.EscapeDataString(result.Error ?? "Unknown error"));
 
         return Redirect(result.RedirectUrl);
     }

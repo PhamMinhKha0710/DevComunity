@@ -1,5 +1,6 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 
 namespace SocialTechsy.SocialNetwork.Application.Queries.Posts;
 
@@ -9,6 +10,7 @@ namespace SocialTechsy.SocialNetwork.Application.Queries.Posts;
 public class GetNewsfeedQuery : IRequest<PaginatedResponse<PostDto>>
 {
     public int UserId { get; set; }
+    public string? Filter { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using SocialTechsy.SocialNetwork.Api.Hubs;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 
 namespace SocialTechsy.SocialNetwork.Api.Services;

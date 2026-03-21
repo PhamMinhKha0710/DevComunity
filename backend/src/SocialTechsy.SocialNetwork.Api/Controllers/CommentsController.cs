@@ -2,10 +2,10 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Commands.Comments;
 using SocialTechsy.SocialNetwork.Application.Queries.Comments;
-using SocialTechsy.SocialNetwork.Api.Hubs;
+using SocialTechsy.SocialNetwork.Infrastructure.SignalR.Hubs;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;

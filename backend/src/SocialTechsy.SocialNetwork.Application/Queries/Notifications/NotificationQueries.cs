@@ -1,5 +1,5 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Notification;
 
 namespace SocialTechsy.SocialNetwork.Application.Queries.Notifications;
 

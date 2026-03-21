@@ -4,7 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Commands.Questions;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Application.Queries.Questions;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Tag;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using System.Security.Claims;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;

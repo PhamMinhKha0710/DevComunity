@@ -36,6 +36,7 @@ builder.Host.UseSerilog((context, loggerConfig) =>
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase));
     });
@@ -61,7 +62,7 @@ if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>(
 // SignalR-based handlers (needs API layer for hub contexts)
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.ILikeNotificationHandler,
     SocialTechsy.SocialNetwork.Api.Services.SignalRLikeNotificationHandler>();
-builder.Services.AddSingleton<INotificationDispatcher, NotificationDispatcher>();
+builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IChatPushHandler,
     SocialTechsy.SocialNetwork.Api.Services.SignalRChatPushHandler>();
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IQuestionEventDispatcher,
@@ -310,6 +311,10 @@ if (redisEnabled)
     });
 }
 
+// Register IActivityEventDispatcher AFTER AddSignalR so IHubContext<ActivityHub> is available
+builder.Services.AddScoped<IActivityEventDispatcher,
+    SocialTechsy.SocialNetwork.Infrastructure.SignalR.Services.SignalRActivityEventDispatcher>();
+
 // Configure Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -391,7 +396,7 @@ app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.PresenceHub>("/hubs/presence", op
     options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets
                        | Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents;
 });
-app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.ActivityHub>("/hubs/activity");
+app.MapHub<SocialTechsy.SocialNetwork.Infrastructure.SignalR.Hubs.ActivityHub>("/hubs/activity");
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.CallHub>("/hubs/call");
 
 // Initialize Database

@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Queries.Follows;
 using SocialTechsy.SocialNetwork.Application.Commands.Follows;
 using System.Security.Claims;

@@ -1,5 +1,5 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Tag;
 
 namespace SocialTechsy.SocialNetwork.Application.Queries.Tags;
 

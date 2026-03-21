@@ -19,6 +19,9 @@ public class SignalRChatPushHandler : IChatPushHandler
 
     public async Task PushMessageAsync(ChatPushEvent evt)
     {
+        _logger.LogInformation(
+            "SignalR PushMessageAsync START: ConversationId={ConversationId}, MessageId={MessageId}",
+            evt.ConversationId, evt.MessageId);
         try
         {
             await _chatHub.Clients.Group($"conversation_{evt.ConversationId}")
@@ -39,8 +42,9 @@ public class SignalRChatPushHandler : IChatPushHandler
                     evt.ReplyToMessageId,
                 });
 
-            _logger.LogDebug("Pushed message {MessageId} to conversation {ConversationId}",
-                evt.MessageId, evt.ConversationId);
+            _logger.LogInformation(
+                "SignalR: Sent ReceiveMessage to conversation {ConversationId}, message {MessageId}",
+                evt.ConversationId, evt.MessageId);
         }
         catch (Exception ex)
         {
@@ -50,6 +54,9 @@ public class SignalRChatPushHandler : IChatPushHandler
 
     public async Task PushNewMessageNotificationAsync(ChatPushEvent evt)
     {
+        _logger.LogInformation(
+            "SignalR PushNewMessageNotificationAsync START: ConversationId={ConversationId}, RecipientCount={RecipientCount}",
+            evt.ConversationId, evt.RecipientUserIds.Count);
         try
         {
             var notification = new
@@ -63,6 +70,10 @@ public class SignalRChatPushHandler : IChatPushHandler
                 .Select(uid => _chatHub.Clients.Group($"user_{uid}")
                     .SendAsync("NewMessageNotification", notification));
             await Task.WhenAll(tasks);
+
+            _logger.LogInformation(
+                "SignalR: Sent NewMessageNotification to {RecipientCount} users for conversation {ConversationId}",
+                evt.RecipientUserIds.Count, evt.ConversationId);
         }
         catch (Exception ex)
         {

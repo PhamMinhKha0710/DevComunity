@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.External;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 using SocialTechsy.SocialNetwork.Application.Queries.Repositories;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Repositories;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Repositories;

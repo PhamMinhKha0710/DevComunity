@@ -1,5 +1,7 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 
 namespace SocialTechsy.SocialNetwork.Application.Queries.Users;
 

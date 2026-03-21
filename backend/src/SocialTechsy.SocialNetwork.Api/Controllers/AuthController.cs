@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using SocialTechsy.SocialNetwork.Application.Commands.Auth;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
 using SocialTechsy.SocialNetwork.Application.Common.Mappings;
 using SocialTechsy.SocialNetwork.Application.Queries.Users;
 

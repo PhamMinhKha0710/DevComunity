@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace SocialTechsy.SocialNetwork.Api.Hubs;
@@ -5,6 +6,7 @@ namespace SocialTechsy.SocialNetwork.Api.Hubs;
 /// <summary>
 /// SignalR Hub for real-time question updates
 /// </summary>
+[Authorize]
 public class QuestionHub : Hub
 {
     private readonly ILogger<QuestionHub> _logger;
@@ -12,6 +14,27 @@ public class QuestionHub : Hub
     public QuestionHub(ILogger<QuestionHub> logger)
     {
         _logger = logger;
+    }
+
+    public override async Task OnConnectedAsync()
+    {
+        _logger.LogInformation("Client connected: {ConnectionId}, User: {UserId}",
+            Context.ConnectionId,
+            Context.User?.Identity?.Name ?? "Anonymous");
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (exception != null)
+        {
+            _logger.LogWarning(exception, "Client disconnected with error: {ConnectionId}", Context.ConnectionId);
+        }
+        else
+        {
+            _logger.LogInformation("Client disconnected: {ConnectionId}", Context.ConnectionId);
+        }
+        await base.OnDisconnectedAsync(exception);
     }
 
     /// <summary>

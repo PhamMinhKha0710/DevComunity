@@ -47,8 +47,9 @@ public class SignalRLikeNotificationHandler : ILikeNotificationHandler
                     likeEvent.LikedByUserId
                 });
 
-            _logger.LogDebug("Pushed SignalR notifications for like on {TargetType}:{TargetId}",
-                likeEvent.TargetType, likeEvent.TargetId);
+            _logger.LogInformation(
+                "SignalR: Sent ReceiveNotification to User {UserId} and VoteChanged to question {QuestionId}",
+                likeEvent.ContentAuthorId, questionId);
         }
         catch (Exception ex)
         {
