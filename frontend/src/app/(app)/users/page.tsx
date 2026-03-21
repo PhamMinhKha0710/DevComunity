@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { usersApi } from '@/lib/api/users.api';
 import { followApi } from '@/lib/api/social.api';
@@ -38,6 +39,7 @@ const formatRep = (rep: number) => {
 
 export default function UsersPage() {
     const { user: currentUser } = useAuth();
+    const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('reputation');
     const [timeFilter, setTimeFilter] = useState('month');
@@ -75,6 +77,12 @@ export default function UsersPage() {
         mutationFn: (targetId: number) => followApi.follow(targetId),
         onSuccess: (_, targetId) => {
             setFollowingIds(prev => new Set(prev).add(targetId));
+            queryClient.invalidateQueries({ queryKey: ['following', currentUser?.userId] });
+            toast.success('Đã theo dõi');
+        },
+        onError: () => {
+            setFollowLoading(null);
+            toast.error('Không thể theo dõi');
         },
         onSettled: () => setFollowLoading(null),
     });
@@ -87,6 +95,12 @@ export default function UsersPage() {
                 next.delete(targetId);
                 return next;
             });
+            queryClient.invalidateQueries({ queryKey: ['following', currentUser?.userId] });
+            toast.success('Đã hủy theo dõi');
+        },
+        onError: () => {
+            setFollowLoading(null);
+            toast.error('Không thể hủy theo dõi');
         },
         onSettled: () => setFollowLoading(null),
     });

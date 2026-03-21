@@ -64,15 +64,15 @@ export default function ProfilePage() {
                 <div className="h-48 rounded-t-xl overflow-hidden bg-gradient-to-br from-[var(--primary)] via-blue-500 to-cyan-400"></div>
 
                 {/* Avatar overlapping banner */}
-                <div className="absolute -bottom-16 left-8 z-10">
+                <div className="absolute -bottom-12 left-4 sm:left-8 sm:-bottom-16 z-10">
                     {user.profilePicture ? (
                         <img
                             src={user.profilePicture}
                             alt={user.displayName || user.username}
-                            className="size-32 rounded-full border-4 border-white dark:border-slate-900 object-cover shadow-lg"
+                            className="size-24 sm:size-32 rounded-full border-4 border-white dark:border-slate-900 object-cover shadow-lg"
                         />
                     ) : (
-                        <div className="size-32 rounded-full border-4 border-white dark:border-slate-900 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-white text-5xl font-bold shadow-lg">
+                        <div className="size-24 sm:size-32 rounded-full border-4 border-white dark:border-slate-900 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-white text-4xl sm:text-5xl font-bold shadow-lg">
                             {authorInitial(user.displayName || user.username)}
                         </div>
                     )}
@@ -80,7 +80,7 @@ export default function ProfilePage() {
             </div>
 
             {/* User Info Section */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-t-0 rounded-b-xl px-8 pt-20 pb-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-t-0 rounded-b-xl px-4 sm:px-8 pt-16 sm:pt-20 pb-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-2">
@@ -122,29 +122,29 @@ export default function ProfilePage() {
             </div>
 
             {/* Stats + Content Layout */}
-            <div className="flex gap-8 mt-8">
+            <div className="flex flex-col lg:flex-row gap-4 sm:gap-8 mt-4 sm:mt-8">
                 {/* Left: Stats + Tabs */}
                 <div className="flex-1 min-w-0 space-y-6">
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Reputation</p>
-                                    <p className="text-3xl font-black text-slate-900 dark:text-white">
+                                    <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
                                         {(user.reputationPoints || 0) >= 1000
                                             ? `${((user.reputationPoints || 0) / 1000).toFixed(1)}k`
                                             : (user.reputationPoints || 0).toLocaleString()}
                                     </p>
                                 </div>
-                                <span className="material-symbols-outlined text-amber-500 text-2xl">emoji_events</span>
+                                <span className="material-symbols-outlined text-amber-500 text-xl sm:text-2xl">emoji_events</span>
                             </div>
                         </div>
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Questions</p>
-                                    <p className="text-3xl font-black text-slate-900 dark:text-white">{questionCount}</p>
+                                    <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{questionCount}</p>
                                 </div>
                                 <span className="material-symbols-outlined text-[var(--primary)] text-2xl">help_center</span>
                             </div>
@@ -153,16 +153,16 @@ export default function ProfilePage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Answers</p>
-                                    <p className="text-3xl font-black text-slate-900 dark:text-white">{answerCount}</p>
+                                    <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{answerCount}</p>
                                 </div>
-                                <span className="material-symbols-outlined text-indigo-500 text-2xl">forum</span>
+                                <span className="material-symbols-outlined text-indigo-500 text-xl sm:text-2xl">forum</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Tabs */}
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                        <div className="flex border-b border-slate-200 dark:border-slate-800">
+                        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.key}

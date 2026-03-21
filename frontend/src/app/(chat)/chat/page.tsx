@@ -41,6 +41,7 @@ function ChatContent() {
     const [lightboxMedia, setLightboxMedia] = useState<{ url: string; type: 'image' | 'video'; fileName?: string }>({ url: '', type: 'image' });
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
     const [showInfoPanel, setShowInfoPanel] = useState(false);
+    const [mobileView, setMobileView] = useState<'list' | 'conversation'>('list');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -49,8 +50,6 @@ function ChatContent() {
 
     useEffect(() => { selectedConvRef.current = selectedConversation; }, [selectedConversation]);
     useEffect(() => { userRef.current = user; }, [user]);
-
-    // ── Data fetching ──
 
     const fetchConversations = useCallback(async () => {
         try {
@@ -67,8 +66,6 @@ function ChatContent() {
             await chatApi.markAsRead(convId);
         } catch (err) { console.error('Failed to fetch messages:', err); }
     }, []);
-
-    // ── Chat hub events ──
 
     useEffect(() => {
         if (chatHub.connectionState !== HubConnectionState.Connected) return;
@@ -120,9 +117,7 @@ function ChatContent() {
             ));
         };
 
-        const onNewMessageNotification = () => {
-            fetchConversations();
-        };
+        const onNewMessageNotification = () => { fetchConversations(); };
 
         const onMessageEdited = (data: { messageId: number | string; newContent: string; editedAt: string }) => {
             const msgId = Number(data.messageId);
@@ -166,8 +161,6 @@ function ChatContent() {
         };
     }, [chatHub.connectionState, fetchConversations]);
 
-    // ── Reconnect sync: fetch delta messages for open conversation ──
-
     useEffect(() => {
         const handleReconnect = () => {
             const convId = selectedConvRef.current;
@@ -183,8 +176,6 @@ function ChatContent() {
         return () => { chatHub.offReconnected(handleReconnect); };
     }, [chatHub, messages, fetchConversations]);
 
-    // ── Presence hub events ──
-
     const presenceHubRef = useRef(presenceHub);
     presenceHubRef.current = presenceHub;
 
@@ -195,24 +186,21 @@ function ChatContent() {
         const checkAllParticipants = async () => {
             const friendsList = await presenceHub.invoke('GetOnlineFriends') as string[];
             const onlineSet = new Set<string>(friendsList);
-
             const participantIds = new Set<string>();
             for (const conv of conversations) {
                 for (const p of conv.participants) {
                     if (p.userId !== user?.userId) participantIds.add(String(p.userId));
                 }
             }
-
             const checks = Array.from(participantIds)
                 .filter(id => !onlineSet.has(id))
                 .map(async (id) => {
                     try {
                         const isOnline = await presenceHub.invoke('IsUserOnline', id) as boolean;
                         if (isOnline) onlineSet.add(id);
-                    } catch { /* ignore individual failures */ }
+                    } catch { /* ignore */ }
                 });
             await Promise.all(checks);
-
             if (!aborted) setOnlineUsers(onlineSet);
         };
 
@@ -242,7 +230,6 @@ function ChatContent() {
             try {
                 const friendsList = await presenceHubRef.current.invoke('GetOnlineFriends') as string[];
                 const onlineSet = new Set<string>(friendsList);
-
                 const participantIds = new Set<string>();
                 for (const conv of conversationsRef.current) {
                     for (const p of conv.participants) {
@@ -271,8 +258,6 @@ function ChatContent() {
     const webrtcRef = useRef(webrtc);
     useEffect(() => { webrtcRef.current = webrtc; });
 
-    // ── Call hub events ──
-
     useEffect(() => {
         if (callHub.connectionState !== HubConnectionState.Connected) return;
 
@@ -283,43 +268,28 @@ function ChatContent() {
         const onIncomingCall = (data: { callerId: string; callerName: string; callType: string }) => {
             webrtcRef.current.handleIncomingCall(data.callerId, data.callerName, data.callType as CallType);
         };
-
         const onCallAccepted = () => {
             webrtcRef.current.handleCallAccepted((peerId: string, sdp: string) => {
                 callHub.invoke('SendOffer', peerId, sdp).catch(console.error);
             });
         };
-
-        const onCallRejected = () => {
-            webrtcRef.current.handleCallRejected();
-        };
-
+        const onCallRejected = () => { webrtcRef.current.handleCallRejected(); };
         const onCallEnded = () => {
             const info = webrtcRef.current.callInfo;
             const state = webrtcRef.current.callState;
             const convId = selectedConvRef.current;
             if (state === 'incoming' && convId && userRef.current) {
-                chatApi.logCallEvent(convId, {
-                    callEventType: 'missed',
-                    callType: info?.callType ?? 'audio',
-                }).then(() => fetchMessages(convId)).catch(console.error);
+                chatApi.logCallEvent(convId, { callEventType: 'missed', callType: info?.callType ?? 'audio' }).then(() => fetchMessages(convId)).catch(console.error);
             }
             webrtcRef.current.handleCallEnded();
         };
-
         const onReceiveOffer = (data: { callerId: string; sdp: string }) => {
             webrtcRef.current.handleReceiveOffer(data.callerId, data.sdp, (peerId: string, sdp: string) => {
                 callHub.invoke('SendAnswer', peerId, sdp).catch(console.error);
             });
         };
-
-        const onReceiveAnswer = (data: { answererId: string; sdp: string }) => {
-            webrtcRef.current.handleReceiveAnswer(data.sdp);
-        };
-
-        const onReceiveIceCandidate = (data: { senderId: string; candidate: string }) => {
-            webrtcRef.current.handleReceiveIceCandidate(data.candidate);
-        };
+        const onReceiveAnswer = (data: { answererId: string; sdp: string }) => { webrtcRef.current.handleReceiveAnswer(data.sdp); };
+        const onReceiveIceCandidate = (data: { senderId: string; candidate: string }) => { webrtcRef.current.handleReceiveIceCandidate(data.candidate); };
 
         callHub.on('IncomingCall', onIncomingCall);
         callHub.on('CallAccepted', onCallAccepted);
@@ -328,7 +298,6 @@ function ChatContent() {
         callHub.on('ReceiveOffer', onReceiveOffer);
         callHub.on('ReceiveAnswer', onReceiveAnswer);
         callHub.on('ReceiveIceCandidate', onReceiveIceCandidate);
-
         return () => {
             callHub.off('IncomingCall', onIncomingCall);
             callHub.off('CallAccepted', onCallAccepted);
@@ -345,7 +314,6 @@ function ChatContent() {
         const peerId = String(otherParticipant.userId);
         const peerName = otherParticipant.displayName || otherParticipant.username;
         const callerName = user?.displayName || user?.username || 'User';
-
         await webrtc.startCall(peerId, peerName, type);
         callHub.invoke('InitiateCall', peerId, type, callerName).catch(console.error);
     }, [otherParticipant, callHub.connectionState, user, webrtc]);
@@ -358,11 +326,7 @@ function ChatContent() {
 
     const logCallEvent = useCallback((eventType: string, callType?: string, durationSeconds?: number) => {
         if (!selectedConversation || !user) return;
-        chatApi.logCallEvent(selectedConversation, {
-            callEventType: eventType,
-            callType: callType ?? 'audio',
-            durationSeconds,
-        }).then(() => fetchMessages(selectedConversation)).catch(console.error);
+        chatApi.logCallEvent(selectedConversation, { callEventType: eventType, callType: callType ?? 'audio', durationSeconds }).then(() => fetchMessages(selectedConversation)).catch(console.error);
     }, [selectedConversation, user, fetchMessages]);
 
     const handleRejectCall = useCallback(() => {
@@ -381,16 +345,11 @@ function ChatContent() {
         webrtc.endCall();
     }, [webrtc, callHub.connectionState, logCallEvent]);
 
-
-    // ── Join / leave conversation ──
-
     useEffect(() => {
         if (chatHub.connectionState !== HubConnectionState.Connected || !selectedConversation) return;
         chatHub.invoke('JoinConversation', selectedConversation).catch(console.error);
         return () => { chatHub.invoke('LeaveConversation', selectedConversation).catch(() => {}); };
     }, [selectedConversation, chatHub.connectionState]);
-
-    // ── Auth guard & init ──
 
     useEffect(() => {
         if (!authLoading && !user) router.push('/auth?mode=login');
@@ -399,8 +358,6 @@ function ChatContent() {
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-    // ── Callbacks for child components ──
-
     const selectConversation = (id: number) => { setSelectedConversation(id); setShowNewChat(false); fetchMessages(id); };
 
     const handleSendMessage = async (content: string) => {
@@ -408,7 +365,6 @@ function ChatContent() {
         const replyToId = replyingTo ? String(replyingTo.messageId) : null;
         const replyInfo = replyingTo;
         const tempId = Date.now();
-
         const optimistic: RealtimeMessage = {
             messageId: tempId, conversationId: selectedConversation, senderId: user.userId,
             senderUsername: user.username, content, sentDate: new Date().toISOString(),
@@ -417,7 +373,6 @@ function ChatContent() {
         };
         setMessages(prev => [...prev, optimistic]);
         setReplyingTo(null);
-
         try {
             if (chatHub.connectionState === HubConnectionState.Connected) {
                 await chatHub.invoke('SendMessage', selectedConversation, content, replyToId);
@@ -439,7 +394,6 @@ function ChatContent() {
         const replyToId = replyingTo ? String(replyingTo.messageId) : null;
         const replyInfo = replyingTo;
         const tempId = Date.now();
-
         const optimistic: RealtimeMessage = {
             messageId: tempId, conversationId: selectedConversation, senderId: user.userId,
             senderUsername: user.username, content: caption,
@@ -451,7 +405,6 @@ function ChatContent() {
         };
         setMessages(prev => [...prev, optimistic]);
         setReplyingTo(null);
-
         try {
             if (chatHub.connectionState === HubConnectionState.Connected) {
                 await chatHub.invoke('SendMediaMessage', selectedConversation, upload.messageType, upload.url, upload.fileName, upload.fileSize, caption || null, replyToId);
@@ -469,9 +422,7 @@ function ChatContent() {
         const numericId = Number(messageId);
         const msg = messages.find(m => m.messageId === numericId || Number(m.messageId) === numericId);
         const existing = msg?.reactions?.find(r => r.userId === user.userId);
-
         const messageIdStr = String(msg?.messageId ?? messageId);
-
         const prevMessages = messages;
         setMessages(prev =>
             prev.map(m => {
@@ -486,7 +437,6 @@ function ChatContent() {
                 return { ...m, reactions: updated };
             })
         );
-
         try {
             if (existing?.reactionType === reactionType) {
                 await chatHub.invoke('RemoveReaction', selectedConversation, messageIdStr);
@@ -511,6 +461,7 @@ function ChatContent() {
     const handleConversationCreated = (convId: number) => {
         setShowNewChat(false);
         setSelectedConversation(convId);
+        setMobileView('conversation');
         fetchMessages(convId);
         fetchConversations();
     };
@@ -530,12 +481,8 @@ function ChatContent() {
                 setSelectedConversation(null);
                 setMessages([]);
             }
-        } catch (err) {
-            console.error('Failed to delete conversation:', err);
-        }
+        } catch (err) { console.error('Failed to delete conversation:', err); }
     };
-
-    // ── Derived ──
 
     const connectionStatus: ConnectionStatus =
         chatHub.connectionState === HubConnectionState.Connected ? 'connected'
@@ -556,18 +503,23 @@ function ChatContent() {
 
     return (
         <>
-            <ModernNavbar />
-            <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-                <ConversationList
-                    conversations={conversations}
-                    selectedConversationId={selectedConversation}
-                    currentUser={user}
-                    onlineUsers={onlineUsers}
-                    connectionStatus={connectionStatus}
-                    onSelectConversation={selectConversation}
-                    onNewChat={() => { setShowNewChat(true); setSelectedConversation(null); }}
-                    onDeleteConversation={handleDeleteConversation}
-                />
+            <ModernNavbar onMobileMenuClick={undefined} />
+            <div className="flex h-[calc(100vh-56px)] sm:h-[calc(100vh-64px)] overflow-hidden">
+                {/* Conversation list - hidden on mobile when viewing a conversation */}
+                <div className={`${mobileView === 'conversation' ? 'hidden md:flex' : 'flex'} w-full md:w-80 flex-col shrink-0`}>
+                    <ConversationList
+                        conversations={conversations}
+                        selectedConversationId={selectedConversation}
+                        currentUser={user}
+                        onlineUsers={onlineUsers}
+                        connectionStatus={connectionStatus}
+                        onSelectConversation={(id) => { selectConversation(id); setMobileView('conversation'); }}
+                        onNewChat={() => { setShowNewChat(true); setSelectedConversation(null); }}
+                        onDeleteConversation={handleDeleteConversation}
+                    />
+                </div>
+
+                {/* Message view - full width on mobile */}
                 <div className="flex-1 flex flex-col">
                     {showNewChat ? (
                         <NewConversationModal
@@ -593,6 +545,8 @@ function ChatContent() {
                                         onVideoCall={() => initiateCall('video')}
                                         onInfoClick={() => setShowInfoPanel(prev => !prev)}
                                         messagesEndRef={messagesEndRef}
+                                        onBack={() => { setMobileView('list'); setSelectedConversation(null); }}
+                                        showBackButton={mobileView === 'conversation'}
                                     />
                                     <MessageInput
                                         replyingTo={replyingTo}
@@ -614,10 +568,10 @@ function ChatContent() {
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-slate-950">
-                            <span className="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700 mb-4">chat</span>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Select a conversation</h3>
-                            <p className="text-slate-500">Choose a conversation from the list or start a new one</p>
+                        <div className="flex-1 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-slate-950 p-6">
+                            <span className="material-symbols-outlined text-5xl sm:text-6xl text-slate-300 dark:text-slate-700 mb-3 sm:mb-4">chat</span>
+                            <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-2">Select a conversation</h3>
+                            <p className="text-slate-500 text-sm">Choose a conversation from the list or start a new one</p>
                         </div>
                     )}
                 </div>
@@ -631,8 +585,8 @@ function ChatContent() {
             />
             <ConfirmDialog
                 isOpen={deleteConfirmId !== null}
-                message="Bạn có chắc chắn muốn xóa đoạn chat này?"
-                confirmLabel="Xóa"
+                message="Ban co chan chan muon xoa doan chat nay?"
+                confirmLabel="Xoa"
                 onConfirm={confirmDeleteConversation}
                 onCancel={() => setDeleteConfirmId(null)}
             />

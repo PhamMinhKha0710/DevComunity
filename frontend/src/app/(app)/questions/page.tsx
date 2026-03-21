@@ -110,7 +110,7 @@ function QuestionsContent() {
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex border-b border-[var(--primary)]/10 gap-6 overflow-x-auto">
+            <div className="flex border-b border-[var(--primary)]/10 gap-4 sm:gap-6 overflow-x-auto">
                 {sortTabs.map((tab) => (
                     <button
                         key={tab.key}

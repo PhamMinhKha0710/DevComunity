@@ -68,6 +68,7 @@ export default function GroupsPage() {
         mutationFn: (groupId: number) => groupsApi.join(groupId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['groups'] });
+            queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
         },
     });
 
@@ -108,7 +109,7 @@ export default function GroupsPage() {
                 <div className="xl:col-span-8">
                     {/* Hero */}
                     <div className="mb-6">
-                        <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Communities</h1>
+                        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Communities</h1>
                         <p className="text-slate-500 dark:text-slate-400 text-base">
                             Connect with tech enthusiasts, share knowledge, and grow your professional network in specialized tech groups.
                         </p>
@@ -138,12 +139,12 @@ export default function GroupsPage() {
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex border-b border-slate-200 dark:border-slate-800 mb-8">
+                    <div className="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
-                                className={`px-6 py-3 text-sm font-bold transition-colors border-b-2 ${activeTab === tab.key
+                                className={`px-4 sm:px-6 py-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.key
                                     ? 'text-[var(--primary)] border-[var(--primary)]'
                                     : 'text-slate-500 border-transparent hover:text-[var(--primary)]'
                                     }`}

@@ -13,8 +13,11 @@ interface Tag {
     questionCount: number;
 }
 
-interface TagsResponse {
+interface TagsListResponse {
     items?: Tag[];
+    totalCount?: number;
+    page?: number;
+    pageSize?: number;
 }
 
 const TAG_ICONS: Record<string, string> = {
@@ -58,34 +61,30 @@ const formatCount = (count: number): string => {
 
 export default function TagsPage() {
     const [search, setSearch] = useState('');
-    const [sortBy, setSortBy] = useState('popular');
+    const [sortBy, setSortBy] = useState<'popular' | 'name'>('popular');
     const [page, setPage] = useState(1);
     const perPage = 12;
 
     const { data: tagsData, isLoading } = useQuery({
-        queryKey: ['tags'],
-        queryFn: () => tagsApi.list(),
+        queryKey: ['tags', page, perPage, search, sortBy],
+        queryFn: () =>
+            tagsApi.list({
+                page,
+                pageSize: perPage,
+                search: search.trim() || undefined,
+                sortBy,
+            }),
     });
 
-    const tags: Tag[] = (() => {
-        const data = tagsData;
-        if (Array.isArray(data)) return data;
-        if (data && 'items' in data) return data.items || [];
-        return [];
-    })();
-
-    const filteredTags = Array.isArray(tags)
-        ? tags.filter(tag => tag.tagName.toLowerCase().includes(search.toLowerCase()))
-        : [];
-
-    const sortedTags = [...filteredTags].sort((a, b) => {
-        if (sortBy === 'popular') return b.questionCount - a.questionCount;
-        if (sortBy === 'name') return a.tagName.localeCompare(b.tagName);
-        return 0;
-    });
-
-    const totalPages = Math.ceil(sortedTags.length / perPage);
-    const paginatedTags = sortedTags.slice((page - 1) * perPage, page * perPage);
+    const listPayload = tagsData as TagsListResponse | Tag[] | undefined;
+    const tags: Tag[] = Array.isArray(listPayload)
+        ? listPayload
+        : listPayload?.items ?? [];
+    const totalCount =
+        !Array.isArray(listPayload) && typeof listPayload?.totalCount === 'number'
+            ? listPayload.totalCount
+            : tags.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
 
     const getPageNumbers = () => {
         const pages: (number | '...')[] = [];
@@ -105,7 +104,7 @@ export default function TagsPage() {
         <AppLayout showRightSidebar={false}>
             {/* Title & Description */}
             <div className="mb-10">
-                <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Tags</h2>
+                <h2 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Tags</h2>
                 <p className="text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
                     A tag is a keyword or label that categorizes your question with other, similar questions.
                     Using the right tags makes it easier for others to find and answer your question.
@@ -125,7 +124,11 @@ export default function TagsPage() {
                     />
                 </div>
                 <button
-                    onClick={() => setSortBy(sortBy === 'popular' ? 'name' : 'popular')}
+                    type="button"
+                    onClick={() => {
+                        setSortBy((s) => (s === 'popular' ? 'name' : 'popular'));
+                        setPage(1);
+                    }}
                     className="flex items-center gap-2 px-6 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
                 >
                     <span className="material-symbols-outlined text-[20px]">sort</span>
@@ -138,7 +141,7 @@ export default function TagsPage() {
                 <div className="flex items-center justify-center py-16">
                     <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
                 </div>
-            ) : paginatedTags.length === 0 ? (
+            ) : tags.length === 0 ? (
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center">
                     <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">sell</span>
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No tags found</h3>
@@ -146,7 +149,7 @@ export default function TagsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {paginatedTags.map((tag) => (
+                    {tags.map((tag) => (
                         <Link
                             key={tag.tagId}
                             href={`/questions?tag=${tag.tagName}`}
@@ -172,9 +175,15 @@ export default function TagsPage() {
                 </div>
             )}
 
+            {totalCount > 0 && tags.length > 0 && (
+                <p className="mt-8 text-center text-sm text-slate-500">
+                    Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, totalCount)} of {totalCount} tags
+                </p>
+            )}
+
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="mt-12 flex justify-center">
+                <div className="mt-4 flex justify-center">
                     <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                         <button
                             onClick={() => setPage(p => Math.max(1, p - 1))}

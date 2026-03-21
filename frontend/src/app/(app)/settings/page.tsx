@@ -154,7 +154,7 @@ export default function SettingsPage() {
                 <p className="text-[var(--text-muted)]">Manage your account and preferences</p>
             </div>
 
-            <div className="grid lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Sidebar */}
                 <div className="lg:col-span-1">
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden">

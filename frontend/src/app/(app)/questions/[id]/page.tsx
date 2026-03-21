@@ -479,7 +479,7 @@ export default function QuestionDetailPage() {
             )}
 
             {/* Action bar */}
-            <div className="flex items-center border-t border-b border-[var(--border-color)] py-1 mb-4">
+            <div className="flex flex-wrap sm:flex-nowrap items-center border-t border-b border-[var(--border-color)] py-1 mb-4">
               <button
                 onClick={() => handleLike("question", question.questionId)}
                 disabled={!!user && user.userId === question.authorId}
@@ -514,7 +514,7 @@ export default function QuestionDetailPage() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <Link href="/questions" className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm font-medium transition">
                 Tất cả câu hỏi
               </Link>

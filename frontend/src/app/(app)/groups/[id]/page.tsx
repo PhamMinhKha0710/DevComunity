@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import apiClient from '@/lib/api/client';
@@ -40,8 +41,11 @@ interface Post {
 }
 
 export default function GroupDetailPage() {
-    const { id } = useParams();
-    const { isAuthenticated, user } = useAuth();
+    const params = useParams();
+    const rawId = params?.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+    const { isAuthenticated, user, isLoading: authLoading } = useAuth();
+    const queryClient = useQueryClient();
     const [group, setGroup] = useState<Group | null>(null);
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -49,33 +53,65 @@ export default function GroupDetailPage() {
     const [newPostContent, setNewPostContent] = useState('');
     const [posting, setPosting] = useState(false);
     const [joinError, setJoinError] = useState<string | null>(null);
+    const membershipCheckRef = useRef<AbortController | null>(null);
+    const membershipCheckVersion = useRef(0);
+    const prevAuthLoading = useRef(true);
 
     useEffect(() => {
-        fetchGroupDetails();
+        if (id === undefined || id === '') return;
+        void fetchGroup();
     }, [id]);
+
+    useEffect(() => {
+        if (id === undefined || id === '') return;
+        if (!isAuthenticated || authLoading) return;
+        void fetchGroupPosts();
+    }, [id, isAuthenticated, authLoading]);
 
     useEffect(() => {
         if (isAuthenticated && group) {
             checkMembership();
         }
-    }, [isAuthenticated, group]);
+    }, [isAuthenticated, group?.groupId]);
 
-    const fetchGroupDetails = async () => {
+    useEffect(() => {
+        if (!group || !user) return;
+        if (group.creator.userId === user.userId) {
+            setIsMember(true);
+        }
+    }, [group, user]);
+
+    useEffect(() => {
+        if (prevAuthLoading.current && !authLoading && isAuthenticated) {
+            prevAuthLoading.current = false;
+            void fetchGroup();
+        } else if (!authLoading) {
+            prevAuthLoading.current = false;
+        }
+    }, [authLoading, isAuthenticated]);
+
+    const fetchGroup = async () => {
         try {
-            const [groupRes, postsRes] = await Promise.all([
-                apiClient.get<Group>(`/Groups/${id}`),
-                apiClient.get<{ items: Post[] }>(`/Newsfeed/groups/${id}`)
-            ]);
+            const groupRes = await apiClient.get<Group>(`/Groups/${id}`);
             const groupData = groupRes.data;
             setGroup(groupData);
-            setPosts(postsRes.data.items || []);
-            const fromApi = groupData.isMember === true;
             const isCreator = user && groupData.creator.userId === user.userId;
+            const fromApi = groupData.isMember === true;
             setIsMember(fromApi || !!isCreator);
         } catch (error) {
-            console.error('Error fetching group details:', error);
+            console.error('Error fetching group:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchGroupPosts = async () => {
+        try {
+            const postsRes = await apiClient.get<{ items: Post[] }>(`/Newsfeed/groups/${id}`);
+            setPosts(postsRes.data.items || []);
+        } catch (error) {
+            console.error('Error fetching group posts:', error);
+            setPosts([]);
         }
     };
 
@@ -85,46 +121,75 @@ export default function GroupDetailPage() {
             setIsMember(true);
             return;
         }
+
+        if (membershipCheckRef.current) {
+            membershipCheckRef.current.abort();
+        }
+        const controller = new AbortController();
+        membershipCheckRef.current = controller;
+        const version = ++membershipCheckVersion.current;
+
         try {
-            const response = await apiClient.get<boolean>(`/Groups/${id}/isMember`);
+            const response = await apiClient.get<boolean>(`/Groups/${id}/isMember`, {
+                signal: controller.signal,
+            });
+            if (version !== membershipCheckVersion.current) return;
             setIsMember(response.data);
         } catch (error) {
+            if ((error as { name?: string }).name === 'CanceledError') return;
             try {
-                const myGroupsRes = await apiClient.get<{ items: Group[] }>('/Groups/my');
-                const myGroups = myGroupsRes.data.items || [];
+                const myGroupsRes = await apiClient.get<Group[] | { items: Group[] }>('/Groups/my');
+                if (version !== membershipCheckVersion.current) return;
+                const data = myGroupsRes.data;
+                const myGroups = Array.isArray(data) ? data : (data?.items ?? []);
                 setIsMember(myGroups.some(g => g.groupId === Number(id)));
             } catch (e) {
-                if (group.isMember !== undefined) setIsMember(group.isMember);
+                if (version !== membershipCheckVersion.current) return;
+                if (group.isMember === true) setIsMember(true);
             }
         }
     };
 
     const handleJoinLeave = async () => {
-        if (!group || !user) return;
-        if (group.creator.userId === user.userId) {
+        if (!group) return;
+        if (user && group.creator.userId === user.userId) {
             setIsMember(true);
             return;
         }
         setJoinError(null);
+
+        if (membershipCheckRef.current) {
+            membershipCheckRef.current.abort();
+        }
+        ++membershipCheckVersion.current;
+
         try {
             if (isMember) {
                 await apiClient.post(`/Groups/${id}/leave`);
                 setIsMember(false);
-                setGroup(prev => prev ? { ...prev, memberCount: prev.memberCount - 1 } : null);
+                setGroup(prev =>
+                    prev
+                        ? { ...prev, memberCount: Math.max(0, prev.memberCount - 1), isMember: false }
+                        : null
+                );
+                await queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
             } else {
                 await apiClient.post(`/Groups/${id}/join`);
                 setIsMember(true);
-                setGroup(prev => prev ? { ...prev, memberCount: prev.memberCount + 1 } : null);
+                setGroup(prev =>
+                    prev
+                        ? { ...prev, memberCount: prev.memberCount + 1, isMember: true }
+                        : null
+                );
+                await queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
             }
         } catch (error: unknown) {
             const err = error as { response?: { data?: { message?: string } } };
             const message = err.response?.data?.message || 'Failed to change membership';
             setJoinError(message);
-            // Refetch membership to sync state with server
             try {
                 await checkMembership();
             } catch (e) {
-                // ignore
             }
         }
     };
@@ -141,6 +206,7 @@ export default function GroupDetailPage() {
             });
             setPosts([response.data, ...posts]);
             setNewPostContent('');
+            await queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
         } catch (error) {
             console.error('Error creating post:', error);
         } finally {
@@ -175,17 +241,17 @@ export default function GroupDetailPage() {
         <AppLayout>
             {/* Header / Hero */}
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden mb-6">
-                <div className="h-32 bg-[var(--bg-tertiary)] relative border-b border-[var(--border-color)]">
-                    <div className="absolute -bottom-12 left-8">
-                        <div className="w-24 h-24 bg-[var(--bg-secondary)] rounded-2xl p-2 shadow-sm border border-[var(--border-color)]">
-                            <div className="w-full h-full bg-[var(--primary)] rounded-xl flex items-center justify-center text-white text-3xl font-bold">
+                <div className="h-32 sm:h-40 bg-[var(--bg-tertiary)] relative border-b border-[var(--border-color)]">
+                    <div className="absolute -bottom-10 sm:-bottom-12 left-4 sm:left-8">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-[var(--bg-secondary)] rounded-2xl p-1.5 sm:p-2 shadow-sm border border-[var(--border-color)]">
+                            <div className="w-full h-full bg-[var(--primary)] rounded-xl flex items-center justify-center text-white text-2xl sm:text-3xl font-bold">
                                 {authorInitial(group.name)}
                             </div>
                         </div>
                     </div>
                 </div>
-                <div className="pt-16 pb-6 px-8">
-                    <div className="flex justify-between items-start">
+                <div className="pt-14 sm:pt-16 pb-6 px-4 sm:px-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                         <div>
                             <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2 flex items-center gap-2">
                                 {group.name}

@@ -75,7 +75,7 @@ export default function SavedItemsPage() {
         <AppLayout showRightSidebar={false}>
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
                     <span className="material-symbols-outlined text-[var(--primary)]">bookmark</span>
                     Saved Items
                 </h1>
@@ -83,7 +83,7 @@ export default function SavedItemsPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
                 <button
                     onClick={() => setFilter('all')}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition ${filter === 'all'

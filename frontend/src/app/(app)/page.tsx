@@ -88,7 +88,7 @@ export default function HomePage() {
     <AppLayout>
       {/* Welcome Section */}
       <div>
-        <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Welcome back, {user?.displayName || user?.username || 'Developer'}!
         </h2>
         <p className="text-slate-500 mt-1">Here is what&apos;s happening in your network today.</p>
@@ -156,9 +156,17 @@ export default function HomePage() {
                   <div className="flex-1">
                     {/* Author */}
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold">
-                        {authorInitial(question.authorUsername)}
-                      </div>
+                      {question.authorProfilePicture ? (
+                        <img
+                          src={question.authorProfilePicture}
+                          alt={question.authorUsername || ''}
+                          className="w-6 h-6 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold">
+                          {authorInitial(question.authorUsername)}
+                        </div>
+                      )}
                       <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         {question.authorUsername || 'Anonymous'}
                       </span>
