@@ -24,7 +24,9 @@ public class NotificationCreatedConsumer : IConsumer<NotificationCreatedEvent>
     public async Task Consume(ConsumeContext<NotificationCreatedEvent> context)
     {
         var evt = context.Message;
-        _logger.LogInformation("Processing notification event for User {ReceiverId}", evt.ReceiverId);
+        _logger.LogInformation(
+            "NotificationCreatedConsumer: Received NotificationCreatedEvent. ReceiverId={ReceiverId}, ActorId={ActorId}, Type={Type}",
+            evt.ReceiverId, evt.ActorId, evt.Type);
 
         using var scope = _serviceProvider.CreateScope();
         var notificationRepo = scope.ServiceProvider.GetRequiredService<INotificationRepository>();

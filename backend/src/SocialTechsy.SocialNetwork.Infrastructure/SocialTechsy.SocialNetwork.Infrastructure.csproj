@@ -35,4 +35,8 @@
     <ProjectReference Include="..\SocialTechsy.SocialNetwork.Domain\SocialTechsy.SocialNetwork.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
 </Project>
