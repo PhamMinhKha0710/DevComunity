@@ -24,8 +24,9 @@ export const authApi = {
         apiClient.post('/auth/change-password', data).then(r => r.data),
 
     externalLogin: (provider: 'google' | 'github' | 'facebook') => {
-        // Redirect to backend OAuth endpoint
-        window.location.href = `/api/auth/external-login/${provider}`;
+        // Redirect directly to backend to keep OAuth correlation cookies on same domain
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5122';
+        window.location.href = `${apiUrl}/api/ExternalAuth/login/${provider}`;
         return Promise.resolve({ success: true, message: 'Redirecting...' });
     },
 

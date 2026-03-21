@@ -52,11 +52,18 @@ class SignalRConnectionManager {
         const connection = new signalR.HubConnectionBuilder()
             .withUrl(`${API_BASE_URL}/hubs/${hubName}`, {
                 accessTokenFactory: () => localStorage.getItem('accessToken') || '',
-                skipNegotiation: true,
-                transport: signalR.HttpTransportType.WebSockets,
             })
-            .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+            .withAutomaticReconnect({
+                nextRetryDelayInMilliseconds: retryContext => {
+                    // Exponential backoff: 0, 2, 5, 10, 30 seconds
+                    if (retryContext.previousRetryCount < 4) {
+                        return [0, 2000, 5000, 10000, 30000][retryContext.previousRetryCount];
+                    }
+                    return 30000;
+                }
+            })
             .configureLogging(isDev ? signalR.LogLevel.Information : signalR.LogLevel.Warning)
+            .withStatefulReconnect()
             .build();
 
         this.connections.set(hubName, { connection, refCount: 1 });
@@ -68,6 +75,7 @@ class SignalRConnectionManager {
 
         connection.onreconnected(() => {
             console.log(`[SignalR] ${hubName} reconnected`);
+            this.replayPendingHandlers(hubName, connection);
             this.notifyStateChange(hubName, signalR.HubConnectionState.Connected);
             this.reconnectCallbacks.get(hubName)?.forEach(cb => cb());
         });
@@ -78,6 +86,7 @@ class SignalRConnectionManager {
         });
 
         await connection.start();
+        this.replayPendingHandlers(hubName, connection);
         console.log(`[SignalR] ${hubName} connected`);
         this.notifyStateChange(hubName, signalR.HubConnectionState.Connected);
         return connection;
@@ -121,16 +130,28 @@ class SignalRConnectionManager {
         this.reconnectCallbacks.get(hubName)?.delete(callback);
     }
 
-    on(hubName: HubName, event: string, handler: (...args: unknown[]) => void): void {
-        const conn = this.getConnection(hubName);
-        if (conn) {
-            conn.on(event, handler);
+    private replayPendingHandlers(hubName: HubName, connection: signalR.HubConnection): void {
+        for (const [key, handlers] of this.eventListeners.entries()) {
+            if (!key.startsWith(`${hubName}:`)) continue;
+            const event = key.substring(hubName.length + 1);
+            handlers.forEach(handler => {
+                connection.off(event, handler);
+                connection.on(event, handler);
+            });
         }
+    }
+
+    on(hubName: HubName, event: string, handler: (...args: unknown[]) => void): void {
         const key = `${hubName}:${event}`;
         if (!this.eventListeners.has(key)) {
             this.eventListeners.set(key, new Set());
         }
         this.eventListeners.get(key)!.add(handler);
+
+        const conn = this.getConnection(hubName);
+        if (conn) {
+            conn.on(event, handler);
+        }
     }
 
     off(hubName: HubName, event: string, handler: (...args: unknown[]) => void): void {
