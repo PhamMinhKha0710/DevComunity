@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 
@@ -11,9 +12,11 @@ using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
 {
     [DbContext(typeof(SocialTechsySocialNetworkDbContext))]
-    partial class SocialTechsySocialNetworkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260324160646_AddVisibilityToPosts")]
+    partial class AddVisibilityToPosts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -168,7 +171,8 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
 
                     b.Property<string>("Body")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(600)
+                        .HasColumnType("nvarchar(600)");
 
                     b.Property<DateTime>("CreatedDate")
                         .ValueGeneratedOnAdd()
@@ -193,10 +197,6 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                     b.HasIndex("QuestionId");
 
                     b.HasIndex("UserId");
-
-                    b.HasIndex("PostId", "CreatedDate")
-                        .IsDescending(false, true)
-                        .HasDatabaseName("IX_Comments_PostId_CreatedDate");
 
                     b.ToTable("Comments", (string)null);
                 });
@@ -261,56 +261,6 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("ConversationParticipants", (string)null);
-                });
-
-            modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.EmailOutbox", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("HtmlBody")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("NextRetryAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PlainTextBody")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("RetryCount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TemplateType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("To")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("EmailOutbox");
                 });
 
             modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Friendship", b =>
@@ -1039,10 +989,6 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                     b.HasKey("TagPreferenceId");
 
                     b.HasIndex("TagId");
-
-                    b.HasIndex("UserId", "IsFollowed")
-                        .HasDatabaseName("IX_TagPreferences_UserId_IsFollowed")
-                        .HasFilter("[IsFollowed] = 1");
 
                     b.HasIndex("UserId", "TagId")
                         .IsUnique();

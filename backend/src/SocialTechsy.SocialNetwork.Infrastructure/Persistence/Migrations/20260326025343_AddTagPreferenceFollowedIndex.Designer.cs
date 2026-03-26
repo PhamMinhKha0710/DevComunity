@@ -9,11 +9,11 @@ using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 
 #nullable disable
 
-namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
+namespace SocialTechsy.SocialNetwork.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SocialTechsySocialNetworkDbContext))]
-    [Migration("20260317095108_AddOutboxMessagesTable")]
-    partial class AddOutboxMessagesTable
+    [Migration("20260326025343_AddTagPreferenceFollowedIndex")]
+    partial class AddTagPreferenceFollowedIndex
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -171,13 +171,15 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
 
                     b.Property<string>("Body")
                         .IsRequired()
-                        .HasMaxLength(600)
-                        .HasColumnType("nvarchar(600)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int?>("PostId")
+                        .HasColumnType("int");
 
                     b.Property<int?>("QuestionId")
                         .HasColumnType("int");
@@ -189,9 +191,15 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
 
                     b.HasIndex("AnswerId");
 
+                    b.HasIndex("PostId");
+
                     b.HasIndex("QuestionId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("PostId", "CreatedDate")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("IX_Comments_PostId_CreatedDate");
 
                     b.ToTable("Comments", (string)null);
                 });
@@ -256,6 +264,56 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("ConversationParticipants", (string)null);
+                });
+
+            modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.EmailOutbox", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HtmlBody")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("NextRetryAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PlainTextBody")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TemplateType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("To")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EmailOutbox");
                 });
 
             modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Friendship", b =>
@@ -667,8 +725,15 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                     b.Property<int?>("GroupId")
                         .HasColumnType("int");
 
+                    b.Property<string>("MediaUrls")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Visibility")
+                        .HasColumnType("int");
 
                     b.HasKey("PostId");
 
@@ -881,6 +946,9 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
+                    b.Property<int?>("PostId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("QuestionId")
                         .HasColumnType("int");
 
@@ -891,10 +959,15 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
 
                     b.HasIndex("AnswerId");
 
+                    b.HasIndex("PostId");
+
                     b.HasIndex("QuestionId");
 
                     b.HasIndex("UserId", "AnswerId")
                         .HasFilter("[AnswerId] IS NOT NULL");
+
+                    b.HasIndex("UserId", "PostId")
+                        .HasFilter("[PostId] IS NOT NULL");
 
                     b.HasIndex("UserId", "QuestionId")
                         .HasFilter("[QuestionId] IS NOT NULL");
@@ -969,6 +1042,10 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                     b.HasKey("TagPreferenceId");
 
                     b.HasIndex("TagId");
+
+                    b.HasIndex("UserId", "IsFollowed")
+                        .HasDatabaseName("IX_TagPreferences_UserId_IsFollowed")
+                        .HasFilter("[IsFollowed] = 1");
 
                     b.HasIndex("UserId", "TagId")
                         .IsUnique();
@@ -1197,6 +1274,11 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .HasForeignKey("AnswerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.Post", "Post")
+                        .WithMany("Comments")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.Question", "Question")
                         .WithMany("Comments")
                         .HasForeignKey("QuestionId")
@@ -1209,6 +1291,8 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Answer");
+
+                    b.Navigation("Post");
 
                     b.Navigation("Question");
 
@@ -1445,6 +1529,11 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .HasForeignKey("AnswerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.Post", "Post")
+                        .WithMany("SavedByUsers")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SocialTechsy.SocialNetwork.Domain.Entities.Question", "Question")
                         .WithMany()
                         .HasForeignKey("QuestionId")
@@ -1457,6 +1546,8 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Answer");
+
+                    b.Navigation("Post");
 
                     b.Navigation("Question");
 
@@ -1569,6 +1660,13 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
             modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Message", b =>
                 {
                     b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Post", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("SavedByUsers");
                 });
 
             modelBuilder.Entity("SocialTechsy.SocialNetwork.Domain.Entities.Question", b =>

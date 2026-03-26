@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 
 #nullable disable
 
-namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
+namespace SocialTechsy.SocialNetwork.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SocialTechsySocialNetworkDbContext))]
-    partial class SocialTechsySocialNetworkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260326025208_AddCommentCompositeIndex")]
+    partial class AddCommentCompositeIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1039,10 +1042,6 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Migrations
                     b.HasKey("TagPreferenceId");
 
                     b.HasIndex("TagId");
-
-                    b.HasIndex("UserId", "IsFollowed")
-                        .HasDatabaseName("IX_TagPreferences_UserId_IsFollowed")
-                        .HasFilter("[IsFollowed] = 1");
 
                     b.HasIndex("UserId", "TagId")
                         .IsUnique();
