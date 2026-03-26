@@ -38,11 +38,26 @@ public class RepositoriesController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 15,
+        [FromQuery] int? ownerId = null,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Getting repositories, search: {Search}", search);
+        _logger.LogInformation("Getting repositories, search: {Search}, ownerId: {OwnerId}", search, ownerId);
 
-        var result = await _mediator.Send(new GetRepositoriesQuery { Page = page, PageSize = pageSize, Search = search }, cancellationToken);
+        int? viewerUserId = null;
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            var uid = GetCurrentUserId();
+            if (uid > 0) viewerUserId = uid;
+        }
+
+        var result = await _mediator.Send(new GetRepositoriesQuery
+        {
+            Page = page,
+            PageSize = pageSize,
+            Search = search,
+            OwnerId = ownerId,
+            ViewerUserId = viewerUserId
+        }, cancellationToken);
         return Ok(result);
     }
 

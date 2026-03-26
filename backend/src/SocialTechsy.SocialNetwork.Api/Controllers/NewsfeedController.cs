@@ -40,10 +40,18 @@ public class NewsfeedController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
 
-        var result = await _mediator.Send(
-            new GetNewsfeedQuery { UserId = userId, Filter = filter, Page = page, PageSize = pageSize },
-            cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _mediator.Send(
+                new GetNewsfeedQuery { UserId = userId, Filter = filter, Page = page, PageSize = pageSize },
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load newsfeed for user {UserId} with filter {Filter}", userId, filter);
+            return StatusCode(500, new { message = "Failed to load newsfeed" });
+        }
     }
 
     [HttpGet("groups/{groupId:int}")]
