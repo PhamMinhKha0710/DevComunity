@@ -101,6 +101,48 @@ public class AuthController : ControllerBase
         return Ok(new { success = true, message = result.Message });
     }
 
+    [HttpPost("forgot-password/request-code")]
+    [ProducesResponseType(typeof(RequestForgotPasswordOtpResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<RequestForgotPasswordOtpResponse>> RequestForgotPasswordOtp(
+        [FromBody] RequestForgotPasswordOtpCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new RequestForgotPasswordOtpResponse
+            {
+                Success = false,
+                Message = "Please provide a valid email address."
+            });
+        }
+
+        _logger.LogInformation("Forgot password OTP requested for: {Email}", command.Email);
+
+        var result = await _mediator.Send(command, cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpPost("forgot-password/confirm")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthResponse>> ConfirmForgotPassword(
+        [FromBody] ConfirmForgotPasswordCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new AuthResponse { Success = false, Message = "Validation failed" });
+
+        _logger.LogInformation("Forgot password OTP confirm for: {Email}", command.Email);
+
+        var result = await _mediator.Send(command, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
     [HttpPost("reset-password")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -112,6 +154,46 @@ public class AuthController : ControllerBase
             return BadRequest(new AuthResponse { Success = false, Message = "Validation failed" });
 
         _logger.LogInformation("Password reset attempt");
+        var result = await _mediator.Send(command, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    [Authorize]
+    [HttpPost("request-password-change-code")]
+    [ProducesResponseType(typeof(RequestPasswordChangeCodeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<RequestPasswordChangeCodeResponse>> RequestPasswordChangeCode(CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+            return Unauthorized();
+
+        _logger.LogInformation("Password change code requested for user {UserId}", userId);
+        var result = await _mediator.Send(new RequestPasswordChangeCodeCommand { UserId = userId }, cancellationToken);
+
+        return Ok(result);
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<AuthResponse>> ChangePassword(
+        [FromBody] ChangePasswordCommand command,
+        CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+            return Unauthorized();
+
+        command.UserId = userId;
+
+        _logger.LogInformation("Password change attempt for user {UserId}", userId);
         var result = await _mediator.Send(command, cancellationToken);
 
         if (!result.Success)
