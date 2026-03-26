@@ -466,4 +466,3 @@ backend/tests/k6/results/
 .cursor/
 
 .gitnexus
-backend/src/SocialTechsy.SocialNetwork.Api/appsettings.json
