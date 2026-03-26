@@ -11,6 +11,13 @@ public interface IFriendshipRepository
     Task<Friendship?> GetByIdAsync(int friendshipId, CancellationToken cancellationToken = default);
     Task<Friendship?> GetFriendshipAsync(int requesterId, int addresseeId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Friendship>> GetFriendsAsync(int userId, CancellationToken cancellationToken = default);
+
+    Task<(IEnumerable<Friendship> Items, int TotalCount)> GetFriendsPagedAsync(
+        int userId,
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken cancellationToken = default);
     Task<IEnumerable<Friendship>> GetPendingRequestsAsync(int userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Friendship>> GetSentRequestsAsync(int userId, CancellationToken cancellationToken = default);
     Task<Friendship> AddAsync(Friendship friendship, CancellationToken cancellationToken = default);

@@ -56,9 +56,17 @@ public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionComman
                     var tag = await _tagRepository.GetOrCreateAsync(tagName!, ct);
                     var questionTag = new QuestionTag
                     {
-                        QuestionId = question.QuestionId,
-                        TagId = tag.TagId
+                        Question = question
                     };
+
+                    if (tag.TagId > 0)
+                    {
+                        questionTag.TagId = tag.TagId;
+                    }
+                    else
+                    {
+                        questionTag.Tag = tag;
+                    }
                     _questionRepository.AddQuestionTag(questionTag);
                 }
             }

@@ -135,3 +135,20 @@ public enum PostVisibility
     Following,
     Private
 }
+
+public enum EmailTemplateType
+{
+    PasswordReset,
+    EmailVerification,
+    AccountLocked,
+    Welcome,
+    PasswordChangeCode
+}
+
+public enum EmailOutboxStatus
+{
+    Pending,
+    Processing,
+    Sent,
+    Failed
+}

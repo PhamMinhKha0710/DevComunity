@@ -34,6 +34,7 @@ public class CreateGroupCommandHandler : IRequestHandler<CreateGroupCommand, Gro
             request.IsPrivate);
 
         var created = await _groupRepository.AddAsync(group, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var member = new GroupMember
         {

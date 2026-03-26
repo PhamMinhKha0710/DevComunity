@@ -1,11 +1,12 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Commands.Friendships;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Friendships;
 
@@ -14,17 +15,20 @@ public class SendFriendRequestCommandHandler : IRequestHandler<SendFriendRequest
     private readonly IFriendshipRepository _friendshipRepository;
     private readonly IUserRepository _userRepository;
     private readonly INotificationDispatcher _notificationDispatcher;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SendFriendRequestCommandHandler> _logger;
 
     public SendFriendRequestCommandHandler(
         IFriendshipRepository friendshipRepository,
         IUserRepository userRepository,
         INotificationDispatcher notificationDispatcher,
+        IUnitOfWork unitOfWork,
         ILogger<SendFriendRequestCommandHandler> logger)
     {
         _friendshipRepository = friendshipRepository;
         _userRepository = userRepository;
         _notificationDispatcher = notificationDispatcher;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -46,12 +50,15 @@ public class SendFriendRequestCommandHandler : IRequestHandler<SendFriendRequest
         var friendship = Friendship.Create(request.RequesterId, request.AddresseeId);
 
         var created = await _friendshipRepository.AddAsync(friendship, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} sent friend request to {TargetId}", request.RequesterId, request.AddresseeId);
 
+        var requesterUser = await _userRepository.GetByIdAsync(request.RequesterId, cancellationToken);
+
         try
         {
-            var requester = await _userRepository.GetByIdAsync(request.RequesterId, cancellationToken);
+            var requester = requesterUser;
             var notification = new Notification
             {
                 UserId = request.AddresseeId,
@@ -67,25 +74,25 @@ public class SendFriendRequestCommandHandler : IRequestHandler<SendFriendRequest
             _logger.LogError(ex, "Error sending friend request notification");
         }
 
-        return MapToDto(created);
+        return MapToDto(created, requesterUser!, targetUser);
     }
 
-    private static FriendshipDto MapToDto(Friendship f) => new()
+    private static FriendshipDto MapToDto(Friendship f, User requester, User addressee) => new()
     {
         FriendshipId = f.FriendshipId,
         Requester = new UserSummaryDto
         {
-            UserId = f.Requester.UserId,
-            Username = f.Requester.Username,
-            DisplayName = f.Requester.DisplayName,
-            ProfilePicture = f.Requester.ProfilePicture
+            UserId = requester.UserId,
+            Username = requester.Username,
+            DisplayName = requester.DisplayName,
+            ProfilePicture = requester.ProfilePicture
         },
         Addressee = new UserSummaryDto
         {
-            UserId = f.Addressee.UserId,
-            Username = f.Addressee.Username,
-            DisplayName = f.Addressee.DisplayName,
-            ProfilePicture = f.Addressee.ProfilePicture
+            UserId = addressee.UserId,
+            Username = addressee.Username,
+            DisplayName = addressee.DisplayName,
+            ProfilePicture = addressee.ProfilePicture
         },
         Status = f.Status.ToString(),
         CreatedAt = f.CreatedAt,
@@ -96,17 +103,20 @@ public class SendFriendRequestCommandHandler : IRequestHandler<SendFriendRequest
 public class AcceptFriendRequestCommandHandler : IRequestHandler<AcceptFriendRequestCommand, FriendshipDto>
 {
     private readonly IFriendshipRepository _friendshipRepository;
+    private readonly IUserRepository _userRepository;
     private readonly INotificationDispatcher _notificationDispatcher;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AcceptFriendRequestCommandHandler> _logger;
 
     public AcceptFriendRequestCommandHandler(
         IFriendshipRepository friendshipRepository,
+        IUserRepository userRepository,
         INotificationDispatcher notificationDispatcher,
         IUnitOfWork unitOfWork,
         ILogger<AcceptFriendRequestCommandHandler> logger)
     {
         _friendshipRepository = friendshipRepository;
+        _userRepository = userRepository;
         _notificationDispatcher = notificationDispatcher;
         _unitOfWork = unitOfWork;
         _logger = logger;

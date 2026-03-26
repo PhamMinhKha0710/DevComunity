@@ -55,11 +55,7 @@ public class GetNewsfeedQueryHandler : IRequestHandler<GetNewsfeedQuery, Paginat
         var postIds = list.Select(p => p.PostId).ToArray();
         var likeCounts = await _likeService.GetLikeCountsBatchAsync("post", postIds);
 
-        var commentCounts = new Dictionary<int, int>();
-        foreach (var pid in postIds)
-        {
-            commentCounts[pid] = await _commentRepository.GetCountByPostIdAsync(pid, cancellationToken);
-        }
+        var commentCounts = await _commentRepository.GetCountsByPostIdsAsync(postIds, cancellationToken);
 
         var result = new List<PostDto>(list.Count);
         foreach (var p in list)
@@ -77,13 +73,13 @@ public class GetNewsfeedQueryHandler : IRequestHandler<GetNewsfeedQuery, Paginat
     private static PostDto MapToDto(Domain.Entities.Post p) => new()
     {
         PostId = p.PostId,
-        Author = new UserSummaryDto
+        Author = p.Author != null ? new UserSummaryDto
         {
             UserId = p.Author.UserId,
             Username = p.Author.Username,
             DisplayName = p.Author.DisplayName,
             ProfilePicture = p.Author.ProfilePicture
-        },
+        } : null!,
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,
@@ -154,11 +150,7 @@ public class GetGroupPostsQueryHandler : IRequestHandler<GetGroupPostsQuery, Pag
         var postIds = list.Select(p => p.PostId).ToArray();
         var likeCounts = await _likeService.GetLikeCountsBatchAsync("post", postIds);
 
-        var commentCounts = new Dictionary<int, int>();
-        foreach (var pid in postIds)
-        {
-            commentCounts[pid] = await _commentRepository.GetCountByPostIdAsync(pid, cancellationToken);
-        }
+        var commentCounts = await _commentRepository.GetCountsByPostIdsAsync(postIds, cancellationToken);
 
         var result = new List<PostDto>(list.Count);
         foreach (var p in list)
@@ -176,13 +168,13 @@ public class GetGroupPostsQueryHandler : IRequestHandler<GetGroupPostsQuery, Pag
     private static PostDto MapToDto(Domain.Entities.Post p) => new()
     {
         PostId = p.PostId,
-        Author = new UserSummaryDto
+        Author = p.Author != null ? new UserSummaryDto
         {
             UserId = p.Author.UserId,
             Username = p.Author.Username,
             DisplayName = p.Author.DisplayName,
             ProfilePicture = p.Author.ProfilePicture
-        },
+        } : null!,
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,
@@ -240,11 +232,7 @@ public class GetUserPostsQueryHandler : IRequestHandler<GetUserPostsQuery, Pagin
         var postIds = list.Select(p => p.PostId).ToArray();
         var likeCounts = await _likeService.GetLikeCountsBatchAsync("post", postIds);
 
-        var commentCounts = new Dictionary<int, int>();
-        foreach (var pid in postIds)
-        {
-            commentCounts[pid] = await _commentRepository.GetCountByPostIdAsync(pid, cancellationToken);
-        }
+        var commentCounts = await _commentRepository.GetCountsByPostIdsAsync(postIds, cancellationToken);
 
         var result = new List<PostDto>(list.Count);
         foreach (var p in list)
@@ -262,13 +250,13 @@ public class GetUserPostsQueryHandler : IRequestHandler<GetUserPostsQuery, Pagin
     private static PostDto MapToDto(Domain.Entities.Post p) => new()
     {
         PostId = p.PostId,
-        Author = new UserSummaryDto
+        Author = p.Author != null ? new UserSummaryDto
         {
             UserId = p.Author.UserId,
             Username = p.Author.Username,
             DisplayName = p.Author.DisplayName,
             ProfilePicture = p.Author.ProfilePicture
-        },
+        } : null!,
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,
@@ -332,11 +320,7 @@ public class GetPostQueryHandler : IRequestHandler<GetPostQuery, PostDto?>
         var postIds = list.Select(p => p.PostId).ToArray();
         var likeCounts = await _likeService.GetLikeCountsBatchAsync("post", postIds);
 
-        var commentCounts = new Dictionary<int, int>();
-        foreach (var pid in postIds)
-        {
-            commentCounts[pid] = await _commentRepository.GetCountByPostIdAsync(pid, cancellationToken);
-        }
+        var commentCounts = await _commentRepository.GetCountsByPostIdsAsync(postIds, cancellationToken);
 
         var result = new List<PostDto>(list.Count);
         foreach (var p in list)
@@ -354,13 +338,13 @@ public class GetPostQueryHandler : IRequestHandler<GetPostQuery, PostDto?>
     private static PostDto MapToDto(Domain.Entities.Post p) => new()
     {
         PostId = p.PostId,
-        Author = new UserSummaryDto
+        Author = p.Author != null ? new UserSummaryDto
         {
             UserId = p.Author.UserId,
             Username = p.Author.Username,
             DisplayName = p.Author.DisplayName,
             ProfilePicture = p.Author.ProfilePicture
-        },
+        } : null!,
         GroupId = p.GroupId,
         GroupName = p.Group?.Name,
         Content = p.Content,

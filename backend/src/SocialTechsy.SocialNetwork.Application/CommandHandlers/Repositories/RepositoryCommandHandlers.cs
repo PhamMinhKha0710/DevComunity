@@ -1,5 +1,6 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs.External;
+using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 
@@ -22,10 +23,12 @@ public class CreateRepositoryCommand : IRequest<RepositoryDto>
 public class CreateRepositoryCommandHandler : IRequestHandler<CreateRepositoryCommand, RepositoryDto>
 {
     private readonly ICodeRepository _codeRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public CreateRepositoryCommandHandler(ICodeRepository codeRepository)
+    public CreateRepositoryCommandHandler(ICodeRepository codeRepository, IUnitOfWork unitOfWork)
     {
         _codeRepository = codeRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<RepositoryDto> Handle(CreateRepositoryCommand request, CancellationToken cancellationToken)
@@ -43,6 +46,7 @@ public class CreateRepositoryCommandHandler : IRequestHandler<CreateRepositoryCo
         };
 
         var created = await _codeRepository.AddAsync(repository, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new RepositoryDto
         {
@@ -77,10 +81,12 @@ public class UpdateRepositoryCommand : IRequest<bool>
 public class UpdateRepositoryCommandHandler : IRequestHandler<UpdateRepositoryCommand, bool>
 {
     private readonly ICodeRepository _codeRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateRepositoryCommandHandler(ICodeRepository codeRepository)
+    public UpdateRepositoryCommandHandler(ICodeRepository codeRepository, IUnitOfWork unitOfWork)
     {
         _codeRepository = codeRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(UpdateRepositoryCommand request, CancellationToken cancellationToken)
@@ -97,6 +103,7 @@ public class UpdateRepositoryCommandHandler : IRequestHandler<UpdateRepositoryCo
         repository.LastUpdatedDate = DateTime.UtcNow;
 
         await _codeRepository.UpdateAsync(repository, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }
@@ -116,10 +123,12 @@ public class DeleteRepositoryCommand : IRequest<bool>
 public class DeleteRepositoryCommandHandler : IRequestHandler<DeleteRepositoryCommand, bool>
 {
     private readonly ICodeRepository _codeRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteRepositoryCommandHandler(ICodeRepository codeRepository)
+    public DeleteRepositoryCommandHandler(ICodeRepository codeRepository, IUnitOfWork unitOfWork)
     {
         _codeRepository = codeRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(DeleteRepositoryCommand request, CancellationToken cancellationToken)
@@ -129,6 +138,7 @@ public class DeleteRepositoryCommandHandler : IRequestHandler<DeleteRepositoryCo
             return false;
 
         await _codeRepository.DeleteAsync(request.RepositoryId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

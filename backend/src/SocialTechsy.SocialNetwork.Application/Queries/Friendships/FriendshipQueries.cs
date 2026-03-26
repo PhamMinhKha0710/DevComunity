@@ -1,14 +1,18 @@
 using MediatR;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 
 namespace SocialTechsy.SocialNetwork.Application.Queries.Friendships;
 
 /// <summary>
-/// Query for getting current user's friends list
+/// Query for getting current user's friends list (paginated)
 /// </summary>
-public class GetFriendsQuery : IRequest<IEnumerable<FriendDto>>
+public class GetFriendsQuery : IRequest<PaginatedResponse<FriendDto>>
 {
     public int UserId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+    public string? Search { get; set; }
 }
 
 /// <summary>

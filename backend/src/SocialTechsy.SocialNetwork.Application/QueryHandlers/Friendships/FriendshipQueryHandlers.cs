@@ -1,11 +1,12 @@
 using MediatR;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Queries.Friendships;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Friendships;
 
-public class GetFriendsQueryHandler : IRequestHandler<GetFriendsQuery, IEnumerable<FriendDto>>
+public class GetFriendsQueryHandler : IRequestHandler<GetFriendsQuery, PaginatedResponse<FriendDto>>
 {
     private readonly IFriendshipRepository _friendshipRepository;
 
@@ -14,11 +15,15 @@ public class GetFriendsQueryHandler : IRequestHandler<GetFriendsQuery, IEnumerab
         _friendshipRepository = friendshipRepository;
     }
 
-    public async Task<IEnumerable<FriendDto>> Handle(GetFriendsQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedResponse<FriendDto>> Handle(GetFriendsQuery request, CancellationToken cancellationToken)
     {
-        var friendships = await _friendshipRepository.GetFriendsAsync(request.UserId, cancellationToken);
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
-        return friendships.Select(f =>
+        var (friendships, totalCount) = await _friendshipRepository.GetFriendsPagedAsync(
+            request.UserId, page, pageSize, request.Search, cancellationToken);
+
+        var items = friendships.Select(f =>
         {
             var friend = f.RequesterId == request.UserId ? f.Addressee : f.Requester;
             return new FriendDto
@@ -29,7 +34,15 @@ public class GetFriendsQueryHandler : IRequestHandler<GetFriendsQuery, IEnumerab
                 ProfilePicture = friend.ProfilePicture,
                 FriendsSince = f.RespondedAt ?? f.CreatedAt
             };
-        });
+        }).ToList();
+
+        return new PaginatedResponse<FriendDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 }
 

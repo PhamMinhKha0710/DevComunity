@@ -12,4 +12,5 @@ public class UpdateProfileCommand : IRequest<bool>
     public string? Bio { get; set; }
     public string? Location { get; set; }
     public string? Website { get; set; }
+    public string? ProfilePicture { get; set; }
 }

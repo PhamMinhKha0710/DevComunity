@@ -62,15 +62,19 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, PostD
 
         var result = await _postRepository.GetByIdAsync(created.PostId, cancellationToken);
 
+        var dto = result != null
+            ? MapToDto(result)
+            : throw new InvalidOperationException($"Post {created.PostId} not found after creation");
+
         try
         {
             if (request.GroupId.HasValue)
             {
-                await _activityDispatcher.BroadcastNewGroupPostAsync(request.GroupId.Value, MapToDto(result!), cancellationToken);
+                await _activityDispatcher.BroadcastNewGroupPostAsync(request.GroupId.Value, dto, cancellationToken);
             }
             else
             {
-                await _activityDispatcher.BroadcastNewPostAsync(MapToDto(result!), cancellationToken);
+                await _activityDispatcher.BroadcastNewPostAsync(dto, cancellationToken);
             }
         }
         catch (Exception ex)
@@ -78,7 +82,7 @@ public class CreatePostCommandHandler : IRequestHandler<CreatePostCommand, PostD
             _logger.LogError(ex, "Error broadcasting new post");
         }
 
-        return MapToDto(result!);
+        return dto;
     }
 
     private static PostDto MapToDto(Post p) => new()

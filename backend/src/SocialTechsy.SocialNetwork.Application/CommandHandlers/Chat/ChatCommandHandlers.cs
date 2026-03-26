@@ -499,7 +499,7 @@ public class RemoveReactionCommandHandler : IRequestHandler<RemoveReactionComman
 
 public class EditMessageCommand : IRequest<bool>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
     public string NewContent { get; set; } = null!;
 }
@@ -534,7 +534,7 @@ public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, boo
 
 public class DeleteMessageCommand : IRequest<bool>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
 }
 

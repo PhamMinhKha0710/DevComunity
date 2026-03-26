@@ -1,13 +1,13 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Answers;
 using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Common.Events;
 using SocialTechsy.SocialNetwork.Application.Common.Mappings;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
+using SocialTechsy.SocialNetwork.Domain.Enums;
 using SocialTechsy.SocialNetwork.Domain.Events;
 
 namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Answers;
@@ -41,6 +41,7 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
             var answer = Answer.Create(request.QuestionId, request.UserId, request.Body, request.ParentAnswerId);
             var createdAnswer = await _answerRepository.AddAsync(answer, ct);
             await _unitOfWork.SaveChangesAsync(ct);
+
             return createdAnswer.ToDto();
         }, cancellationToken);
     }

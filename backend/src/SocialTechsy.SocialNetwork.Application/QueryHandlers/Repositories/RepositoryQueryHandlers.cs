@@ -11,6 +11,8 @@ public class GetRepositoriesQuery : IRequest<PaginatedResponse<RepositoryDto>>
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 15;
     public string? Search { get; set; }
+    public int? OwnerId { get; set; }
+    public int? ViewerUserId { get; set; }
 }
 
 public class GetRepositoryByIdQuery : IRequest<RepositoryDto?>
@@ -38,7 +40,13 @@ public class GetRepositoriesQueryHandler : IRequestHandler<GetRepositoriesQuery,
     public async Task<PaginatedResponse<RepositoryDto>> Handle(
         GetRepositoriesQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _codeRepository.GetPaginatedAsync(request.Page, request.PageSize, request.Search, null, cancellationToken);
+        var (items, totalCount) = await _codeRepository.GetPaginatedAsync(
+            request.Page,
+            request.PageSize,
+            request.Search,
+            request.OwnerId,
+            request.ViewerUserId,
+            cancellationToken);
 
         return new PaginatedResponse<RepositoryDto>
         {
