@@ -12,36 +12,50 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Caching;
 /// </summary>
 public class RedisStreamWriteAheadLog
 {
-    private readonly IDatabase _db;
+    private readonly IDatabase? _db;
     private readonly ILogger<RedisStreamWriteAheadLog> _logger;
     private static readonly TimeSpan StreamRetention = TimeSpan.FromHours(1);
 
     public RedisStreamWriteAheadLog(IConnectionMultiplexer redis, ILogger<RedisStreamWriteAheadLog> logger)
     {
-        _db = redis.GetDatabase();
         _logger = logger;
+        if (redis == null || !redis.IsConnected)
+        {
+            _logger.LogWarning("Redis unavailable - WAL disabled");
+            return;
+        }
+        try { _db = redis.GetDatabase(); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to connect to Redis - WAL disabled");
+        }
     }
+
+    private IDatabase GetDb() => _db!;
+    private bool IsAvailable => _db != null;
 
     public async Task<string> AppendAsync(int conversationId, WalEntry entry)
     {
+        if (!IsAvailable) return string.Empty;
         var key = $"chat:wal:{conversationId}";
         var payload = JsonSerializer.Serialize(entry);
-        var id = await _db.StreamAddAsync(key, new[]
+        var id = await GetDb().StreamAddAsync(key, new[]
         {
             new NameValueEntry("messageId", entry.MessageId.ToString()),
             new NameValueEntry("senderId", entry.SenderId.ToString()),
             new NameValueEntry("payload", payload)
         });
-        await _db.KeyExpireAsync(key, StreamRetention);
+        await GetDb().KeyExpireAsync(key, StreamRetention);
         return id!;
     }
 
     public async Task AcknowledgeAsync(int conversationId, string streamEntryId)
     {
+        if (!IsAvailable) return;
         try
         {
             var key = $"chat:wal:{conversationId}";
-            await _db.StreamDeleteAsync(key, new[] { (RedisValue)streamEntryId });
+            await GetDb().StreamDeleteAsync(key, new[] { (RedisValue)streamEntryId });
         }
         catch (Exception ex)
         {
@@ -52,8 +66,9 @@ public class RedisStreamWriteAheadLog
 
     public async Task<List<WalEntry>> GetUncommittedAsync(int conversationId, int maxCount = 100)
     {
+        if (!IsAvailable) return new List<WalEntry>();
         var key = $"chat:wal:{conversationId}";
-        var entries = await _db.StreamReadAsync(key, "0-0", maxCount);
+        var entries = await GetDb().StreamReadAsync(key, "0-0", maxCount);
         if (entries == null || entries.Length == 0)
             return new List<WalEntry>();
 
@@ -76,8 +91,9 @@ public class RedisStreamWriteAheadLog
 
     public async Task<long> GetPendingCountAsync(int conversationId)
     {
+        if (!IsAvailable) return 0;
         var key = $"chat:wal:{conversationId}";
-        return await _db.StreamLengthAsync(key);
+        return await GetDb().StreamLengthAsync(key);
     }
 }
 

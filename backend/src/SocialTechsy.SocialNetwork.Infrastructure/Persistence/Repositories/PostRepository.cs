@@ -29,19 +29,22 @@ public class PostRepository : IPostRepository
     public async Task<(IEnumerable<Post> Items, int TotalCount)> GetNewsfeedAsync(
         int userId, int page, int pageSize, string? filter = null, CancellationToken cancellationToken = default)
     {
-        // Use subqueries instead of loading IDs into memory to avoid large IN clauses
-        var friendIdsQuery = _context.Friendships
+        // Materialize friend/following/group IDs first for better query performance
+        var friendIds = await _context.Friendships
             .Where(f => f.Status == FriendshipStatus.Accepted &&
                 (f.RequesterId == userId || f.AddresseeId == userId))
-            .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId);
+            .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId)
+            .ToListAsync(cancellationToken);
 
-        var followingIdsQuery = _context.UserFollows
+        var followingIds = await _context.UserFollows
             .Where(f => f.FollowerId == userId)
-            .Select(f => f.FollowingId);
+            .Select(f => f.FollowingId)
+            .ToListAsync(cancellationToken);
 
-        var userGroupsQuery = _context.GroupMembers
+        var groupIds = await _context.GroupMembers
             .Where(m => m.UserId == userId)
-            .Select(m => m.GroupId);
+            .Select(m => m.GroupId)
+            .ToListAsync(cancellationToken);
 
         var query = _context.Posts
             .Include(p => p.Author)
@@ -50,25 +53,25 @@ public class PostRepository : IPostRepository
 
         if (filter?.ToLower() == "following")
         {
-            query = query.Where(p => followingIdsQuery.Contains(p.AuthorId));
+            query = query.Where(p => followingIds.Contains(p.AuthorId));
         }
         else if (filter?.ToLower() == "friends")
         {
-            query = query.Where(p => friendIdsQuery.Contains(p.AuthorId));
+            query = query.Where(p => friendIds.Contains(p.AuthorId));
         }
-        else if (filter?.ToLower() == "groups")
+        else if (filter?.ToLower() == "groups" || filter?.ToLower() == "community")
         {
-            query = query.Where(p => p.GroupId != null && userGroupsQuery.Contains(p.GroupId.Value));
+            query = query.Where(p => p.GroupId != null && groupIds.Contains(p.GroupId.Value));
         }
         else // default: foryou / all
         {
             query = query.Where(p =>
                 (p.GroupId == null && (
                     p.AuthorId == userId ||
-                    friendIdsQuery.Contains(p.AuthorId) ||
-                    followingIdsQuery.Contains(p.AuthorId) ||
+                    friendIds.Contains(p.AuthorId) ||
+                    followingIds.Contains(p.AuthorId) ||
                     p.Visibility == PostVisibility.Public)) ||
-                (p.GroupId != null && userGroupsQuery.Contains(p.GroupId.Value)));
+                (p.GroupId != null && groupIds.Contains(p.GroupId.Value)));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

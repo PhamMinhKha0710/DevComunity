@@ -61,6 +61,9 @@ public class SocialTechsySocialNetworkDbContext : DbContext
     // Outbox (transactional event relay)
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    // Email Outbox
+    public DbSet<EmailOutbox> EmailOutbox => Set<EmailOutbox>();
+
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -69,5 +72,11 @@ public class SocialTechsySocialNetworkDbContext : DbContext
 
         // Apply all IEntityTypeConfiguration from this assembly
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SocialTechsySocialNetworkDbContext).Assembly);
+
+        // Widen Comments.Body to nvarchar(max) on SQL Server; SQLite uses TEXT (no max)
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.SqlServer")
+        {
+            modelBuilder.Entity<Comment>(b => b.Property(c => c.Body).HasColumnType("nvarchar(max)"));
+        }
     }
 }

@@ -49,6 +49,7 @@ public static class PersistenceExtensions
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IOAuthLoginSessionRepository, OAuthLoginSessionRepository>();
+        services.AddScoped<IEmailOutboxRepository, EmailOutboxRepository>();
 
         return services;
     }

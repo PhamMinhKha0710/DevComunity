@@ -69,8 +69,7 @@ public class UserRepository : IUserRepository
             .Include(u => u.Badges)
             .FirstOrDefaultAsync(u => u.UserId == id, cancellationToken);
 
-        if (user == null)
-            return null;
+        if (user == null) return null;
 
         var questionCount = await _context.Questions.CountAsync(q => q.UserId == id, cancellationToken);
         var answerCount = await _context.Answers.CountAsync(a => a.UserId == id, cancellationToken);

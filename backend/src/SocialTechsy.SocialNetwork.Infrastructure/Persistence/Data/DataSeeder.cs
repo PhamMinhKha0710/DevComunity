@@ -98,7 +98,10 @@ public class DataSeeder
             questions[0].QuestionTags.Add(new QuestionTag { QuestionId = questions[0].QuestionId, TagId = reactTag.TagId });
             questions[1].QuestionTags.Add(new QuestionTag { QuestionId = questions[1].QuestionId, TagId = csharpTag.TagId });
 
-            await _context.Questions.AddRangeAsync(questions);
+            jsTag.UsageCount++;
+            reactTag.UsageCount++;
+            csharpTag.UsageCount++;
+
             await _context.SaveChangesAsync();
 
             // 4. Seed Answers
@@ -110,12 +113,6 @@ public class DataSeeder
             answers[0].Accept();
 
             await _context.Answers.AddRangeAsync(answers);
-            
-            // Update counts
-            jsTag.UsageCount++;
-            reactTag.UsageCount++;
-            csharpTag.UsageCount++;
-            
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Database seeded successfully.");

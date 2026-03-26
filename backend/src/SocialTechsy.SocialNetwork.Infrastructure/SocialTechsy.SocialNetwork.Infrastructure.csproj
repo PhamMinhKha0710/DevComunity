@@ -24,6 +24,7 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
     <PackageReference Include="Microsoft.Extensions.Resilience" Version="10.4.0" />
     <PackageReference Include="MongoDB.Driver" Version="3.7.0" />
+    <PackageReference Include="MailKit" Version="4.3.0" />
     <PackageReference Include="Polly.Core" Version="8.6.6" />
     <PackageReference Include="Polly.Extensions" Version="8.6.6" />
     <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />

@@ -28,6 +28,11 @@ public class TagPreferenceConfiguration : IEntityTypeConfiguration<TagPreference
         builder.HasIndex(tp => new { tp.UserId, tp.TagId })
             .IsUnique();
 
+        // Index for querying followed tags by user
+        builder.HasIndex(tp => new { tp.UserId, tp.IsFollowed })
+            .HasDatabaseName("IX_TagPreferences_UserId_IsFollowed")
+            .HasFilter("[IsFollowed] = 1");
+
         // Relationships
         builder.HasOne(tp => tp.User)
             .WithMany()

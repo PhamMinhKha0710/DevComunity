@@ -16,8 +16,7 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
         builder.HasKey(c => c.CommentId);
 
         builder.Property(c => c.Body)
-            .IsRequired()
-            .HasMaxLength(600);
+            .IsRequired();
 
         builder.Property(c => c.CreatedDate)
             .HasDefaultValueSql("GETUTCDATE()");
@@ -26,6 +25,9 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
         builder.HasIndex(c => c.QuestionId);
         builder.HasIndex(c => c.AnswerId);
         builder.HasIndex(c => c.PostId);
+        builder.HasIndex(c => new { c.PostId, c.CreatedDate })
+            .HasDatabaseName("IX_Comments_PostId_CreatedDate")
+            .IsDescending(false, true);
 
         // Relationships
         builder.HasOne(c => c.Question)

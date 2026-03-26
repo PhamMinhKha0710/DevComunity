@@ -26,6 +26,7 @@ public static class MessageBrokerExtensions
         services.AddMassTransit(x =>
         {
             x.AddConsumer<NotificationCreatedConsumer>();
+            x.AddConsumer<SendEmailNotificationConsumer>();
             x.UsingRabbitMq((context, cfg) =>
             {
                 var hostName = configuration[$"{RabbitMqSettings.SectionName}:HostName"] ?? "localhost";

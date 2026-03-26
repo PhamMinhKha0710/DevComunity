@@ -58,6 +58,25 @@ public class CommentRepository : ICommentRepository
             .CountAsync(cancellationToken);
     }
 
+    public async Task<Dictionary<int, int>> GetCountsByPostIdsAsync(IEnumerable<int> postIds, CancellationToken cancellationToken = default)
+    {
+        var idList = postIds.ToList();
+        if (!idList.Any()) return new Dictionary<int, int>();
+
+        var counts = await _context.Comments
+            .Where(c => c.PostId.HasValue && idList.Contains(c.PostId.Value))
+            .GroupBy(c => c.PostId!.Value)
+            .Select(g => new { PostId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var result = idList.ToDictionary(id => id, _ => 0);
+        foreach (var c in counts)
+        {
+            result[c.PostId] = c.Count;
+        }
+        return result;
+    }
+
     public async Task<Comment> AddAsync(Comment comment, CancellationToken cancellationToken = default)
     {
         await _context.Comments.AddAsync(comment, cancellationToken);

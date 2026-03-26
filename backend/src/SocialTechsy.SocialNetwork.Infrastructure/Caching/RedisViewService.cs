@@ -6,15 +6,27 @@ namespace SocialTechsy.SocialNetwork.Infrastructure.Caching;
 
 public class RedisViewService : IViewService
 {
-    private readonly IDatabase _db;
+    private readonly IDatabase? _db;
     private readonly ILogger<RedisViewService> _logger;
     private static readonly TimeSpan CounterTtl = TimeSpan.FromDays(7);
 
     public RedisViewService(IConnectionMultiplexer redis, ILogger<RedisViewService> logger)
     {
-        _db = redis.GetDatabase();
         _logger = logger;
+        if (redis == null || !redis.IsConnected)
+        {
+            _logger.LogWarning("Redis unavailable - view counts disabled");
+            return;
+        }
+        try { _db = redis.GetDatabase(); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to connect to Redis - view counts disabled");
+        }
     }
+
+    private IDatabase GetDb() => _db!;
+    private bool IsAvailable => _db != null;
 
     private const string DeltaTrackingSet = "view:delta:tracking";
 
@@ -24,12 +36,13 @@ public class RedisViewService : IViewService
 
     public async Task<long> IncrementViewAsync(int questionId, string? userId, string? ip)
     {
+        if (!IsAvailable) return 0;
         var identifier = userId ?? ip ?? "anonymous";
-        var added = await _db.HyperLogLogAddAsync(VisitorsKey(questionId), identifier);
+        var added = await GetDb().HyperLogLogAddAsync(VisitorsKey(questionId), identifier);
 
-        await _db.StringIncrementAsync(DeltaKey(questionId));
-        await _db.SetAddAsync(DeltaTrackingSet, questionId);
-        var total = await _db.StringIncrementAsync(CountKey(questionId));
+        await GetDb().StringIncrementAsync(DeltaKey(questionId));
+        await GetDb().SetAddAsync(DeltaTrackingSet, questionId);
+        var total = await GetDb().StringIncrementAsync(CountKey(questionId));
 
         _logger.LogDebug("View recorded: question {QuestionId}, unique={IsUnique}, total={Total}", questionId, added, total);
         return total;
@@ -37,7 +50,8 @@ public class RedisViewService : IViewService
 
     public async Task<long> GetViewCountAsync(int questionId)
     {
-        var val = await _db.StringGetAsync(CountKey(questionId));
+        if (!IsAvailable) return 0;
+        var val = await GetDb().StringGetAsync(CountKey(questionId));
         return val.HasValue ? (long)val : 0;
     }
 
@@ -45,9 +59,14 @@ public class RedisViewService : IViewService
     {
         var result = new Dictionary<int, long>(questionIds.Length);
         if (questionIds.Length == 0) return result;
+        if (!IsAvailable)
+        {
+            foreach (var id in questionIds) result.TryAdd(id, 0);
+            return result;
+        }
 
         var keys = questionIds.Select(id => (RedisKey)CountKey(id)).ToArray();
-        var values = await _db.StringGetAsync(keys);
+        var values = await GetDb().StringGetAsync(keys);
 
         for (var i = 0; i < questionIds.Length; i++)
         {
@@ -58,13 +77,15 @@ public class RedisViewService : IViewService
 
     public async Task<long> GetAndResetDeltaAsync(int questionId)
     {
-        var delta = await _db.StringGetSetAsync(DeltaKey(questionId), 0);
+        if (!IsAvailable) return 0;
+        var delta = await GetDb().StringGetSetAsync(DeltaKey(questionId), 0);
         return delta.HasValue ? (long)delta : 0;
     }
 
     public async Task<int[]> GetDirtyQuestionIdsAsync()
     {
-        var members = await _db.SetMembersAsync(DeltaTrackingSet);
+        if (!IsAvailable) return Array.Empty<int>();
+        var members = await GetDb().SetMembersAsync(DeltaTrackingSet);
         return members
             .Where(m => m.HasValue)
             .Select(m => (int)m)
@@ -73,15 +94,24 @@ public class RedisViewService : IViewService
 
     public async Task RemoveFromTrackingAsync(int questionId)
     {
-        await _db.SetRemoveAsync(DeltaTrackingSet, questionId);
+        if (!IsAvailable) return;
+        await GetDb().SetRemoveAsync(DeltaTrackingSet, questionId);
     }
 
     public async Task InitializeFromSqlAsync(int questionId, int sqlViewCount)
     {
-        var exists = await _db.KeyExistsAsync(CountKey(questionId));
-        if (!exists && sqlViewCount > 0)
+        if (!IsAvailable) return;
+        try
         {
-            await _db.StringSetAsync(CountKey(questionId), sqlViewCount, CounterTtl);
+            var exists = await GetDb().KeyExistsAsync(CountKey(questionId));
+            if (!exists && sqlViewCount > 0)
+            {
+                await GetDb().StringSetAsync(CountKey(questionId), sqlViewCount, CounterTtl);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis unavailable for InitializeFromSqlAsync question {QuestionId}", questionId);
         }
     }
 }
