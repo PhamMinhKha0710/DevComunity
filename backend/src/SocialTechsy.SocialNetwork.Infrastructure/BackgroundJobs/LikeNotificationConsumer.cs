@@ -38,7 +38,9 @@ public class LikeNotificationConsumer : BackgroundService
             _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
             await _channel.ExchangeDeclareAsync(ExchangeName, ExchangeType.Topic, durable: true, autoDelete: false, cancellationToken: stoppingToken);
             await _channel.QueueDeclareAsync(QueueName, durable: true, exclusive: false, autoDelete: false, cancellationToken: stoppingToken);
-            await _channel.QueueBindAsync(QueueName, ExchangeName, "like.new", cancellationToken: stoppingToken);
+            // Bind to both like.question and like.answer routing keys (outbox publishes these)
+            await _channel.QueueBindAsync(QueueName, ExchangeName, "like.question", cancellationToken: stoppingToken);
+            await _channel.QueueBindAsync(QueueName, ExchangeName, "like.answer", cancellationToken: stoppingToken);
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.ReceivedAsync += async (_, ea) =>
@@ -71,9 +73,20 @@ public class LikeNotificationConsumer : BackgroundService
 
     private async Task ProcessLikeEventAsync(BasicDeliverEventArgs ea, CancellationToken cancellationToken)
     {
+        var routingKey = ea.RoutingKey;
+        _logger.LogInformation("Received like event with routing key: {RoutingKey}", routingKey);
+        
         var body = Encoding.UTF8.GetString(ea.Body.ToArray());
         var likeEvent = JsonSerializer.Deserialize<LikeEvent>(body, JsonOptions);
-        if (likeEvent == null) return;
+        if (likeEvent == null)
+        {
+            _logger.LogWarning("Failed to deserialize like event from routing key: {RoutingKey}", routingKey);
+            return;
+        }
+        
+        _logger.LogInformation(
+            "Processing like event - TargetType: {TargetType}, TargetId: {TargetId}, LikedByUserId: {LikedByUserId}, ContentAuthorId: {ContentAuthorId}, LikeCount: {LikeCount}",
+            likeEvent.TargetType, likeEvent.TargetId, likeEvent.LikedByUserId, likeEvent.ContentAuthorId, likeEvent.LikeCount);
 
         var command = new CreateLikeNotificationCommand
         {

@@ -1,6 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Commands.Groups;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
@@ -12,13 +12,16 @@ namespace SocialTechsy.SocialNetwork.Application.CommandHandlers.Groups;
 public class CreateGroupCommandHandler : IRequestHandler<CreateGroupCommand, GroupDto>
 {
     private readonly IGroupRepository _groupRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateGroupCommandHandler> _logger;
 
     public CreateGroupCommandHandler(
         IGroupRepository groupRepository,
+        IUnitOfWork unitOfWork,
         ILogger<CreateGroupCommandHandler> logger)
     {
         _groupRepository = groupRepository;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -31,6 +34,7 @@ public class CreateGroupCommandHandler : IRequestHandler<CreateGroupCommand, Gro
             request.IsPrivate);
 
         var created = await _groupRepository.AddAsync(group, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var member = new GroupMember
         {
@@ -39,6 +43,7 @@ public class CreateGroupCommandHandler : IRequestHandler<CreateGroupCommand, Gro
             Role = GroupRole.Admin
         };
         await _groupRepository.AddMemberAsync(member, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var result = await _groupRepository.GetByIdAsync(created.GroupId, cancellationToken);
 
@@ -69,13 +74,16 @@ public class CreateGroupCommandHandler : IRequestHandler<CreateGroupCommand, Gro
 public class UpdateGroupCommandHandler : IRequestHandler<UpdateGroupCommand, GroupDto>
 {
     private readonly IGroupRepository _groupRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateGroupCommandHandler> _logger;
 
     public UpdateGroupCommandHandler(
         IGroupRepository groupRepository,
+        IUnitOfWork unitOfWork,
         ILogger<UpdateGroupCommandHandler> logger)
     {
         _groupRepository = groupRepository;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -92,6 +100,7 @@ public class UpdateGroupCommandHandler : IRequestHandler<UpdateGroupCommand, Gro
         group.UpdateInfo(request.Name!, request.Description, request.IsPrivate);
 
         await _groupRepository.UpdateAsync(group, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} updated group {GroupId}", request.UserId, request.GroupId);
 
@@ -154,17 +163,20 @@ public class JoinGroupCommandHandler : IRequestHandler<JoinGroupCommand, bool>
 {
     private readonly IGroupRepository _groupRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationDispatcher _notificationDispatcher;
     private readonly ILogger<JoinGroupCommandHandler> _logger;
 
     public JoinGroupCommandHandler(
         IGroupRepository groupRepository,
         IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
         INotificationDispatcher notificationDispatcher,
         ILogger<JoinGroupCommandHandler> logger)
     {
         _groupRepository = groupRepository;
         _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
         _notificationDispatcher = notificationDispatcher;
         _logger = logger;
     }
@@ -189,6 +201,7 @@ public class JoinGroupCommandHandler : IRequestHandler<JoinGroupCommand, bool>
             Role = GroupRole.Member
         };
         await _groupRepository.AddMemberAsync(member, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} joined group {GroupId}", request.UserId, request.GroupId);
 
@@ -218,17 +231,20 @@ public class LeaveGroupCommandHandler : IRequestHandler<LeaveGroupCommand, bool>
 {
     private readonly IGroupRepository _groupRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationDispatcher _notificationDispatcher;
     private readonly ILogger<LeaveGroupCommandHandler> _logger;
 
     public LeaveGroupCommandHandler(
         IGroupRepository groupRepository,
         IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
         INotificationDispatcher notificationDispatcher,
         ILogger<LeaveGroupCommandHandler> logger)
     {
         _groupRepository = groupRepository;
         _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
         _notificationDispatcher = notificationDispatcher;
         _logger = logger;
     }
@@ -247,6 +263,7 @@ public class LeaveGroupCommandHandler : IRequestHandler<LeaveGroupCommand, bool>
             return true;
 
         await _groupRepository.RemoveMemberAsync(request.GroupId, request.UserId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} left group {GroupId}", request.UserId, request.GroupId);
 
@@ -275,13 +292,16 @@ public class LeaveGroupCommandHandler : IRequestHandler<LeaveGroupCommand, bool>
 public class UpdateMemberRoleCommandHandler : IRequestHandler<UpdateMemberRoleCommand, bool>
 {
     private readonly IGroupRepository _groupRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateMemberRoleCommandHandler> _logger;
 
     public UpdateMemberRoleCommandHandler(
         IGroupRepository groupRepository,
+        IUnitOfWork unitOfWork,
         ILogger<UpdateMemberRoleCommandHandler> logger)
     {
         _groupRepository = groupRepository;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -306,6 +326,7 @@ public class UpdateMemberRoleCommandHandler : IRequestHandler<UpdateMemberRoleCo
             throw new InvalidOperationException("Invalid role. Use 'Member', 'Moderator', or 'Admin'");
 
         await _groupRepository.UpdateMemberRoleAsync(request.GroupId, request.TargetUserId, newRole, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} updated member {TargetUserId} role to {Role} in group {GroupId}",
             request.CurrentUserId, request.TargetUserId, newRole, request.GroupId);
@@ -317,13 +338,16 @@ public class UpdateMemberRoleCommandHandler : IRequestHandler<UpdateMemberRoleCo
 public class RemoveMemberCommandHandler : IRequestHandler<RemoveMemberCommand, bool>
 {
     private readonly IGroupRepository _groupRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RemoveMemberCommandHandler> _logger;
 
     public RemoveMemberCommandHandler(
         IGroupRepository groupRepository,
+        IUnitOfWork unitOfWork,
         ILogger<RemoveMemberCommandHandler> logger)
     {
         _groupRepository = groupRepository;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -348,6 +372,7 @@ public class RemoveMemberCommandHandler : IRequestHandler<RemoveMemberCommand, b
             throw new UnauthorizedAccessException("Moderators cannot remove admins");
 
         await _groupRepository.RemoveMemberAsync(request.GroupId, request.TargetUserId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User {UserId} removed member {TargetUserId} from group {GroupId}",
             request.CurrentUserId, request.TargetUserId, request.GroupId);

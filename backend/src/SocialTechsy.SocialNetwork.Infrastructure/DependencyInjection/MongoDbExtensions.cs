@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
+using SocialTechsy.SocialNetwork.Infrastructure.Caching;
 using SocialTechsy.SocialNetwork.Infrastructure.GridFs;
 using SocialTechsy.SocialNetwork.Infrastructure.IdGeneration;
 using SocialTechsy.SocialNetwork.Infrastructure.MongoDB;
@@ -52,6 +53,7 @@ public static class MongoDbExtensions
             return new ActivityLogService(db, logger);
         });
         services.AddSingleton<IGridFsService, GridFsService>();
+        services.AddScoped<IMediaOwnershipChecker, MediaOwnershipChecker>();
 
         return services;
     }

@@ -254,7 +254,7 @@ public class ChatHub : Hub
             .SendAsync("RemoveReaction", new { messageId, userId });
     }
 
-    public async Task EditMessage(int conversationId, int messageId, string newContent)
+    public async Task EditMessage(int conversationId, long messageId, string newContent)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;
@@ -278,7 +278,7 @@ public class ChatHub : Hub
             .SendAsync("MessageEdited", new { messageId, newContent, editedDate = DateTime.UtcNow });
     }
 
-    public async Task DeleteMessage(int conversationId, int messageId)
+    public async Task DeleteMessage(int conversationId, long messageId)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return;

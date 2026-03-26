@@ -1,4 +1,6 @@
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Tag;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 
 namespace SocialTechsy.SocialNetwork.Application.Common.Mappings;

@@ -1,5 +1,5 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Tag;
 using SocialTechsy.SocialNetwork.Application.Commands.Tags;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;

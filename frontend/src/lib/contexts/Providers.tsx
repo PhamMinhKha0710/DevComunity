@@ -6,6 +6,8 @@ import { ChatProvider } from '@/lib/contexts/ChatContext';
 import { QueryProvider } from '@/lib/api/queryClient';
 import { Toaster } from 'react-hot-toast';
 import { useEffect } from 'react';
+import { ThemeProvider } from '@/lib/contexts/ThemeContext';
+import { LocaleProvider } from '@/lib/contexts/LocaleContext';
 
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -20,10 +22,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <AuthProvider>
                 <ChatProvider>
                     <NotificationProvider>
-                        <main className="flex-grow-1">
-                            {children}
-                        </main>
-                        <Toaster position="bottom-right" />
+                        <LocaleProvider>
+                            <ThemeProvider>
+                                <main className="flex-grow-1">
+                                    {children}
+                                </main>
+                                <Toaster position="bottom-right" />
+                            </ThemeProvider>
+                        </LocaleProvider>
                     </NotificationProvider>
                 </ChatProvider>
             </AuthProvider>

@@ -16,5 +16,14 @@ public interface IVoteRepository
     Task<int> GetScoreAsync(int? questionId, int? answerId, CancellationToken cancellationToken = default);
     Task<int> GetQuestionScoreAsync(int questionId, CancellationToken cancellationToken = default);
     Task<int> GetAnswerScoreAsync(int answerId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<int, int>> GetAnswerScoresForAnswerIdsAsync(
+        int[] answerIds,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<int, Vote>> GetUserVotesForAnswerIdsAsync(
+        int userId,
+        int[] answerIds,
+        CancellationToken cancellationToken = default);
 }
 

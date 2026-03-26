@@ -1,9 +1,11 @@
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Common.Mappings;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
-using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Application.Queries.Answers;
+using SocialTechsy.SocialNetwork.Domain.Entities;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Answers;
 
@@ -11,16 +13,13 @@ public class GetAnswersByQuestionQueryHandler : IRequestHandler<GetAnswersByQues
 {
     private readonly IAnswerRepository _answerRepository;
     private readonly IVoteRepository _voteRepository;
-    private readonly ILikeService? _likeService;
 
     public GetAnswersByQuestionQueryHandler(
         IAnswerRepository answerRepository,
-        IVoteRepository voteRepository,
-        ILikeService? likeService = null)
+        IVoteRepository voteRepository)
     {
         _answerRepository = answerRepository;
         _voteRepository = voteRepository;
-        _likeService = likeService;
     }
 
     public async Task<PaginatedResponse<AnswerDto>> Handle(GetAnswersByQuestionQuery request, CancellationToken cancellationToken = default)
@@ -44,28 +43,22 @@ public class GetAnswersByQuestionQueryHandler : IRequestHandler<GetAnswersByQues
 
         var ids = answerDtos.Select(a => a.AnswerId).ToArray();
 
-        if (_likeService != null && ids.Length > 0)
+        if (ids.Length > 0)
         {
-            var likeCounts = await _likeService.GetLikeCountsBatchAsync("answer", ids);
+            var scoresByAnswerId = await _voteRepository.GetAnswerScoresForAnswerIdsAsync(ids, cancellationToken);
+            IReadOnlyDictionary<int, Vote>? userVotes = null;
+            if (request.CurrentUserId is int uid && uid > 0)
+                userVotes = await _voteRepository.GetUserVotesForAnswerIdsAsync(uid, ids, cancellationToken);
+
             foreach (var dto in answerDtos)
             {
-                dto.Score = likeCounts.TryGetValue(dto.AnswerId, out var c) ? (int)c : 0;
-                if (request.CurrentUserId is > 0)
+                dto.Score = scoresByAnswerId.TryGetValue(dto.AnswerId, out var s) ? s : 0;
+                if (userVotes != null)
                 {
-                    var isLiked = await _likeService.IsLikedAsync("answer", dto.AnswerId, request.CurrentUserId.Value);
-                    dto.UserVoteType = isLiked ? "up" : null;
-                }
-            }
-        }
-        else
-        {
-            foreach (var dto in answerDtos)
-            {
-                dto.Score = await _voteRepository.GetAnswerScoreAsync(dto.AnswerId, cancellationToken);
-                if (request.CurrentUserId is > 0)
-                {
-                    var vote = await _voteRepository.GetUserVoteOnAnswerAsync(request.CurrentUserId.Value, dto.AnswerId, cancellationToken);
-                    dto.UserVoteType = vote == null ? null : (vote.IsUpvote ? "up" : "down");
+                    if (userVotes.TryGetValue(dto.AnswerId, out var vote))
+                        dto.UserVoteType = vote.IsUpvote ? "up" : "down";
+                    else
+                        dto.UserVoteType = null;
                 }
             }
         }

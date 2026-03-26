@@ -595,11 +595,40 @@ pre code {
   --color-fg-default: var(--text-primary) !important;
   --color-canvas-default: var(--bg-primary) !important;
   --color-canvas-subtle: var(--bg-tertiary) !important;
+  --md-editor-font-family: var(--font-code), 'Fira Code', monospace !important;
   background-color: var(--bg-primary) !important;
   border: 1px solid var(--border-color) !important;
   border-radius: 0.75rem !important;
   overflow: hidden;
   box-shadow: none !important;
+}
+
+/* Ask Question: fill chiều cao host — toolbar + content không chồng height:100% */
+.ask-question-editor .w-md-editor {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.ask-question-editor .w-md-editor-content {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+
+.ask-question-editor .w-md-editor-area.w-md-editor-input {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.ask-question-editor .w-md-editor-text {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
 }
 
 .ask-question-editor .w-md-editor:focus-within,
@@ -629,7 +658,27 @@ pre code {
 .ask-question-editor .w-md-editor-content,
 .md-editor-wrapper .w-md-editor-content {
   background-color: var(--bg-primary) !important;
-  
+}
+
+/* Full-width edit mode (preview="edit") */
+.ask-question-editor .w-md-editor-show-edit .w-md-editor-input,
+.md-editor-wrapper .w-md-editor-show-edit .w-md-editor-input {
+  width: 100% !important;
+}
+.ask-question-editor .w-md-editor-show-edit .w-md-editor-preview,
+.md-editor-wrapper .w-md-editor-show-edit .w-md-editor-preview {
+  width: 0% !important;
+  display: none !important;
+}
+
+/* Live split mode */
+.ask-question-editor .w-md-editor-show-live .w-md-editor-input,
+.md-editor-wrapper .w-md-editor-show-live .w-md-editor-input {
+  width: 50% !important;
+}
+.ask-question-editor .w-md-editor-show-live .w-md-editor-preview,
+.md-editor-wrapper .w-md-editor-show-live .w-md-editor-preview {
+  width: 50% !important;
 }
 
 .ask-question-editor .w-md-editor-text-pre,
@@ -641,7 +690,6 @@ pre code {
   color: var(--text-primary) !important;
   font-size: 0.9375rem !important;
   line-height: 1.7 !important;
-  min-height: 384px !important;
 }
 
 .ask-question-editor .w-md-editor-preview,
@@ -664,9 +712,12 @@ pre code {
 .md-editor-wrapper .wmde-markdown code,
 .prose-preview .wmde-markdown code {
   background-color: var(--bg-tertiary) !important;
-  color: var(--text-primary) !important;
+  color: var(--primary) !important;
   border-radius: 4px;
   padding: 0.15em 0.4em;
+  font-family: var(--font-code), 'Fira Code', monospace !important;
+  font-size: 0.875em;
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
 }
 
 .ask-question-editor .wmde-markdown pre,
@@ -675,6 +726,13 @@ pre code {
   background-color: var(--code-bg) !important;
   color: var(--code-color) !important;
   border-radius: 0.5rem;
+  padding: 1rem 1.25rem !important;
+  overflow-x: auto;
+  font-family: var(--font-code), 'Fira Code', 'Cascadia Code', monospace !important;
+  font-size: 0.875rem !important;
+  line-height: 1.6 !important;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .ask-question-editor .wmde-markdown pre code,
@@ -683,6 +741,9 @@ pre code {
   background-color: transparent !important;
   color: inherit !important;
   padding: 0;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
 }
 
 .ask-question-editor .wmde-markdown blockquote,

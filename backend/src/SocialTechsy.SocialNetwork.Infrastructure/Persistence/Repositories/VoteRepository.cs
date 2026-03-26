@@ -79,6 +79,40 @@ public class VoteRepository : IVoteRepository
             .Where(v => v.AnswerId == answerId)
             .SumAsync(v => v.IsUpvote ? 1 : -1, cancellationToken);
     }
+
+    public async Task<IReadOnlyDictionary<int, int>> GetAnswerScoresForAnswerIdsAsync(
+        int[] answerIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (answerIds.Length == 0)
+            return new Dictionary<int, int>();
+
+        var distinct = answerIds.Distinct().ToArray();
+        var grouped = await _context.Votes
+            .AsNoTracking()
+            .Where(v => v.AnswerId != null && distinct.Contains(v.AnswerId.Value))
+            .GroupBy(v => v.AnswerId!.Value)
+            .Select(g => new { AnswerId = g.Key, Score = g.Sum(v => v.IsUpvote ? 1 : -1) })
+            .ToListAsync(cancellationToken);
+
+        var map = grouped.ToDictionary(x => x.AnswerId, x => x.Score);
+        return distinct.ToDictionary(id => id, id => map.GetValueOrDefault(id, 0));
+    }
+
+    public async Task<IReadOnlyDictionary<int, Vote>> GetUserVotesForAnswerIdsAsync(
+        int userId,
+        int[] answerIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (answerIds.Length == 0)
+            return new Dictionary<int, Vote>();
+
+        var distinct = answerIds.Distinct().ToArray();
+        return await _context.Votes
+            .AsNoTracking()
+            .Where(v => v.UserId == userId && v.AnswerId != null && distinct.Contains(v.AnswerId.Value))
+            .ToDictionaryAsync(v => v.AnswerId!.Value, v => v, cancellationToken);
+    }
 }
 
 

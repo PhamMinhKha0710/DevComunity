@@ -1,6 +1,7 @@
 using MediatR;
 using System;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.External;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 using SocialTechsy.SocialNetwork.Application.Queries.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;

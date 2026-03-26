@@ -15,7 +15,7 @@ public class SqlOutboxProcessor : BackgroundService
     private readonly IConnection _connection;
     private readonly ILogger<SqlOutboxProcessor> _logger;
     private IChannel? _channel;
-    private const int PollIntervalMs = 1000;
+    private const int PollIntervalMs = 5000;
 
     public SqlOutboxProcessor(
         IServiceProvider serviceProvider,

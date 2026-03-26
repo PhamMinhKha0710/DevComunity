@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediatR;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Chat;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Domain.Entities;
@@ -498,7 +499,7 @@ public class RemoveReactionCommandHandler : IRequestHandler<RemoveReactionComman
 
 public class EditMessageCommand : IRequest<bool>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
     public string NewContent { get; set; } = null!;
 }
@@ -533,7 +534,7 @@ public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, boo
 
 public class DeleteMessageCommand : IRequest<bool>
 {
-    public int MessageId { get; set; }
+    public long MessageId { get; set; }
     public int UserId { get; set; }
 }
 

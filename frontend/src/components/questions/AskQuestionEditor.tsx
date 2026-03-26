@@ -3,7 +3,8 @@
 /**
  * AskQuestionEditor - Trình soạn thảo Markdown cho form Ask a Question
  * Sử dụng @uiw/react-md-editor với dynamic import để tránh lỗi SSR (Next.js App Router)
- * preview="live" + highlightEnable={false} để tránh raw HTML và blue highlight
+ * preview="edit" mặc định full-width; toolbar cho phép chuyển sang live/preview nếu cần
+ * highlightEnable={false} để tránh raw HTML và blue highlight trong cột soạn thảo
  */
 import dynamic from 'next/dynamic';
 import '@uiw/react-md-editor/markdown-editor.css';
@@ -20,16 +21,18 @@ export interface AskQuestionEditorProps {
 
 export default function AskQuestionEditor({ value, onChange, colorMode }: AskQuestionEditorProps) {
     return (
-        <div data-color-mode={colorMode} className="ask-question-editor">
+        <div data-color-mode={colorMode} className="ask-question-editor flex min-h-0 w-full flex-1 flex-col">
             <MDEditor
+                className="min-h-0 flex-1"
                 value={value}
                 onChange={(val) => onChange(val ?? '')}
-                preview="live"
-                height={420}
+                preview="edit"
+                height="100%"
                 highlightEnable={false}
                 textareaProps={{
                     placeholder: 'Describe your problem in detail... (supports Markdown)',
-                }}
+                    'data-testid': 'question-body',
+                } as any}
             />
         </div>
     );

@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Queries.Friendships;
 using SocialTechsy.SocialNetwork.Application.Commands.Friendships;
 using System.Security.Claims;
@@ -29,13 +30,19 @@ public class FriendshipController : ControllerBase
     }
 
     [HttpGet("friends")]
-    [ProducesResponseType(typeof(IEnumerable<FriendDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<FriendDto>>> GetFriends(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(PaginatedResponse<FriendDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponse<FriendDto>>> GetFriends(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
 
-        var result = await _mediator.Send(new GetFriendsQuery { UserId = userId }, cancellationToken);
+        var result = await _mediator.Send(
+            new GetFriendsQuery { UserId = userId, Page = page, PageSize = pageSize, Search = search },
+            cancellationToken);
         return Ok(result);
     }
 

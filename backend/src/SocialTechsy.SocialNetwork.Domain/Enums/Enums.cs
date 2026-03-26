@@ -124,3 +124,31 @@ public enum AttachmentType
     Document,
     Other
 }
+
+/// <summary>
+/// Visibility levels for a post
+/// </summary>
+public enum PostVisibility
+{
+    Public,
+    Friends,
+    Following,
+    Private
+}
+
+public enum EmailTemplateType
+{
+    PasswordReset,
+    EmailVerification,
+    AccountLocked,
+    Welcome,
+    PasswordChangeCode
+}
+
+public enum EmailOutboxStatus
+{
+    Pending,
+    Processing,
+    Sent,
+    Failed
+}

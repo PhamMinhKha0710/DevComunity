@@ -14,11 +14,24 @@ public static class CachingExtensions
         IConfiguration configuration)
     {
         var redisEnabled = configuration.GetValue<bool>("Redis:Enabled");
-        if (!redisEnabled) return services;
+        if (!redisEnabled)
+        {
+            services.AddSingleton<ILikeService, NoOpLikeService>();
+            services.AddSingleton<IPasswordChangeCodeService, NoOpPasswordChangeCodeService>();
+            services.AddSingleton<IForgotPasswordOtpService, NoOpForgotPasswordOtpService>();
+            return services;
+        }
 
         var redisConnStr = configuration["Redis:ConnectionString"] ?? "localhost:6379";
-        services.AddSingleton<IConnectionMultiplexer>(
-            ConnectionMultiplexer.Connect(redisConnStr));
+        var options = new ConfigurationOptions
+        {
+            EndPoints = { redisConnStr },
+            AbortOnConnectFail = false,
+            ConnectTimeout = 5000,
+            SyncTimeout = 3000
+        };
+        var multiplexer = ConnectionMultiplexer.Connect(options);
+        services.AddSingleton<IConnectionMultiplexer>(multiplexer);
 
         services.AddSingleton<RedisChatCacheService>();
         services.AddSingleton<RedisPresenceService>();
@@ -28,6 +41,10 @@ public static class CachingExtensions
         services.AddSingleton<ILikeService>(sp => sp.GetRequiredService<RedisLikeService>());
         services.AddSingleton<RedisViewService>();
         services.AddSingleton<IViewService>(sp => sp.GetRequiredService<RedisViewService>());
+        services.AddSingleton<PasswordChangeCodeService>();
+        services.AddSingleton<IPasswordChangeCodeService>(sp => sp.GetRequiredService<PasswordChangeCodeService>());
+        services.AddSingleton<ForgotPasswordOtpService>();
+        services.AddSingleton<IForgotPasswordOtpService>(sp => sp.GetRequiredService<ForgotPasswordOtpService>());
 
         return services;
     }

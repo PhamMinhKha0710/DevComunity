@@ -190,6 +190,7 @@ export default function EditQuestionPage() {
                                     </label>
                                     <input
                                         type="text"
+                                        data-testid="edit-question-title"
                                         placeholder="What's your question? Be specific."
                                         value={formData.title}
                                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -223,6 +224,7 @@ export default function EditQuestionPage() {
                                         </div>
                                         <textarea
                                             name="body"
+                                            data-testid="edit-question-body"
                                             rows={12}
                                             placeholder="Include all the information someone would need to answer your question"
                                             value={formData.body}
@@ -287,6 +289,7 @@ export default function EditQuestionPage() {
                                     </Link>
                                     <button
                                         type="submit"
+                                        data-testid="edit-question-submit"
                                         disabled={isSubmitting}
                                         className="flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >

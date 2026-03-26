@@ -1,7 +1,8 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.CommandHandlers.Answers;
 using SocialTechsy.SocialNetwork.Application.Common;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 
 namespace SocialTechsy.SocialNetwork.Application.Commands.Answers;
 

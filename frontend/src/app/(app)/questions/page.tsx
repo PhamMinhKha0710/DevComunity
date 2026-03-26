@@ -110,7 +110,7 @@ function QuestionsContent() {
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex border-b border-[var(--primary)]/10 gap-6 overflow-x-auto">
+            <div className="flex border-b border-[var(--primary)]/10 gap-4 sm:gap-6 overflow-x-auto">
                 {sortTabs.map((tab) => (
                     <button
                         key={tab.key}
@@ -183,6 +183,7 @@ function QuestionsContent() {
                             <div className="flex-1 flex flex-col gap-3 min-w-0">
                                 <Link
                                     href={`/questions/${question.questionId}`}
+                                    data-testid="question-card"
                                     className="text-lg font-bold text-[var(--text-primary)] hover:text-[var(--primary)] cursor-pointer leading-tight transition-colors"
                                 >
                                     {question.title}

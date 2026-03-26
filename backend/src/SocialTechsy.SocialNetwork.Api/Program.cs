@@ -11,6 +11,7 @@ using SocialTechsy.SocialNetwork.Infrastructure.DependencyInjection;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
 using SocialTechsy.SocialNetwork.Api.Hubs;
 using SocialTechsy.SocialNetwork.Api;
+using SocialTechsy.SocialNetwork.Api.Middleware;
 using OpenTelemetry.Trace;
 using Serilog;
 using StackExchange.Profiling;
@@ -36,6 +37,7 @@ builder.Host.UseSerilog((context, loggerConfig) =>
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase));
     });
@@ -43,10 +45,12 @@ builder.Services.AddMemoryCache();
 builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.EntityNotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.UnauthorizedCommandExceptionHandler>();
+builder.Services.AddExceptionHandler<SocialTechsy.SocialNetwork.Api.ExceptionHandling.GlobalExceptionHandler>();
 
 // Add Application and Infrastructure services
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddEmailServices(builder.Configuration);
 
 // MiniProfiler - only in Development
 if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("MiniProfiler:Enabled"))
@@ -61,7 +65,7 @@ if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>(
 // SignalR-based handlers (needs API layer for hub contexts)
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.ILikeNotificationHandler,
     SocialTechsy.SocialNetwork.Api.Services.SignalRLikeNotificationHandler>();
-builder.Services.AddSingleton<INotificationDispatcher, NotificationDispatcher>();
+builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IChatPushHandler,
     SocialTechsy.SocialNetwork.Api.Services.SignalRChatPushHandler>();
 builder.Services.AddScoped<SocialTechsy.SocialNetwork.Application.Interfaces.Services.IQuestionEventDispatcher,
@@ -242,26 +246,37 @@ builder.Services.AddCors(options =>
 });
 
 
-// Configure rate limiting
-builder.Services.AddRateLimiter(options =>
+// Configure rate limiting (permissive policy in Development/Testing for integration tests)
+if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
 {
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-    options.AddFixedWindowLimiter("fixed", opt =>
+    builder.Services.AddRateLimiter(options =>
     {
-        opt.PermitLimit = 100;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 10;
+        options.AddPolicy("auth", _ => System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("test"));
+        options.AddPolicy("fixed", _ => System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("test"));
     });
-
-    options.AddFixedWindowLimiter("auth", opt =>
+}
+else
+{
+    builder.Services.AddRateLimiter(options =>
     {
-        opt.PermitLimit = 10;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        options.AddFixedWindowLimiter("fixed", opt =>
+        {
+            opt.PermitLimit = 100;
+            opt.Window = TimeSpan.FromMinutes(1);
+            opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            opt.QueueLimit = 10;
+        });
+
+        options.AddFixedWindowLimiter("auth", opt =>
+        {
+            opt.PermitLimit = 10;
+            opt.Window = TimeSpan.FromMinutes(1);
+            opt.QueueLimit = 0;
+        });
     });
-});
+}
 
 // Configure response compression
 builder.Services.AddResponseCompression(options =>
@@ -309,6 +324,10 @@ if (redisEnabled)
         options.Configuration.ChannelPrefix = new StackExchange.Redis.RedisChannel("SocialTechsy", StackExchange.Redis.RedisChannel.PatternMode.Literal);
     });
 }
+
+// Register IActivityEventDispatcher AFTER AddSignalR so IHubContext<ActivityHub> is available
+builder.Services.AddScoped<IActivityEventDispatcher,
+    SocialTechsy.SocialNetwork.Infrastructure.SignalR.Services.SignalRActivityEventDispatcher>();
 
 // Configure Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -363,6 +382,7 @@ app.UseExceptionHandler(_ => { });
 app.UseResponseCompression();
 app.UseStaticFiles();
 app.UseHttpsRedirection();
+app.UseApiSecurityHeaders(app.Environment);
 app.UseSerilogRequestLogging();
 app.UseCors("ReactApp");
 app.UseRateLimiter();
@@ -391,7 +411,7 @@ app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.PresenceHub>("/hubs/presence", op
     options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets
                        | Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents;
 });
-app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.ActivityHub>("/hubs/activity");
+app.MapHub<SocialTechsy.SocialNetwork.Infrastructure.SignalR.Hubs.ActivityHub>("/hubs/activity");
 app.MapHub<SocialTechsy.SocialNetwork.Api.Hubs.CallHub>("/hubs/call");
 
 // Initialize Database

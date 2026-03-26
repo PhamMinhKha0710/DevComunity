@@ -1,6 +1,6 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Commands.Comments;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.Interfaces;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Services;
@@ -126,15 +126,21 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
 {
     private readonly ICommentRepository _commentRepository;
     private readonly IPostRepository _postRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly ICacheService _cacheService;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreatePostCommentCommandHandler(
         ICommentRepository commentRepository,
         IPostRepository postRepository,
+        IUserRepository userRepository,
+        ICacheService cacheService,
         IUnitOfWork unitOfWork)
     {
         _commentRepository = commentRepository;
         _postRepository = postRepository;
+        _userRepository = userRepository;
+        _cacheService = cacheService;
         _unitOfWork = unitOfWork;
     }
 
@@ -154,12 +160,19 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
         await _commentRepository.AddAsync(comment, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        _cacheService.Remove($"comments:post:{request.PostId}");
+
+        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
+
         return new CommentDto
         {
             CommentId = comment.CommentId,
             Body = comment.Body,
             CreatedDate = comment.CreatedDate,
-            UserId = comment.UserId
+            UserId = comment.UserId,
+            AuthorId = comment.UserId,
+            AuthorUsername = user?.Username ?? "Unknown",
+            AuthorProfilePicture = user?.ProfilePicture
         };
     }
 }
@@ -167,11 +180,16 @@ public class CreatePostCommentCommandHandler : IRequestHandler<CreatePostComment
 public class UpdateCommentCommandHandler : IRequestHandler<UpdateCommentCommand, bool>
 {
     private readonly ICommentRepository _commentRepository;
+    private readonly ICacheService _cacheService;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateCommentCommandHandler(ICommentRepository commentRepository, IUnitOfWork unitOfWork)
+    public UpdateCommentCommandHandler(
+        ICommentRepository commentRepository,
+        ICacheService cacheService,
+        IUnitOfWork unitOfWork)
     {
         _commentRepository = commentRepository;
+        _cacheService = cacheService;
         _unitOfWork = unitOfWork;
     }
 
@@ -184,6 +202,10 @@ public class UpdateCommentCommandHandler : IRequestHandler<UpdateCommentCommand,
         comment.Body = request.Body;
         await _commentRepository.UpdateAsync(comment, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (comment.PostId.HasValue)
+            _cacheService.Remove($"comments:post:{comment.PostId.Value}");
+
         return true;
     }
 }
@@ -191,11 +213,16 @@ public class UpdateCommentCommandHandler : IRequestHandler<UpdateCommentCommand,
 public class DeleteCommentCommandHandler : IRequestHandler<DeleteCommentCommand, bool>
 {
     private readonly ICommentRepository _commentRepository;
+    private readonly ICacheService _cacheService;
     private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteCommentCommandHandler(ICommentRepository commentRepository, IUnitOfWork unitOfWork)
+    public DeleteCommentCommandHandler(
+        ICommentRepository commentRepository,
+        ICacheService cacheService,
+        IUnitOfWork unitOfWork)
     {
         _commentRepository = commentRepository;
+        _cacheService = cacheService;
         _unitOfWork = unitOfWork;
     }
 
@@ -205,8 +232,14 @@ public class DeleteCommentCommandHandler : IRequestHandler<DeleteCommentCommand,
         if (comment == null || comment.UserId != request.UserId)
             return false;
 
+        var postId = comment.PostId;
+
         await _commentRepository.DeleteAsync(request.CommentId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (postId.HasValue)
+            _cacheService.Remove($"comments:post:{postId.Value}");
+
         return true;
     }
 }

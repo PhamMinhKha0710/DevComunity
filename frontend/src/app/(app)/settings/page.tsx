@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useTheme } from '@/lib/contexts/ThemeContext';
+import { useLocale } from '@/lib/contexts/LocaleContext';
 import apiClient from '@/lib/api/client';
 import AppLayout from '@/components/AppLayout';
 import { authorInitial } from '@/lib/utils';
@@ -11,10 +13,14 @@ import { authorInitial } from '@/lib/utils';
 export default function SettingsPage() {
     const { user, isLoading: authLoading, logout } = useAuth();
     const refreshCurrentUser = useAuthStore((s) => s.refreshCurrentUser);
+    const { preference, setPreference } = useTheme();
+    const { locale, setLocale, t } = useLocale();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState('profile');
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
+    const [avatarUrl, setAvatarUrl] = useState<string>('');
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
     const [profile, setProfile] = useState({
         displayName: '',
@@ -28,7 +34,10 @@ export default function SettingsPage() {
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
+        verificationCode: '',
     });
+    const [codeRequested, setCodeRequested] = useState(false);
+    const [isRequestingCode, setIsRequestingCode] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -42,6 +51,7 @@ export default function SettingsPage() {
                 location: user.location || '',
                 website: user.website || '',
             });
+            setAvatarUrl(user.profilePicture || '');
             // Then fetch full profile from API to get bio/location/website
             const fetchFullProfile = async () => {
                 try {
@@ -61,20 +71,53 @@ export default function SettingsPage() {
         }
     }, [user, authLoading, router]);
 
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            setMessage({ type: 'error', text: 'Only JPG, PNG, GIF, and WebP images are allowed.' });
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            setMessage({ type: 'error', text: 'Image must be smaller than 10 MB.' });
+            return;
+        }
+
+        setIsUploadingAvatar(true);
+        setMessage({ type: '', text: '' });
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const uploadRes = await apiClient.post('/media/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            const uploadedUrl: string = uploadRes.data.url;
+            setAvatarUrl(uploadedUrl);
+
+            await apiClient.put('/users/profile', { profilePicture: uploadedUrl });
+            await refreshCurrentUser();
+            setMessage({ type: 'success', text: 'Avatar updated successfully.' });
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to upload avatar.' });
+        } finally {
+            setIsUploadingAvatar(false);
+        }
+    };
+
     const handleProfileSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
         setMessage({ type: '', text: '' });
 
         try {
-            // Only send fields with actual values - empty fields are ignored (won't update DB)
             const payload: Record<string, string> = {};
             if (profile.displayName?.trim()) payload.displayName = profile.displayName.trim();
             if (profile.bio?.trim()) payload.bio = profile.bio.trim();
             if (profile.location?.trim()) payload.location = profile.location.trim();
             if (profile.website?.trim()) payload.website = profile.website.trim();
 
-            // Don't send request if nothing to update
             if (Object.keys(payload).length === 0) {
                 setMessage({ type: 'success', text: 'No changes to save' });
                 setIsSaving(false);
@@ -82,7 +125,6 @@ export default function SettingsPage() {
             }
 
             await apiClient.put('/users/profile', payload);
-            // Refresh auth store so Navbar/Sidebar/other pages show updated avatar
             await refreshCurrentUser();
             setMessage({ type: 'success', text: 'Profile updated successfully' });
         } catch (err: any) {
@@ -99,8 +141,31 @@ export default function SettingsPage() {
         }
     };
 
+    const handleRequestCode = async () => {
+        setIsRequestingCode(true);
+        setMessage({ type: '', text: '' });
+        try {
+            const res = await apiClient.post('/auth/request-password-change-code');
+            if (res.data.success) {
+                setCodeRequested(true);
+                setMessage({ type: 'success', text: 'Verification code sent to your email.' });
+            } else {
+                setMessage({ type: 'error', text: res.data.message || 'Failed to send code.' });
+            }
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to send code.' });
+        } finally {
+            setIsRequestingCode(false);
+        }
+    };
+
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!codeRequested) {
+            setMessage({ type: 'error', text: 'Please request a verification code first.' });
+            return;
+        }
 
         if (passwordForm.newPassword !== passwordForm.confirmPassword) {
             setMessage({ type: 'error', text: 'Passwords do not match' });
@@ -111,14 +176,20 @@ export default function SettingsPage() {
         setMessage({ type: '', text: '' });
 
         try {
-            await apiClient.post('/auth/change-password', {
+            const res = await apiClient.post('/auth/change-password', {
                 currentPassword: passwordForm.currentPassword,
                 newPassword: passwordForm.newPassword,
+                verificationCode: passwordForm.verificationCode,
             });
-            setMessage({ type: 'success', text: 'Password changed successfully' });
-            setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            if (res.data.success) {
+                setMessage({ type: 'success', text: 'Password changed successfully.' });
+                setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '', verificationCode: '' });
+                setCodeRequested(false);
+            } else {
+                setMessage({ type: 'error', text: res.data.message || 'Failed to change password.' });
+            }
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to change password' });
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to change password.' });
         } finally {
             setIsSaving(false);
         }
@@ -137,10 +208,10 @@ export default function SettingsPage() {
     if (!user) return null;
 
     const tabs = [
-        { key: 'profile', label: 'Profile', icon: 'person' },
-        { key: 'account', label: 'Security', icon: 'security' },
-        { key: 'notifications', label: 'Notifications', icon: 'notifications' },
-        { key: 'preferences', label: 'Preferences', icon: 'tune' },
+        { key: 'profile', label: t('settings.profile'), icon: 'person' },
+        { key: 'account', label: t('settings.account'), icon: 'security' },
+        { key: 'notifications', label: t('settings.notifications'), icon: 'notifications' },
+        { key: 'preferences', label: t('settings.preferences'), icon: 'tune' },
     ];
 
     return (
@@ -154,17 +225,23 @@ export default function SettingsPage() {
                 <p className="text-[var(--text-muted)]">Manage your account and preferences</p>
             </div>
 
-            <div className="grid lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Sidebar */}
                 <div className="lg:col-span-1">
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden">
                         {/* User Preview */}
                         <div className="p-5 text-center border-b border-[var(--border-color)]">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 p-0.5 mx-auto mb-3">
-                                <div className="w-full h-full rounded-full bg-[var(--bg-secondary)] flex items-center justify-center text-xl font-bold text-[var(--text-primary)]">
+                            {user.profilePicture ? (
+                                <img
+                                    src={user.profilePicture}
+                                    alt={user.displayName || user.username}
+                                    className="w-16 h-16 rounded-full object-cover border-2 border-[var(--border-color)] mx-auto mb-3"
+                                />
+                            ) : (
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-xl font-bold text-white mx-auto mb-3">
                                     {authorInitial(user.displayName || user.username)}
                                 </div>
-                            </div>
+                            )}
                             <h4 className="font-semibold text-[var(--text-primary)]">{user.displayName || user.username}</h4>
                             <p className="text-sm text-[var(--text-muted)]">@{user.username}</p>
                         </div>
@@ -211,6 +288,44 @@ export default function SettingsPage() {
                                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">Profile Settings</h3>
                             </div>
                             <form onSubmit={handleProfileSave} className="p-5 space-y-5">
+                                {/* Avatar Upload */}
+                                <div className="flex items-center gap-5">
+                                    <div className="relative flex-shrink-0">
+                                        {avatarUrl ? (
+                                            <img
+                                                src={avatarUrl}
+                                                alt="Avatar"
+                                                className="w-20 h-20 rounded-full object-cover border-2 border-[var(--border-color)]"
+                                            />
+                                        ) : (
+                                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-2xl font-bold text-white">
+                                                {authorInitial(user.displayName || user.username)}
+                                            </div>
+                                        )}
+                                        {isUploadingAvatar && (
+                                            <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                                                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white text-sm font-medium rounded-xl hover:bg-[var(--primary-dark)] transition disabled:opacity-50"
+                                            style={{ '--primary': 'var(--primary)', '--primary-dark': 'var(--primary-dark)' } as React.CSSProperties}
+                                        >
+                                            <input
+                                                type="file"
+                                                accept="image/jpeg,image/png,image/gif,image/webp"
+                                                onChange={handleAvatarUpload}
+                                                disabled={isUploadingAvatar}
+                                                className="sr-only"
+                                            />
+                                            <span className="material-symbols-outlined text-lg">upload</span>
+                                            {isUploadingAvatar ? 'Uploading...' : 'Change Photo'}
+                                        </label>
+                                        <p className="text-xs text-[var(--text-muted)] mt-1">JPG, PNG, GIF, WebP — max 10 MB</p>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Display Name</label>
                                     <input
@@ -296,7 +411,7 @@ export default function SettingsPage() {
                                             type="password"
                                             value={passwordForm.newPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                                            minLength={6}
+                                            minLength={8}
                                             required
                                             className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                                         />
@@ -311,9 +426,43 @@ export default function SettingsPage() {
                                             className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                                         />
                                     </div>
+
+                                    {!codeRequested ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleRequestCode}
+                                            disabled={isRequestingCode || !passwordForm.currentPassword || !passwordForm.newPassword}
+                                            className="px-4 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl text-sm font-medium hover:bg-[var(--bg-primary)] transition disabled:opacity-50"
+                                        >
+                                            {isRequestingCode ? 'Sending code...' : 'Send Verification Code to Email'}
+                                        </button>
+                                    ) : (
+                                        <div>
+                                            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                                                Verification Code
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={passwordForm.verificationCode}
+                                                onChange={(e) => setPasswordForm({ ...passwordForm, verificationCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                                                placeholder="6-digit code"
+                                                maxLength={6}
+                                                required
+                                                className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition tracking-widest text-center font-mono"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleRequestCode}
+                                                className="mt-2 text-xs text-[var(--primary)] hover:underline"
+                                            >
+                                                Resend code
+                                            </button>
+                                        </div>
+                                    )}
+
                                     <button
                                         type="submit"
-                                        disabled={isSaving}
+                                        disabled={isSaving || !codeRequested}
                                         className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition disabled:opacity-50"
                                     >
                                         {isSaving ? 'Updating...' : 'Update Password'}
@@ -368,22 +517,30 @@ export default function SettingsPage() {
                     {activeTab === 'preferences' && (
                         <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
                             <div className="p-5 border-b border-[var(--border-color)]">
-                                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Preferences</h3>
+                                <h3 className="text-lg font-semibold text-[var(--text-primary)]">{t('settings.preferences')}</h3>
                             </div>
                             <div className="p-5 space-y-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Theme</label>
-                                    <select className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition">
-                                        <option value="light">Light</option>
-                                        <option value="dark">Dark</option>
-                                        <option value="system">System</option>
+                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">{t('preferences.theme')}</label>
+                                    <select
+                                        value={preference}
+                                        onChange={(e) => setPreference(e.target.value as 'light' | 'dark' | 'system')}
+                                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                                    >
+                                        <option value="light">{t('preferences.theme.light')}</option>
+                                        <option value="dark">{t('preferences.theme.dark')}</option>
+                                        <option value="system">{t('preferences.theme.system')}</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Language</label>
-                                    <select className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition">
-                                        <option value="en">English</option>
-                                        <option value="vi">Tiếng Việt</option>
+                                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">{t('preferences.language')}</label>
+                                    <select
+                                        value={locale}
+                                        onChange={(e) => setLocale(e.target.value as 'en' | 'vi')}
+                                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                                    >
+                                        <option value="en">{t('preferences.language.en')}</option>
+                                        <option value="vi">{t('preferences.language.vi')}</option>
                                     </select>
                                 </div>
                             </div>

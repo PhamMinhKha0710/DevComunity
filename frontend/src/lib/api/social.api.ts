@@ -12,8 +12,16 @@ export const followApi = {
 };
 
 export const friendshipApi = {
-    getFriends: () =>
-        apiClient.get('/Friendship/friends').then(r => r.data),
+    getFriends: (page = 1, pageSize = 20, search?: string) =>
+        apiClient
+            .get('/Friendship/friends', {
+                params: {
+                    page,
+                    pageSize,
+                    ...(search?.trim() ? { search: search.trim() } : {}),
+                },
+            })
+            .then((r) => r.data),
 
     getPending: () =>
         apiClient.get('/Friendship/pending').then(r => r.data),

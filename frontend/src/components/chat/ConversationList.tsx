@@ -17,6 +17,10 @@ interface ConversationListProps {
     onSelectConversation: (id: number) => void;
     onNewChat: () => void;
     onDeleteConversation: (id: number) => void;
+    /** Called when the user taps a conversation on mobile to close the sidebar */
+    onConversationOpen?: () => void;
+    /** Hide/show the sidebar on mobile */
+    hiddenOnMobile?: boolean;
 }
 
 export default function ConversationList({
@@ -28,6 +32,8 @@ export default function ConversationList({
     onSelectConversation,
     onNewChat,
     onDeleteConversation,
+    onConversationOpen,
+    hiddenOnMobile,
 }: ConversationListProps) {
     const [searchFilter, setSearchFilter] = useState('');
     const [messageFilter, setMessageFilter] = useState<MessageFilter>('all');
@@ -78,7 +84,8 @@ export default function ConversationList({
     );
 
     return (
-        <aside className="flex w-80 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+        <aside className={`flex w-80 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0
+            ${hiddenOnMobile ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-4 space-y-4">
                 <div className="flex items-center gap-3">
                     <div className="relative">
@@ -135,7 +142,7 @@ export default function ConversationList({
                                 isActive={selectedConversationId === conv.conversationId}
                                 currentUserId={currentUser.userId}
                                 onlineUsers={onlineUsers}
-                                onSelect={onSelectConversation}
+                                onSelect={(id) => { onSelectConversation(id); onConversationOpen?.(); }}
                                 onDelete={onDeleteConversation}
                             />
                         ))

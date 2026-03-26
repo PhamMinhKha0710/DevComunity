@@ -22,12 +22,17 @@ interface MessageListProps {
     onVideoCall?: () => void;
     onInfoClick?: () => void;
     messagesEndRef: RefObject<HTMLDivElement | null>;
+    /** Mobile-only: called when back button is pressed */
+    onBack?: () => void;
+    /** Show back button on mobile */
+    showBackButton?: boolean;
 }
 
 export default function MessageList({
     messages, currentUser, otherParticipant, selectedConversation,
     typingUsers, onlineUsers, onReply, onToggleReaction, onOpenLightbox,
     onAudioCall, onVideoCall, onInfoClick, messagesEndRef,
+    onBack, showBackButton,
 }: MessageListProps) {
     const [showReactionPicker, setShowReactionPicker] = useState<number | string | null>(null);
     const groupedMessages = useMemo(() => buildMessageGroups(messages), [messages]);
@@ -44,10 +49,20 @@ export default function MessageList({
     return (
         <>
             {/* Chat Header */}
-            <header className="flex h-20 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 shrink-0">
-                <div className="flex items-center gap-4">
+            <header className="flex h-14 sm:h-20 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 sm:px-6 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                    {/* Back button - mobile only */}
+                    {showBackButton && (
+                        <button
+                            onClick={onBack}
+                            className="md:hidden p-1.5 -ml-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
+                            aria-label="Back to conversations"
+                        >
+                            <span className="material-symbols-outlined text-2xl">arrow_back</span>
+                        </button>
+                    )}
                     <div className="relative">
-                        <div className="size-11 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold">
+                        <div className="size-9 sm:size-11 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold shrink-0">
                             {otherParticipant?.profilePicture ? (
                                 <img src={otherParticipant.profilePicture} alt="" className="w-full h-full object-cover" />
                             ) : (
@@ -55,29 +70,29 @@ export default function MessageList({
                             )}
                         </div>
                         {participantOnline && (
-                            <div className="absolute bottom-0 right-0 size-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900"></div>
+                            <div className="absolute bottom-0 right-0 size-3 sm:size-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900"></div>
                         )}
                     </div>
-                    <div>
-                        <h2 className="text-slate-900 dark:text-white text-base font-bold">
+                    <div className="min-w-0">
+                        <h2 className="text-slate-900 dark:text-white text-sm sm:text-base font-bold truncate">
                             {selectedConversation ? getParticipantName(selectedConversation, currentUser.userId) : 'Chat'}
                         </h2>
                         {participantOnline ? (
                             <p className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold">Active now</p>
                         ) : (
-                            <p className="text-slate-500 text-xs">Offline</p>
+                            <p className="text-slate-500 text-xs hidden sm:block">Offline</p>
                         )}
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={onAudioCall} className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Gọi thoại">
-                        <span className="material-symbols-outlined">call</span>
+                <div className="flex items-center gap-1 sm:gap-2">
+                    <button onClick={onAudioCall} className="flex size-9 sm:size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Gọi thoại">
+                        <span className="material-symbols-outlined text-lg sm:text-xl">call</span>
                     </button>
-                    <button onClick={onVideoCall} className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Gọi video">
-                        <span className="material-symbols-outlined">videocam</span>
+                    <button onClick={onVideoCall} className="flex size-9 sm:size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Gọi video">
+                        <span className="material-symbols-outlined text-lg sm:text-xl">videocam</span>
                     </button>
-                    <button onClick={onInfoClick} className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Thông tin">
-                        <span className="material-symbols-outlined">info</span>
+                    <button onClick={onInfoClick} className="flex size-9 sm:size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors" title="Thông tin">
+                        <span className="material-symbols-outlined text-lg sm:text-xl">info</span>
                     </button>
                 </div>
             </header>
@@ -92,7 +107,7 @@ export default function MessageList({
                     itemContent={(groupIdx, group) => {
                         const isCallGroup = group.messages.length === 1 && group.messages[0].messageType === 'call';
                         return (
-                        <div className="max-w-3xl mx-auto px-6 py-0.5 animate-fadeIn">
+                        <div className="max-w-3xl mx-auto px-2 sm:px-6 py-0.5 animate-fadeIn">
                             {group.showTime && (
                                 <div className="flex justify-center my-4">
                                     <span className="px-4 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider">

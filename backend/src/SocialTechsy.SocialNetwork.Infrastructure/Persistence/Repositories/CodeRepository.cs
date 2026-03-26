@@ -18,20 +18,32 @@ public class CodeRepository : ICodeRepository
     }
 
     public async Task<(IEnumerable<Repository> Items, int TotalCount)> GetPaginatedAsync(
-        int page, int pageSize, string? search = null, int? ownerId = null, CancellationToken cancellationToken = default)
+        int page,
+        int pageSize,
+        string? search = null,
+        int? ownerId = null,
+        int? viewerUserId = null,
+        CancellationToken cancellationToken = default)
     {
-        var query = _context.Repositories
-            .Include(r => r.Owner)
-            .Where(r => !r.IsPrivate); // Only public repos by default
+        IQueryable<Repository> query = _context.Repositories.Include(r => r.Owner);
+
+        if (ownerId.HasValue)
+        {
+            if (viewerUserId.HasValue && viewerUserId.Value == ownerId.Value)
+                query = query.Where(r => r.OwnerId == ownerId.Value);
+            else
+                query = query.Where(r => r.OwnerId == ownerId.Value && !r.IsPrivate);
+        }
+        else
+        {
+            query = query.Where(r =>
+                !r.IsPrivate
+                || (viewerUserId.HasValue && r.OwnerId == viewerUserId.Value));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             query = query.Where(r => r.Name.Contains(search) || (r.Description != null && r.Description.Contains(search)));
-        }
-
-        if (ownerId.HasValue)
-        {
-            query = query.Where(r => r.OwnerId == ownerId.Value);
         }
 
         query = query.OrderByDescending(r => r.StarCount).ThenByDescending(r => r.CreatedDate);

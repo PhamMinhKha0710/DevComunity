@@ -65,7 +65,7 @@ public class DataSeeder
             // 2. Seed Tags
             var tags = new List<Tag>
             {
-                new Tag { TagName = "javascript", Description = "Programming language of the web", UsageCount = 0 },
+                new Tag { TagName = "javascript", Description = "Popular web programming language", UsageCount = 0 },
                 new Tag { TagName = "csharp", Description = "Multi-paradigm programming language by Microsoft", UsageCount = 0 },
                 new Tag { TagName = "python", Description = "Interpreted, high-level programming language", UsageCount = 0 },
                 new Tag { TagName = "react", Description = "A JavaScript library for building user interfaces", UsageCount = 0 },
@@ -98,7 +98,10 @@ public class DataSeeder
             questions[0].QuestionTags.Add(new QuestionTag { QuestionId = questions[0].QuestionId, TagId = reactTag.TagId });
             questions[1].QuestionTags.Add(new QuestionTag { QuestionId = questions[1].QuestionId, TagId = csharpTag.TagId });
 
-            await _context.Questions.AddRangeAsync(questions);
+            jsTag.UsageCount++;
+            reactTag.UsageCount++;
+            csharpTag.UsageCount++;
+
             await _context.SaveChangesAsync();
 
             // 4. Seed Answers
@@ -110,12 +113,6 @@ public class DataSeeder
             answers[0].Accept();
 
             await _context.Answers.AddRangeAsync(answers);
-            
-            // Update counts
-            jsTag.UsageCount++;
-            reactTag.UsageCount++;
-            csharpTag.UsageCount++;
-            
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Database seeded successfully.");

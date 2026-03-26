@@ -1,9 +1,11 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 using SocialTechsy.SocialNetwork.Application.Commands.Answers;
 using SocialTechsy.SocialNetwork.Application.Queries.Answers;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Question;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 

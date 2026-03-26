@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { HubConnectionState } from '@microsoft/signalr';
@@ -14,6 +14,7 @@ import { commentsApi } from '@/lib/api/comments.api';
 import { tagsApi } from '@/lib/api/tags.api';
 import { usersApi } from '@/lib/api/users.api';
 import { followApi } from '@/lib/api/social.api';
+import { mediaApi } from '@/lib/api/media.api';
 import { useHub } from '@/lib/signalr/useHub';
 import RelativeTime from '@/components/RelativeTime';
 import { authorInitial } from '@/lib/utils';
@@ -34,6 +35,8 @@ interface Post {
     commentCount?: number;
     userLiked?: boolean;
     userSaved?: boolean;
+    mediaUrls?: string | null;
+    visibility?: number;
 }
 
 interface PostComment {
@@ -49,17 +52,33 @@ export default function NewsfeedPage() {
     const { isAuthenticated, user: currentUser } = useAuth();
     const queryClient = useQueryClient();
     const [newPostContent, setNewPostContent] = useState('');
-    const [activeTab, setActiveTab] = useState<'all' | 'following' | 'community'>('all');
+    const [postVisibility, setPostVisibility] = useState<number>(0); // 0 = Public
+    const [activeTab, setActiveTab] = useState<'all' | 'following' | 'friends' | 'community'>('all');
     const [commentOpenPostId, setCommentOpenPostId] = useState<number | null>(null);
     const [commentTextByPostId, setCommentTextByPostId] = useState<Record<number, string>>({});
+    const [selectedImages, setSelectedImages] = useState<{ file: File; preview: string; uploadedUrl?: string }[]>([]);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [postMenuOpenId, setPostMenuOpenId] = useState<number | null>(null);
+    const postMenuRef = useRef<HTMLDivElement>(null);
+    const [editingPostId, setEditingPostId] = useState<number | null>(null);
+    const [editContent, setEditContent] = useState('');
+    const [editExistingUrls, setEditExistingUrls] = useState<string[]>([]);
+    const [editNewImages, setEditNewImages] = useState<{ file: File; preview: string }[]>([]);
+    const [uploadingEdit, setUploadingEdit] = useState(false);
+    const editFileInputRef = useRef<HTMLInputElement>(null);
     const activityHub = useHub('activity');
 
+    const resolveMediaSrc = (url: string) =>
+        url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5122'}${url}`;
+
     const { data: postsData, isLoading: loading } = useQuery({
-        queryKey: ['newsfeed'],
-        queryFn: () => newsfeedApi.list(),
+        queryKey: ['newsfeed', activeTab],
+        queryFn: () => newsfeedApi.list(activeTab),
         enabled: isAuthenticated,
     });
 
+    // Posts are now fetched based on activeTab from the backend
     const posts: Post[] = postsData?.items || [];
 
     const { data: postComments = [], isLoading: commentsLoading } = useQuery({
@@ -98,20 +117,6 @@ export default function NewsfeedPage() {
         return items.filter((u: { userId: number }) => u.userId !== currentUser.userId).slice(0, 3);
     }, [whoToFollowData?.items, currentUser?.userId]);
 
-    // Filter posts based on active tab
-    const filteredPosts = useMemo(() => {
-        if (activeTab === 'all') {
-            return posts;
-        } else if (activeTab === 'following') {
-            // Following = posts not in groups (personal posts from users you follow)
-            return posts.filter(p => p.groupId === null);
-        } else if (activeTab === 'community') {
-            // Community = posts from groups
-            return posts.filter(p => p.groupId !== null);
-        }
-        return posts;
-    }, [posts, activeTab]);
-
     const handleNewPost = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
     }, [queryClient]);
@@ -119,15 +124,7 @@ export default function NewsfeedPage() {
     const handleNewPostComment = useCallback((payload: { postId: number }) => {
         const { postId } = payload;
         queryClient.invalidateQueries({ queryKey: ['comments', 'post', postId] });
-        queryClient.setQueryData(['newsfeed'], (old: { items?: Post[] } | undefined) => {
-            if (!old?.items) return old;
-            return {
-                ...old,
-                items: old.items.map((p) =>
-                    p.postId === postId ? { ...p, commentCount: (p.commentCount ?? 0) + 1 } : p
-                ),
-            };
-        });
+        queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
     }, [queryClient]);
 
     useEffect(() => {
@@ -144,11 +141,25 @@ export default function NewsfeedPage() {
         };
     }, [activityHub, handleNewPost, handleNewPostComment]);
 
+    useEffect(() => {
+        if (postMenuOpenId == null) return;
+        const handleMouseDown = (e: MouseEvent) => {
+            if (postMenuRef.current && !postMenuRef.current.contains(e.target as Node)) {
+                setPostMenuOpenId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleMouseDown);
+        return () => document.removeEventListener('mousedown', handleMouseDown);
+    }, [postMenuOpenId]);
+
     const createPostMutation = useMutation({
-        mutationFn: (content: string) => newsfeedApi.createPost({ content, groupId: null }),
-        onSuccess: () => {
+        mutationFn: (data: { content: string; mediaUrls?: string | null; visibility?: number }) =>
+            newsfeedApi.createPost({ content: data.content, groupId: null, mediaUrls: data.mediaUrls, visibility: data.visibility }),
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
             setNewPostContent('');
+            setSelectedImages([]);
+            setPostVisibility(0);
         },
     });
 
@@ -213,28 +224,177 @@ export default function NewsfeedPage() {
     const commentMutation = useMutation({
         mutationFn: ({ postId, body }: { postId: number; body: string }) =>
             commentsApi.addToPost(postId, body),
-        onSuccess: (_data, { postId }) => {
-            queryClient.invalidateQueries({ queryKey: ['comments', 'post', postId] });
-            queryClient.setQueryData(['newsfeed'], (old: { items?: Post[] } | undefined) => {
-                if (!old?.items) return old;
-                return {
-                    ...old,
-                    items: old.items.map((p) =>
-                        p.postId === postId
-                            ? { ...p, commentCount: (p.commentCount ?? 0) + 1 }
-                            : p
-                    ),
-                };
+        onSuccess: (data: PostComment, { postId }) => {
+            queryClient.setQueryData(['comments', 'post', postId], (old: PostComment[] | undefined) => {
+                if (!old?.length) return [data];
+                if (old.some((c) => c.commentId === data.commentId)) return old;
+                return [...old, data];
             });
+            queryClient.invalidateQueries({ queryKey: ['comments', 'post', postId] });
+            queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
         },
     });
 
-    const posting = createPostMutation.isPending;
+    const updatePostMutation = useMutation({
+        mutationFn: ({
+            postId,
+            content,
+            mediaUrls,
+        }: {
+            postId: number;
+            content: string;
+            mediaUrls: string | null;
+        }) => newsfeedApi.updatePost(postId, { content, mediaUrls }),
+        onSuccess: () => {
+            setEditNewImages((prev) => {
+                prev.forEach((img) => URL.revokeObjectURL(img.preview));
+                return [];
+            });
+            setEditingPostId(null);
+            setEditContent('');
+            setEditExistingUrls([]);
+            queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
+            toast.success('Đã cập nhật bài viết');
+        },
+        onError: () => {
+            toast.error('Không thể cập nhật bài viết');
+        },
+    });
 
-    const handleCreatePost = (e: React.FormEvent) => {
+    const deletePostMutation = useMutation({
+        mutationFn: (postId: number) => newsfeedApi.deletePost(postId),
+        onSuccess: () => {
+            setPostMenuOpenId(null);
+            queryClient.invalidateQueries({ queryKey: ['newsfeed'] });
+            toast.success('Đã xóa bài viết');
+        },
+        onError: () => {
+            toast.error('Không thể xóa bài viết');
+        },
+    });
+
+    const posting = createPostMutation.isPending || uploading;
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const newImages = files.map(file => ({
+            file,
+            preview: URL.createObjectURL(file)
+        }));
+
+        setSelectedImages(prev => [...prev, ...newImages].slice(0, 5)); // Limit to 5
+        e.target.value = ''; // Reset
+    };
+
+    const removeImage = (index: number) => {
+        setSelectedImages(prev => {
+            const updated = [...prev];
+            URL.revokeObjectURL(updated[index].preview);
+            updated.splice(index, 1);
+            return updated;
+        });
+    };
+
+    const handleOpenPostEdit = (post: Post) => {
+        setPostMenuOpenId(null);
+        setEditingPostId(post.postId);
+        setEditContent(post.content);
+        setEditExistingUrls(post.mediaUrls ? post.mediaUrls.split(';').filter(Boolean) : []);
+        setEditNewImages([]);
+    };
+
+    const handleCancelPostEdit = () => {
+        setEditNewImages((prev) => {
+            prev.forEach((img) => URL.revokeObjectURL(img.preview));
+            return [];
+        });
+        setEditingPostId(null);
+        setEditContent('');
+        setEditExistingUrls([]);
+    };
+
+    const removeEditExistingUrl = (index: number) => {
+        setEditExistingUrls((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+        const newImages = files.map((file) => ({ file, preview: URL.createObjectURL(file) }));
+        setEditNewImages((prev) => [...prev, ...newImages].slice(0, 5));
+        e.target.value = '';
+    };
+
+    const removeEditNewImage = (index: number) => {
+        setEditNewImages((prev) => {
+            const updated = [...prev];
+            URL.revokeObjectURL(updated[index].preview);
+            updated.splice(index, 1);
+            return updated;
+        });
+    };
+
+    const handleSavePostEdit = async () => {
+        if (editingPostId == null) return;
+        if (!editContent.trim() && editExistingUrls.length === 0 && editNewImages.length === 0) {
+            toast.error('Nội dung hoặc ảnh không được để trống');
+            return;
+        }
+        let mediaUrls: string | null = null;
+        const urlParts = [...editExistingUrls];
+        if (editNewImages.length > 0) {
+            setUploadingEdit(true);
+            try {
+                const uploadPromises = editNewImages.map(async (img) => {
+                    const formData = new FormData();
+                    formData.append('file', img.file);
+                    const result = await mediaApi.upload(formData);
+                    return result.url;
+                });
+                const newUrls = await Promise.all(uploadPromises);
+                urlParts.push(...newUrls);
+            } catch {
+                toast.error('Lỗi khi tải ảnh lên');
+                setUploadingEdit(false);
+                return;
+            }
+            setUploadingEdit(false);
+        }
+        if (urlParts.length > 0) {
+            mediaUrls = urlParts.join(';');
+        }
+        updatePostMutation.mutate({ postId: editingPostId, content: editContent, mediaUrls });
+    };
+
+    const handleCreatePost = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newPostContent.trim()) return;
-        createPostMutation.mutate(newPostContent);
+        if (!newPostContent.trim() && selectedImages.length === 0) return;
+
+        let mediaUrls: string | null = null;
+
+        if (selectedImages.length > 0) {
+            setUploading(true);
+            try {
+                const uploadPromises = selectedImages.map(async img => {
+                    const formData = new FormData();
+                    formData.append('file', img.file);
+                    const result = await mediaApi.upload(formData);
+                    return result.url;
+                });
+
+                const urls = await Promise.all(uploadPromises);
+                mediaUrls = urls.join(';');
+            } catch (error) {
+                toast.error('Lỗi khi tải ảnh lên');
+                setUploading(false);
+                return;
+            }
+            setUploading(false);
+        }
+
+        createPostMutation.mutate({ content: newPostContent, mediaUrls, visibility: postVisibility });
     };
 
     if (!isAuthenticated) {
@@ -257,9 +417,10 @@ export default function NewsfeedPage() {
     }
 
     const tabs = [
-        { key: 'all', label: 'All Updates' },
-        { key: 'following', label: 'Following' },
-        { key: 'community', label: 'Community News' },
+        { key: 'all', label: 'Tất cả', icon: 'explore' },
+        { key: 'following', label: 'Đang theo dõi', icon: 'person_add' },
+        { key: 'friends', label: 'Bạn bè', icon: 'group' },
+        { key: 'community', label: 'Cộng đồng', icon: 'forum' },
     ];
 
     return (
@@ -288,27 +449,74 @@ export default function NewsfeedPage() {
                                         className="w-full h-24 p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-none text-slate-900 dark:text-white placeholder:text-slate-400 text-sm"
                                         rows={3}
                                     />
+
+                                    {/* Image Previews */}
+                                    {selectedImages.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mt-3">
+                                            {selectedImages.map((img, idx) => (
+                                                <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group">
+                                                    <img src={img.preview} alt="" className="w-full h-full object-cover" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeImage(idx)}
+                                                        className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <span className="material-symbols-outlined text-xs">close</span>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {selectedImages.length < 5 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="w-20 h-20 rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all"
+                                                >
+                                                    <span className="material-symbols-outlined">add</span>
+                                                    <span className="text-[10px]">Thêm</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center justify-between mt-4">
-                                        <div className="flex gap-2">
-                                            <button type="button" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[var(--primary)] transition-colors">
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                onChange={handleFileSelect}
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={uploading}
+                                                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[var(--primary)] transition-colors disabled:opacity-50"
+                                                title="Thêm ảnh"
+                                            >
                                                 <span className="material-symbols-outlined">image</span>
                                             </button>
-                                            <button type="button" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[var(--primary)] transition-colors">
-                                                <span className="material-symbols-outlined">videocam</span>
-                                            </button>
-                                            <button type="button" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[var(--primary)] transition-colors">
-                                                <span className="material-symbols-outlined">event</span>
-                                            </button>
-                                            <button type="button" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[var(--primary)] transition-colors">
-                                                <span className="material-symbols-outlined">equalizer</span>
-                                            </button>
+                                            
+                                            <div className="h-6 w-[1px] bg-slate-200 dark:border-slate-700 mx-1"></div>
+
+                                            <select 
+                                                value={postVisibility}
+                                                onChange={(e) => setPostVisibility(parseInt(e.target.value))}
+                                                className="bg-transparent text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border-none focus:ring-0 cursor-pointer outline-none"
+                                            >
+                                                <option value={0}>🌎 Công khai</option>
+                                                <option value={1}>👥 Bạn bè</option>
+                                                <option value={2}>🔔 Đang theo dõi</option>
+                                                <option value={3}>🔒 Riêng tư</option>
+                                            </select>
                                         </div>
                                         <button
                                             type="submit"
-                                            disabled={posting || !newPostContent.trim()}
+                                            disabled={posting || (!newPostContent.trim() && selectedImages.length === 0)}
                                             className="px-6 py-2 bg-[var(--primary)] text-white text-sm font-bold rounded-xl shadow-lg shadow-[var(--primary)]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {posting ? 'Posting...' : 'Post'}
+                                            {uploading ? 'Uploading...' : posting ? 'Posting...' : 'Post'}
                                         </button>
                                     </div>
                                 </div>
@@ -316,28 +524,33 @@ export default function NewsfeedPage() {
                         </form>
                     </div>
 
-                    {/* Feed Tabs */}
-                    <div className="flex border-b border-slate-200 dark:border-slate-800 gap-8">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveTab(tab.key as 'all' | 'following' | 'community')}
-                                className={`pb-3 border-b-2 text-sm font-bold transition-colors ${activeTab === tab.key
-                                    ? 'border-[var(--primary)] text-[var(--primary)]'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                                    }`}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
+                    {/* Feed Tabs - Glassmorphism style */}
+                    <div className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveTab(tab.key as 'all' | 'following' | 'friends' | 'community')}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.key
+                                        ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/30 scale-105'
+                                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                        }`}
+                                >
+                                    <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Posts Feed */}
                     {loading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
+                        <div className="flex flex-col gap-6">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="bg-white dark:bg-slate-900 rounded-2xl h-64 animate-pulse border border-slate-200 dark:border-slate-800" />
+                            ))}
                         </div>
-                    ) : posts.length === 0 ? (
+                    ) : (posts.length === 0) ? (
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center">
                             <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">inbox</span>
                             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
@@ -349,7 +562,7 @@ export default function NewsfeedPage() {
                         </div>
                     ) : (
                         <div className="flex flex-col gap-6">
-                            {filteredPosts.map((post) => (
+                            {posts.map((post) => (
                                 <div key={post.postId} className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-800 transition-all hover:shadow-md">
                                     {/* Post Header */}
                                     <div className="p-5 flex items-center justify-between">
@@ -377,17 +590,173 @@ export default function NewsfeedPage() {
                                                 </p>
                                             </div>
                                         </div>
-                                        <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-                                            <span className="material-symbols-outlined">more_horiz</span>
-                                        </button>
+                                        {currentUser?.userId === post.author.userId && editingPostId !== post.postId ? (
+                                            <div
+                                                className="relative shrink-0"
+                                                ref={postMenuOpenId === post.postId ? postMenuRef : undefined}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setPostMenuOpenId((id) => (id === post.postId ? null : post.postId))
+                                                    }
+                                                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                    aria-label="Tùy chọn bài viết"
+                                                >
+                                                    <span className="material-symbols-outlined">more_horiz</span>
+                                                </button>
+                                                {postMenuOpenId === post.postId && (
+                                                    <div className="absolute right-0 top-full mt-1 z-20 min-w-[180px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg py-1">
+                                                        <button
+                                                            type="button"
+                                                            className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
+                                                            onClick={() => handleOpenPostEdit(post)}
+                                                        >
+                                                            <span className="material-symbols-outlined text-lg">edit</span>
+                                                            Chỉnh sửa
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2"
+                                                            onClick={() => {
+                                                                setPostMenuOpenId(null);
+                                                                if (window.confirm('Xóa bài viết này?')) {
+                                                                    deletePostMutation.mutate(post.postId);
+                                                                }
+                                                            }}
+                                                            disabled={deletePostMutation.isPending}
+                                                        >
+                                                            <span className="material-symbols-outlined text-lg">delete</span>
+                                                            Xóa bài viết
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : null}
                                     </div>
 
-                                    {/* Post Content */}
-                                    <div className="px-5 pb-4">
-                                        <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                                            {post.content}
-                                        </p>
-                                    </div>
+                                    {/* Post Content — view or edit */}
+                                    {editingPostId === post.postId ? (
+                                        <div className="px-5 pb-4 space-y-3">
+                                            <textarea
+                                                value={editContent}
+                                                onChange={(e) => setEditContent(e.target.value)}
+                                                rows={4}
+                                                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white resize-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                                                placeholder="Nội dung bài viết..."
+                                            />
+                                            {(editExistingUrls.length > 0 || editNewImages.length > 0) && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {editExistingUrls.map((url, idx) => (
+                                                        <div
+                                                            key={`ex-${idx}`}
+                                                            className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group"
+                                                        >
+                                                            <img
+                                                                src={resolveMediaSrc(url)}
+                                                                alt=""
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeEditExistingUrl(idx)}
+                                                                className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <span className="material-symbols-outlined text-xs">close</span>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {editNewImages.map((img, idx) => (
+                                                        <div
+                                                            key={`new-${idx}`}
+                                                            className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group"
+                                                        >
+                                                            <img
+                                                                src={img.preview}
+                                                                alt=""
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeEditNewImage(idx)}
+                                                                className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <span className="material-symbols-outlined text-xs">close</span>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <input
+                                                ref={editFileInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                                onChange={handleEditFileSelect}
+                                            />
+                                            {editExistingUrls.length + editNewImages.length < 5 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => editFileInputRef.current?.click()}
+                                                    className="text-sm font-medium text-[var(--primary)] hover:underline"
+                                                >
+                                                    Thêm ảnh
+                                                </button>
+                                            )}
+                                            <div className="flex justify-end gap-2 pt-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCancelPostEdit}
+                                                    disabled={updatePostMutation.isPending || uploadingEdit}
+                                                    className="px-4 py-2 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                                                >
+                                                    Hủy
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSavePostEdit}
+                                                    disabled={updatePostMutation.isPending || uploadingEdit}
+                                                    className="px-4 py-2 text-sm font-bold rounded-xl bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50"
+                                                >
+                                                    {uploadingEdit || updatePostMutation.isPending ? 'Đang lưu...' : 'Lưu'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="px-5 pb-3">
+                                                <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                                                    {post.content}
+                                                </p>
+                                            </div>
+
+                                            {post.mediaUrls && (
+                                                <div
+                                                    className={`px-5 pb-4 grid gap-1 ${
+                                                        post.mediaUrls.split(';').length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+                                                    }`}
+                                                >
+                                                    {post.mediaUrls.split(';').map((url, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className={`rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm ${
+                                                                post.mediaUrls!.split(';').length === 3 && i === 0
+                                                                    ? 'row-span-2'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            <img
+                                                                src={resolveMediaSrc(url)}
+                                                                alt=""
+                                                                className="w-full h-full object-cover max-h-[400px]"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
 
                                     {/* Like count - same as question */}
                                     {(post.likeCount ?? 0) > 0 && (

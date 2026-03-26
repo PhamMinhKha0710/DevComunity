@@ -1,6 +1,8 @@
 using MediatR;
 using SocialTechsy.SocialNetwork.Application.Queries.Notifications;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Notification;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
 
 namespace SocialTechsy.SocialNetwork.Application.QueryHandlers.Notifications;

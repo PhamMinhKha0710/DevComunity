@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 using SocialTechsy.SocialNetwork.Application.Queries.Posts;
 using SocialTechsy.SocialNetwork.Application.Commands.Posts;
 using System.Security.Claims;
@@ -31,6 +32,7 @@ public class NewsfeedController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(PaginatedResponse<PostDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedResponse<PostDto>>> GetNewsfeed(
+        [FromQuery] string? filter = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -38,10 +40,18 @@ public class NewsfeedController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == 0) return Unauthorized();
 
-        var result = await _mediator.Send(
-            new GetNewsfeedQuery { UserId = userId, Page = page, PageSize = pageSize },
-            cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _mediator.Send(
+                new GetNewsfeedQuery { UserId = userId, Filter = filter, Page = page, PageSize = pageSize },
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load newsfeed for user {UserId} with filter {Filter}", userId, filter);
+            return StatusCode(500, new { message = "Failed to load newsfeed" });
+        }
     }
 
     [HttpGet("groups/{groupId:int}")]
@@ -119,7 +129,7 @@ public class NewsfeedController : ControllerBase
         try
         {
             var result = await _mediator.Send(
-                new CreatePostCommand { AuthorId = userId, Content = request.Content, GroupId = request.GroupId },
+                new CreatePostCommand { AuthorId = userId, Content = request.Content, GroupId = request.GroupId, MediaUrls = request.MediaUrls, Visibility = request.Visibility },
                 cancellationToken);
             return Created($"/api/newsfeed/posts/{result.PostId}", result);
         }
@@ -147,7 +157,7 @@ public class NewsfeedController : ControllerBase
         try
         {
             var result = await _mediator.Send(
-                new UpdatePostCommand { PostId = postId, UserId = userId, Content = request.Content },
+                new UpdatePostCommand { PostId = postId, UserId = userId, Content = request.Content, MediaUrls = request.MediaUrls },
                 cancellationToken);
             return Ok(result);
         }

@@ -1,15 +1,30 @@
+using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
 namespace SocialTechsy.SocialNetwork.Infrastructure.Caching;
 
 public class RedisChatRateLimiter
 {
-    private readonly IDatabase _db;
+    private readonly IDatabase? _db;
+    private readonly ILogger<RedisChatRateLimiter> _logger;
 
-    public RedisChatRateLimiter(IConnectionMultiplexer redis)
+    public RedisChatRateLimiter(IConnectionMultiplexer redis, ILogger<RedisChatRateLimiter> logger)
     {
-        _db = redis.GetDatabase();
+        _logger = logger;
+        if (redis == null || !redis.IsConnected)
+        {
+            _logger.LogWarning("Redis unavailable - chat rate limiting disabled");
+            return;
+        }
+        try { _db = redis.GetDatabase(); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to connect to Redis - chat rate limiting disabled");
+        }
     }
+
+    private IDatabase GetDb() => _db!;
+    private bool IsAvailable => _db != null;
 
     /// <summary>
     /// Sliding window rate limiter using Redis sorted sets.
@@ -18,18 +33,27 @@ public class RedisChatRateLimiter
     /// </summary>
     public async Task<bool> IsAllowedAsync(int userId, int maxRequests = 30, int windowSeconds = 60)
     {
-        var key = $"ratelimit:chat:{userId}";
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var windowStart = now - (windowSeconds * 1000L);
+        if (!IsAvailable) return true;
+        try
+        {
+            var key = $"ratelimit:chat:{userId}";
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var windowStart = now - (windowSeconds * 1000L);
 
-        var batch = _db.CreateBatch();
-        var removeTask = batch.SortedSetRemoveRangeByScoreAsync(key, 0, windowStart);
-        var addTask = batch.SortedSetAddAsync(key, now.ToString(), now);
-        var countTask = batch.SortedSetLengthAsync(key);
-        var expireTask = batch.KeyExpireAsync(key, TimeSpan.FromSeconds(windowSeconds + 1));
-        batch.Execute();
+            var batch = GetDb().CreateBatch();
+            var removeTask = batch.SortedSetRemoveRangeByScoreAsync(key, 0, windowStart);
+            var addTask = batch.SortedSetAddAsync(key, now.ToString(), now);
+            var countTask = batch.SortedSetLengthAsync(key);
+            var expireTask = batch.KeyExpireAsync(key, TimeSpan.FromSeconds(windowSeconds + 1));
+            batch.Execute();
 
-        await Task.WhenAll(removeTask, addTask, countTask, expireTask);
-        return await countTask <= maxRequests;
+            await Task.WhenAll(removeTask, addTask, countTask, expireTask);
+            return await countTask <= maxRequests;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis unavailable for IsAllowedAsync user {UserId} - allowing request", userId);
+            return true;
+        }
     }
 }

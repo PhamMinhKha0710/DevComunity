@@ -1,5 +1,5 @@
 using SocialTechsy.SocialNetwork.Application.Interfaces.Repositories;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Domain.Entities;
 using SocialTechsy.SocialNetwork.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +46,41 @@ public class FriendshipRepository : IFriendshipRepository
                        (f.RequesterId == userId || f.AddresseeId == userId))
             .OrderByDescending(f => f.RespondedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<(IEnumerable<Friendship> Items, int TotalCount)> GetFriendsPagedAsync(
+        int userId,
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Friendships
+            .Include(f => f.Requester)
+            .Include(f => f.Addressee)
+            .Where(f => f.Status == FriendshipStatus.Accepted &&
+                        (f.RequesterId == userId || f.AddresseeId == userId));
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(f =>
+                f.RequesterId == userId
+                    ? (f.Addressee.Username.Contains(term) ||
+                       (f.Addressee.DisplayName != null && f.Addressee.DisplayName.Contains(term)))
+                    : (f.Requester.Username.Contains(term) ||
+                       (f.Requester.DisplayName != null && f.Requester.DisplayName.Contains(term))));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(f => f.RespondedAt ?? f.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     public async Task<IEnumerable<Friendship>> GetPendingRequestsAsync(int userId, CancellationToken cancellationToken = default)
@@ -129,7 +164,7 @@ public class FriendshipRepository : IFriendshipRepository
                     .Count(tp => currentUserTagIds.Contains(tp.TagId) && tp.UserId == u.UserId && tp.IsFollowed)
             })
             .OrderByDescending(x => x.CommonTags)
-            .ThenBy(x => Guid.NewGuid())
+            .ThenBy(x => x.UserId)
             .Take(limit)
             .ToListAsync(cancellationToken);
 

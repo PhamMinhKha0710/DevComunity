@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import type { CreateRepositoryRequest } from '@/types';
 import apiClient from '@/lib/api/client';
@@ -12,6 +13,7 @@ import { authorInitial } from '@/lib/utils';
 export default function CreateRepositoryPage() {
     const { user, isLoading: authLoading } = useAuth();
     const router = useRouter();
+    const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [formData, setFormData] = useState<CreateRepositoryRequest>({
@@ -42,7 +44,14 @@ export default function CreateRepositoryPage() {
 
         try {
             const response = await apiClient.post('/repositories', formData);
-            router.push(`/repositories/${response.data.repositoryId}`);
+            await queryClient.invalidateQueries({ queryKey: ['repositories'] });
+            const rawId = response.data?.repositoryId ?? response.data?.id;
+            const newRepoId = typeof rawId === 'number' ? rawId : Number(rawId);
+            if (Number.isFinite(newRepoId) && newRepoId > 0) {
+                router.push(`/repositories/${newRepoId}`);
+            } else {
+                router.push('/repositories');
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Failed to create repository');
         } finally {
@@ -96,7 +105,8 @@ export default function CreateRepositoryPage() {
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
                                     required
-                                    pattern="[a-z0-9-]+"
+                                    pattern="[a-z0-9\-]+"
+                                    title="Only lowercase letters, numbers, and hyphens are allowed"
                                     className="flex-1 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[#e2e8f0] dark:border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-[#94a3b8] focus:border-[#137fec] focus:ring-2 focus:ring-[rgba(19,127,236,0.1)] outline-none transition"
                                 />
                             </div>

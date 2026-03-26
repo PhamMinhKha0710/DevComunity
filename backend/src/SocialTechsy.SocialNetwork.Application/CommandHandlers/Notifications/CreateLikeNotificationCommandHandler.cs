@@ -32,6 +32,10 @@ public class CreateLikeNotificationCommandHandler : IRequestHandler<CreateLikeNo
 
     public async Task Handle(CreateLikeNotificationCommand request, CancellationToken cancellationToken)
     {
+        _logger.LogInformation(
+            "Received CreateLikeNotificationCommand: TargetType={TargetType}, TargetId={TargetId}, LikedByUserId={LikedByUserId}, ContentAuthorId={ContentAuthorId}",
+            request.TargetType, request.TargetId, request.LikedByUserId, request.ContentAuthorId);
+
         if (request.LikedByUserId == request.ContentAuthorId)
             return;
 
@@ -59,6 +63,10 @@ public class CreateLikeNotificationCommandHandler : IRequestHandler<CreateLikeNo
         await _notificationRepository.AddAsync(notification, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        _logger.LogInformation(
+            "Sending real-time notification via SignalR for like event: {EventId}",
+            request.EventId);
+
         await _signalRHandler.HandleAsync(new LikeEvent
         {
             EventId = request.EventId,
@@ -71,6 +79,10 @@ public class CreateLikeNotificationCommandHandler : IRequestHandler<CreateLikeNo
             QuestionId = request.QuestionId,
             LikeCount = request.LikeCount
         }, notification);
+
+        _logger.LogInformation(
+            "Real-time notification sent successfully for event: {EventId}",
+            request.EventId);
 
         _logger.LogInformation(
             "Processed like notification: {TargetType}:{TargetId} by user {UserId}",

@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SocialTechsy.SocialNetwork.Application.Queries.Search;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;
 

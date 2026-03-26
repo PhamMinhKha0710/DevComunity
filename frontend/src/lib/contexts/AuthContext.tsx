@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, ReactNode } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { forgotPasswordApi } from '@/lib/api/forgot-password.api';
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types';
 
 interface AuthContextType {
@@ -12,6 +13,12 @@ interface AuthContextType {
     register: (data: RegisterRequest) => Promise<AuthResponse>;
     logout: () => void;
     externalLogin: (provider: 'google' | 'github' | 'facebook') => Promise<AuthResponse>;
+    forgotPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+    forgotPasswordOtp: {
+        requestCode: (email: string) => Promise<{ success: boolean; message?: string }>;
+        confirmCode: (data: { email: string; code: string; newPassword: string; confirmPassword: string }) => Promise<AuthResponse>;
+    };
+    resetPassword: (data: any) => Promise<AuthResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 register: store.register,
                 logout: store.logout,
                 externalLogin: store.externalLogin,
+                forgotPassword: store.forgotPassword,
+                forgotPasswordOtp: {
+                    requestCode: forgotPasswordApi.requestCode,
+                    confirmCode: forgotPasswordApi.confirmCode,
+                },
+                resetPassword: store.resetPassword,
             }}
         >
             {children}

@@ -1,6 +1,10 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using SocialTechsy.SocialNetwork.Application.Common.DTOs;
+using Microsoft.AspNetCore.Http;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.External;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Auth;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Common;
+using SocialTechsy.SocialNetwork.Application.Common.DTOs.Social;
 using SocialTechsy.SocialNetwork.Application.QueryHandlers.Badges;
 
 namespace SocialTechsy.SocialNetwork.Api.Controllers;

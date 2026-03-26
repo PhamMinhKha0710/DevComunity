@@ -1,0 +1,138 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { authorInitial } from '@/lib/utils';
+
+interface NavItem {
+    name: string;
+    href: string;
+    icon: string;
+    requireAuth?: boolean;
+}
+
+const navItems: NavItem[] = [
+    { name: 'Home', href: '/', icon: 'home' },
+    { name: 'Questions', href: '/questions', icon: 'quiz' },
+    { name: 'Tags', href: '/tags', icon: 'sell' },
+    { name: 'Users', href: '/users', icon: 'group' },
+    { name: 'Newsfeed', href: '/newsfeed', icon: 'newspaper', requireAuth: true },
+    { name: 'Groups', href: '/groups', icon: 'groups', requireAuth: true },
+    { name: 'Friends', href: '/friends', icon: 'person_add', requireAuth: true },
+    { name: 'Saved', href: '/saved', icon: 'bookmark', requireAuth: true },
+    { name: 'Repositories', href: '/repositories', icon: 'folder_code', requireAuth: true },
+];
+
+interface MobileNavProps {
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
+    const pathname = usePathname();
+    const { user, isAuthenticated } = useAuth();
+
+    const isActive = (href: string) => {
+        if (href === '/') return pathname === '/';
+        return pathname.startsWith(href);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <>
+            {/* Backdrop overlay */}
+            <div
+                className="fixed inset-0 z-40 bg-black/50"
+                onClick={onClose}
+                aria-hidden="true"
+            />
+
+            {/* Drawer panel */}
+            <aside className="fixed top-0 left-0 bottom-0 w-72 bg-white dark:bg-slate-900 flex flex-col z-50 shadow-2xl animate-in slide-in-from-left duration-200">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+                    <Link href="/" className="flex items-center gap-3" onClick={onClose}>
+                        <div className="size-9 bg-[var(--primary)] rounded-xl flex items-center justify-center text-white">
+                            <span className="material-symbols-outlined">hub</span>
+                        </div>
+                        <div>
+                            <h1 className="text-slate-900 dark:text-white text-sm font-bold leading-none">SocialTechsy</h1>
+                            <p className="text-slate-500 dark:text-slate-400 text-[10px] mt-0.5">Menu</p>
+                        </div>
+                    </Link>
+                    <button
+                        onClick={onClose}
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        aria-label="Close menu"
+                    >
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                    {navItems.map((item) => {
+                        if (item.requireAuth && !isAuthenticated) return null;
+                        const active = isActive(item.href);
+
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                onClick={onClose}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                                    active
+                                        ? 'bg-[var(--primary)] text-white font-semibold shadow-sm'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                            >
+                                <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                                <span className="text-sm">{item.name}</span>
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                {/* Bottom section */}
+                {isAuthenticated && user && (
+                    <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                        {/* User Profile */}
+                        <Link
+                            href="/profile"
+                            onClick={onClose}
+                            className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            {user.profilePicture ? (
+                                <img
+                                    src={user.profilePicture}
+                                    alt={user.displayName || user.username}
+                                    className="size-10 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700"
+                                />
+                            ) : (
+                                <div className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border-2 border-slate-100 dark:border-slate-700">
+                                    {authorInitial(user.displayName || user.username)}
+                                </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                    {user.displayName || user.username}
+                                </p>
+                                <p className="text-xs text-slate-500 truncate">@{user.username}</p>
+                            </div>
+                        </Link>
+                        <Link
+                            href="/settings"
+                            onClick={onClose}
+                            className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-[var(--primary)] transition-colors text-xs rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                        >
+                            <span className="material-symbols-outlined text-base">settings</span>
+                            Settings
+                        </Link>
+                    </div>
+                )}
+            </aside>
+        </>
+    );
+}

@@ -205,4 +205,9 @@ public class QuestionRepository : IQuestionRepository
 
         return (items, totalCount);
     }
+
+    public void AddQuestionTag(QuestionTag questionTag)
+    {
+        _context.QuestionTags.Add(questionTag);
+    }
 }

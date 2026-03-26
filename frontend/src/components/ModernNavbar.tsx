@@ -2,34 +2,28 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useChatContext } from '@/lib/contexts/ChatContext';
+import { useTheme } from '@/lib/contexts/ThemeContext';
 import { authorInitial } from '@/lib/utils';
 
-export default function ModernNavbar() {
+interface ModernNavbarProps {
+    onMobileMenuClick?: () => void;
+}
+
+export default function ModernNavbar({ onMobileMenuClick }: ModernNavbarProps) {
     const router = useRouter();
     const { user, isAuthenticated, logout } = useAuth();
     const { unreadCount, notifications, markAsRead } = useNotifications();
     const { totalUnreadChats } = useChatContext();
+    const { resolvedIsDark, setPreference } = useTheme();
     const [searchQuery, setSearchQuery] = useState('');
-    const [isDark, setIsDark] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = savedTheme === 'dark';
-        setIsDark(prefersDark);
-        if (prefersDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    }, []);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -45,14 +39,8 @@ export default function ModernNavbar() {
     }, []);
 
     const toggleTheme = () => {
-        const newIsDark = !isDark;
-        setIsDark(newIsDark);
-        localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
-        if (newIsDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        // Flip between light and dark, overriding any system preference
+        setPreference(resolvedIsDark ? 'light' : 'dark');
     };
 
     const handleSearch = (e: React.FormEvent) => {
@@ -63,29 +51,41 @@ export default function ModernNavbar() {
     };
 
     return (
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 z-10 shrink-0">
-            {/* Search */}
-            <div className="flex-1 max-w-xl">
-                <form onSubmit={handleSearch} className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+        <header className="h-14 sm:h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 lg:px-8 z-10 shrink-0 gap-2 sm:gap-4">
+            {/* Left: Hamburger + Logo on mobile */}
+            <div className="flex items-center gap-2 lg:hidden shrink-0">
+                <button
+                    onClick={onMobileMenuClick}
+                    className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    aria-label="Open menu"
+                >
+                    <span className="material-symbols-outlined text-2xl">menu</span>
+                </button>
+            </div>
+
+            {/* Search - hidden on xs, visible from sm+ */}
+            <div className="hidden sm:flex flex-1 max-w-xl">
+                <form onSubmit={handleSearch} className="relative w-full">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search questions, people or groups..."
-                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-[var(--primary)] transition-all placeholder:text-slate-500"
+                        placeholder="Search questions, people..."
+                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg pl-9 sm:pl-10 pr-4 py-1.5 sm:py-2 text-sm focus:ring-2 focus:ring-[var(--primary)] transition-all placeholder:text-slate-500"
                     />
                 </form>
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 sm:gap-3">
                 {/* Theme Toggle */}
                 <button
                     onClick={toggleTheme}
-                    className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    aria-label="Toggle theme"
                 >
-                    <span className="material-symbols-outlined">{isDark ? 'light_mode' : 'dark_mode'}</span>
+                    <span className="material-symbols-outlined text-xl sm:text-2xl">{resolvedIsDark ? 'light_mode' : 'dark_mode'}</span>
                 </button>
 
                 {isAuthenticated ? (
@@ -94,11 +94,14 @@ export default function ModernNavbar() {
                         <div className="relative" ref={notificationsRef}>
                             <button
                                 onClick={() => setShowNotifications(!showNotifications)}
-                                className="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                                className="relative p-1.5 sm:p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                                aria-label="Notifications"
                             >
-                                <span className="material-symbols-outlined">notifications</span>
+                                <span className="material-symbols-outlined text-xl sm:text-2xl">notifications</span>
                                 {unreadCount > 0 && (
-                                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+                                    <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white dark:border-slate-900 text-[9px] text-white font-bold flex items-center justify-center">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
                                 )}
                             </button>
 
@@ -125,9 +128,9 @@ export default function ModernNavbar() {
                                                     >
                                                         <div className={`mt-1 size-8 rounded-full flex items-center justify-center shrink-0 ${!notif.isRead ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
                                                             <span className="material-symbols-outlined text-sm">
-                                                                {notif.type === 'message' ? 'chat' 
-                                                                 : notif.type === 'friend_request' ? 'person_add' 
-                                                                 : notif.type === 'like' ? 'favorite' 
+                                                                {notif.type === 'message' ? 'chat'
+                                                                 : notif.type === 'friend_request' ? 'person_add'
+                                                                 : notif.type === 'like' ? 'favorite'
                                                                  : 'notifications'}
                                                             </span>
                                                         </div>
@@ -167,37 +170,37 @@ export default function ModernNavbar() {
                         {/* Messages */}
                         <Link
                             href="/chat"
-                            className="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                            className="relative p-1.5 sm:p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center"
+                            aria-label="Messages"
                         >
-                            <span className="material-symbols-outlined">mail</span>
+                            <span className="material-symbols-outlined text-xl sm:text-2xl">mail</span>
                             {totalUnreadChats > 0 && (
-                                <span className="absolute top-1.5 right-1.5 w-4 h-4 text-[10px] bg-blue-500 text-white rounded-full flex items-center justify-center font-bold border-2 border-white dark:border-slate-900">
+                                <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-4 h-4 text-[10px] bg-blue-500 text-white rounded-full flex items-center justify-center font-bold border-2 border-white dark:border-slate-900">
                                     {totalUnreadChats > 9 ? '9+' : totalUnreadChats}
                                 </span>
                             )}
                         </Link>
 
-                        <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-
-                        {/* Ask Question Button */}
+                        {/* Ask Question - hidden on xs, visible from sm+ */}
                         <Link
                             href="/questions/ask"
-                            className="bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-[var(--primary)]/90 transition-all shadow-sm"
+                            className="hidden sm:flex bg-[var(--primary)] text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold items-center gap-1 sm:gap-2 hover:bg-[var(--primary)]/90 transition-all shadow-sm whitespace-nowrap"
                         >
-                            <span className="material-symbols-outlined text-sm">add</span>
-                            Ask Question
+                            <span className="material-symbols-outlined text-sm sm:text-base">add</span>
+                            <span className="hidden md:inline">Ask Question</span>
                         </Link>
 
                         {/* User Menu */}
-                        <div className="relative" ref={menuRef}>
+                        <div className="relative shrink-0" ref={menuRef}>
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
-                                className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border-2 border-[var(--primary)]/20 overflow-hidden"
+                                data-testid="user-profile-menu"
+                                className="size-8 sm:size-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border-2 border-[var(--primary)]/20 overflow-hidden transition-all hover:scale-105"
                             >
                                 {user?.profilePicture ? (
                                     <img src={user.profilePicture} alt={user.displayName || user.username} className="size-full object-cover" />
                                 ) : (
-                                    authorInitial(user?.username)
+                                    <span className="text-xs sm:text-sm font-bold">{authorInitial(user?.username)}</span>
                                 )}
                             </button>
 
@@ -208,14 +211,14 @@ export default function ModernNavbar() {
                                         <p className="text-sm text-slate-500">@{user?.username}</p>
                                     </div>
                                     <div className="py-1">
-                                        <Link href="/profile" className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-sm">
+                                        <Link href="/profile" data-testid="user-profile-link" className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-sm" onClick={() => setShowUserMenu(false)}>
                                             <span className="material-symbols-outlined text-lg">person</span> Profile
                                         </Link>
-                                        <Link href="/settings" className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-sm">
+                                        <Link href="/settings" className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-sm" onClick={() => setShowUserMenu(false)}>
                                             <span className="material-symbols-outlined text-lg">settings</span> Settings
                                         </Link>
                                         <button
-                                            onClick={() => { logout(); setShowUserMenu(false); }}
+                                            onClick={() => { logout(); setShowUserMenu(false); router.push('/auth?mode=login'); }}
                                             className="w-full flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition text-sm"
                                         >
                                             <span className="material-symbols-outlined text-lg">logout</span> Logout
@@ -227,10 +230,10 @@ export default function ModernNavbar() {
                     </>
                 ) : (
                     <div className="flex gap-2">
-                        <Link href="/auth?mode=login" className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-[var(--primary)] transition font-semibold text-sm">
+                        <Link href="/auth?mode=login" className="px-2 sm:px-4 py-1.5 sm:py-2 text-slate-600 dark:text-slate-400 hover:text-[var(--primary)] transition font-semibold text-xs sm:text-sm">
                             Login
                         </Link>
-                        <Link href="/auth?mode=register" className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition font-bold text-sm shadow-sm">
+                        <Link href="/auth?mode=register" className="px-3 sm:px-5 py-1.5 sm:py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition font-bold text-xs sm:text-sm shadow-sm">
                             Sign Up
                         </Link>
                     </div>

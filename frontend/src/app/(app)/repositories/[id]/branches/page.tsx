@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api/client';
 import AppLayout from '@/components/AppLayout';
@@ -18,12 +19,20 @@ interface Branch {
 
 export default function BranchesPage() {
     const params = useParams();
+    const router = useRouter();
     const id = params.id as string;
+    const isValidId = Boolean(id && id !== '0' && !isNaN(Number(id)));
     const [branches, setBranches] = useState<Branch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetchBranches();
+        if (!isValidId) {
+            router.replace('/repositories');
+            return;
+        }
+        setIsLoading(true);
+        fetchBranches().finally(() => setIsLoading(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     const fetchBranches = async () => {
