@@ -77,6 +77,7 @@ export default function ModernSidebar() {
             <div className="p-4 border-t border-slate-200 dark:border-slate-800">
                     <Link
                         href="/profile"
+                        data-testid="user-profile-link"
                         className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     >
                         {user.profilePicture ? (

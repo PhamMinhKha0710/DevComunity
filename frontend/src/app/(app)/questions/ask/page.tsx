@@ -3,18 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { questionsApi } from '@/lib/api/questions.api';
 import AppLayout from '@/components/AppLayout';
 import AskQuestionEditor from '@/components/questions/AskQuestionEditor';
-
-// Preview riêng dùng MDEditor.Markdown (dynamic để tránh SSR)
-const MDPreview = dynamic(
-    () => import('@uiw/react-md-editor').then((mod) => mod.default.Markdown),
-    { ssr: false },
-);
+import MarkdownContent from '@/components/MarkdownContent';
 
 const MAX_TAGS = 5;
 
@@ -139,6 +133,7 @@ export default function AskQuestionPage() {
                     <input
                         id="title"
                         type="text"
+                        data-testid="question-title"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="e.g. How to center a div in CSS?"
@@ -155,11 +150,13 @@ export default function AskQuestionPage() {
                     <p className="text-sm text-[var(--text-muted)] mb-3">
                         Introduce the problem and expand on what you put in the title. Include code snippets if relevant.
                     </p>
-                    <AskQuestionEditor
-                        value={body}
-                        onChange={setBody}
-                        colorMode={colorMode}
-                    />
+                    <div className="flex h-[clamp(280px,42dvh,640px)] min-h-[280px] flex-col">
+                        <AskQuestionEditor
+                            value={body}
+                            onChange={setBody}
+                            colorMode={colorMode}
+                        />
+                    </div>
                 </div>
 
                 {/* Tags: chip hiển thị ngay, gõ xong Enter hoặc dấu phẩy là thành tag */}
@@ -226,7 +223,7 @@ export default function AskQuestionPage() {
                             data-color-mode={colorMode}
                             className="p-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl prose-preview"
                         >
-                            <MDPreview source={body} />
+                            <MarkdownContent content={body} />
                         </div>
                     </div>
                 )}
@@ -235,6 +232,7 @@ export default function AskQuestionPage() {
                 <div className="flex items-center gap-4">
                     <button
                         type="submit"
+                        data-testid="question-submit"
                         disabled={isLoading}
                         className="flex items-center gap-2 px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:bg-[var(--primary-dark)] transition disabled:opacity-50"
                     >

@@ -6,4 +6,7 @@ export const answersApi = {
 
     create: (data: { questionId: number; body: string }) =>
         apiClient.post('/answers', data).then(r => r.data),
+
+    accept: (answerId: number, questionId: number) =>
+        apiClient.post(`/answers/${answerId}/accept?questionId=${questionId}`).then(r => r.data),
 };

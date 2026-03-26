@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useNotifications } from '@/lib/contexts/NotificationContext';
 import { useChatContext } from '@/lib/contexts/ChatContext';
+import { useTheme } from '@/lib/contexts/ThemeContext';
 import { authorInitial } from '@/lib/utils';
 
 interface ModernNavbarProps {
@@ -17,23 +18,12 @@ export default function ModernNavbar({ onMobileMenuClick }: ModernNavbarProps) {
     const { user, isAuthenticated, logout } = useAuth();
     const { unreadCount, notifications, markAsRead } = useNotifications();
     const { totalUnreadChats } = useChatContext();
+    const { resolvedIsDark, setPreference } = useTheme();
     const [searchQuery, setSearchQuery] = useState('');
-    const [isDark, setIsDark] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = savedTheme === 'dark';
-        setIsDark(prefersDark);
-        if (prefersDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    }, []);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -49,14 +39,8 @@ export default function ModernNavbar({ onMobileMenuClick }: ModernNavbarProps) {
     }, []);
 
     const toggleTheme = () => {
-        const newIsDark = !isDark;
-        setIsDark(newIsDark);
-        localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
-        if (newIsDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        // Flip between light and dark, overriding any system preference
+        setPreference(resolvedIsDark ? 'light' : 'dark');
     };
 
     const handleSearch = (e: React.FormEvent) => {
@@ -101,7 +85,7 @@ export default function ModernNavbar({ onMobileMenuClick }: ModernNavbarProps) {
                     className="p-1.5 sm:p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                     aria-label="Toggle theme"
                 >
-                    <span className="material-symbols-outlined text-xl sm:text-2xl">{isDark ? 'light_mode' : 'dark_mode'}</span>
+                    <span className="material-symbols-outlined text-xl sm:text-2xl">{resolvedIsDark ? 'light_mode' : 'dark_mode'}</span>
                 </button>
 
                 {isAuthenticated ? (
@@ -210,6 +194,7 @@ export default function ModernNavbar({ onMobileMenuClick }: ModernNavbarProps) {
                         <div className="relative shrink-0" ref={menuRef}>
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
+                                data-testid="user-profile-menu"
                                 className="size-8 sm:size-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold border-2 border-[var(--primary)]/20 overflow-hidden transition-all hover:scale-105"
                             >
                                 {user?.profilePicture ? (
@@ -226,14 +211,14 @@ export default function ModernNavbar({ onMobileMenuClick }: ModernNavbarProps) {
                                         <p className="text-sm text-slate-500">@{user?.username}</p>
                                     </div>
                                     <div className="py-1">
-                                        <Link href="/profile" className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-sm" onClick={() => setShowUserMenu(false)}>
+                                        <Link href="/profile" data-testid="user-profile-link" className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-sm" onClick={() => setShowUserMenu(false)}>
                                             <span className="material-symbols-outlined text-lg">person</span> Profile
                                         </Link>
                                         <Link href="/settings" className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-sm" onClick={() => setShowUserMenu(false)}>
                                             <span className="material-symbols-outlined text-lg">settings</span> Settings
                                         </Link>
                                         <button
-                                            onClick={() => { logout(); setShowUserMenu(false); }}
+                                            onClick={() => { logout(); setShowUserMenu(false); router.push('/auth?mode=login'); }}
                                             className="w-full flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition text-sm"
                                         >
                                             <span className="material-symbols-outlined text-lg">logout</span> Logout

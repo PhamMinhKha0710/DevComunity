@@ -21,6 +21,8 @@ interface AuthState {
     register: (data: RegisterRequest) => Promise<AuthResponse>;
     logout: () => void;
     externalLogin: (provider: 'google' | 'github' | 'facebook') => Promise<AuthResponse>;
+    forgotPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+    resetPassword: (data: any) => Promise<AuthResponse>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -103,6 +105,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.removeItem('refreshToken');
         removeTokenCookie();
         set({ user: null, isAuthenticated: false });
-        apiClient.post('/auth/logout').catch(() => {});
+        apiClient.post('/auth/logout').catch(() => { });
+    },
+
+    forgotPassword: async (email: string) => {
+        const response = await apiClient.post<{ success: boolean; message: string }>('/auth/forgot-password', { email });
+        return response.data;
+    },
+
+    resetPassword: async (data: any) => {
+        const response = await apiClient.post<AuthResponse>('/auth/reset-password', data);
+        return response.data;
     },
 }));

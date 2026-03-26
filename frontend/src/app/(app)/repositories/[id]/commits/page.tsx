@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { RepositoryCommit } from '@/types';
 import { repositoriesApi } from '@/lib/api/repositories.api';
@@ -11,14 +13,23 @@ import { authorInitial } from '@/lib/utils';
 
 export default function CommitsPage() {
     const params = useParams();
+    const router = useRouter();
     const id = params.id as string;
+    const isValidId = Boolean(id && id !== '0' && !isNaN(Number(id)));
 
-    const { data: commitsData, isLoading } = useQuery({
+    useEffect(() => {
+        if (!isValidId) {
+            router.replace('/repositories');
+        }
+    }, [isValidId, router]);
+
+    const { data: commitsData, isLoading } = useQuery<{ items: RepositoryCommit[] }>({
         queryKey: ['repository', id, 'commits'],
         queryFn: () => repositoriesApi.getCommits(id),
+        enabled: isValidId,
     });
 
-    const commits: RepositoryCommit[] = commitsData?.items || [];
+    const commits: RepositoryCommit[] = commitsData?.items ?? [];
 
     if (isLoading) {
         return (

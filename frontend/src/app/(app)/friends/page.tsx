@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
@@ -14,7 +14,7 @@ interface Friend {
     username: string;
     displayName: string;
     profilePicture: string | null;
-    friendshipDate: string;
+    friendsSince: string;
 }
 
 interface FriendRequest {
@@ -35,22 +35,49 @@ interface SuggestedFriend {
     profilePicture: string | null;
 }
 
+const FRIENDS_PAGE_SIZE = 12;
+
 export default function FriendsPage() {
     const { isAuthenticated } = useAuth();
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState('connected');
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [page, setPage] = useState(1);
+
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(search), 300);
+        return () => clearTimeout(t);
+    }, [search]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch]);
 
     const { data: friendsData, isLoading: loading } = useQuery({
-        queryKey: ['friends'],
-        queryFn: () => friendshipApi.getFriends(),
+        queryKey: ['friends', page, FRIENDS_PAGE_SIZE, debouncedSearch],
+        queryFn: () =>
+            friendshipApi.getFriends(page, FRIENDS_PAGE_SIZE, debouncedSearch || undefined),
         enabled: isAuthenticated,
     });
 
-    const friends: Friend[] = (() => {
-        const data = friendsData;
-        return Array.isArray(data) ? data : (data?.items || []);
-    })();
+    const friends: Friend[] = friendsData?.items ?? [];
+    const totalFriendsCount = friendsData?.totalCount ?? 0;
+    const totalPages = Math.max(1, friendsData?.totalPages ?? Math.ceil(totalFriendsCount / FRIENDS_PAGE_SIZE));
+
+    const friendsPageNumbers = useMemo(() => {
+        const pages: (number | string)[] = [];
+        if (totalPages <= 5) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+            pages.push(1);
+            if (page > 3) pages.push('...');
+            for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+            if (page < totalPages - 2) pages.push('...');
+            pages.push(totalPages);
+        }
+        return pages;
+    }, [totalPages, page]);
 
     const { data: pendingData } = useQuery({
         queryKey: ['friendRequests', 'pending'],
@@ -114,13 +141,8 @@ export default function FriendsPage() {
         sendRequestMutation.mutate(targetUserId);
     };
 
-    const filteredFriends = friends.filter(f =>
-        f.username.toLowerCase().includes(search.toLowerCase()) ||
-        (f.displayName || '').toLowerCase().includes(search.toLowerCase())
-    );
-
     const tabs = [
-        { key: 'connected', label: 'Connected', count: friends.length },
+        { key: 'connected', label: 'Connected', count: totalFriendsCount },
         { key: 'pending', label: 'Pending', count: pendingRequests.length },
         { key: 'suggestions', label: 'Suggestions', count: null },
     ];
@@ -201,16 +223,16 @@ export default function FriendsPage() {
                             <div className="flex items-center justify-center py-16">
                                 <div className="w-10 h-10 border-4 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin"></div>
                             </div>
-                        ) : filteredFriends.length === 0 ? (
+                        ) : friends.length === 0 ? (
                             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center">
                                 <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 block">group</span>
                                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                                    {search ? 'No matching connections' : 'No connections yet'}
+                                    {debouncedSearch ? 'No matching connections' : 'No connections yet'}
                                 </h3>
                                 <p className="text-slate-500 mb-4">
-                                    {search ? 'Try a different search term' : 'Start connecting with other developers!'}
+                                    {debouncedSearch ? 'Try a different search term' : 'Start connecting with other developers!'}
                                 </p>
-                                {!search && (
+                                {!debouncedSearch && (
                                     <Link href="/users" className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl font-bold text-sm">
                                         <span className="material-symbols-outlined text-sm">search</span> Browse Users
                                     </Link>
@@ -218,7 +240,7 @@ export default function FriendsPage() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {filteredFriends.map((friend) => (
+                                {friends.map((friend) => (
                                     <div
                                         key={friend.userId}
                                         className="group flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-[var(--primary)]/20 transition-all bg-white dark:bg-slate-900"
@@ -245,7 +267,7 @@ export default function FriendsPage() {
                                                 <p className="text-sm text-slate-500">@{friend.username}</p>
                                                 <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
                                                     <span className="material-symbols-outlined text-xs">history</span>
-                                                    <RelativeTime value={friend.friendshipDate} prefix="Active " />
+                                                    <RelativeTime value={friend.friendsSince} prefix="Active " />
                                                 </p>
                                             </div>
                                         </div>
@@ -258,6 +280,58 @@ export default function FriendsPage() {
                                         </Link>
                                     </div>
                                 ))}
+
+                                {totalFriendsCount > 0 && (
+                                    <p className="pt-2 text-center text-sm text-slate-500">
+                                        Hiển thị {(page - 1) * FRIENDS_PAGE_SIZE + 1}–
+                                        {Math.min(page * FRIENDS_PAGE_SIZE, totalFriendsCount)} trong tổng {totalFriendsCount} kết nối
+                                    </p>
+                                )}
+
+                                {totalPages > 1 && (
+                                    <div className="flex justify-center pt-2">
+                                        <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                                disabled={page === 1}
+                                                className="size-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-30"
+                                                aria-label="Trang trước"
+                                            >
+                                                <span className="material-symbols-outlined">chevron_left</span>
+                                            </button>
+                                            {friendsPageNumbers.map((p, i) =>
+                                                p === '...' ? (
+                                                    <span key={`dots-${i}`} className="px-2 text-slate-400">
+                                                        ...
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        key={p}
+                                                        type="button"
+                                                        onClick={() => setPage(p as number)}
+                                                        className={`size-10 flex items-center justify-center rounded-lg font-medium transition-colors ${
+                                                            page === p
+                                                                ? 'bg-[var(--primary)] text-white font-bold'
+                                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                                        }`}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                )
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                                disabled={page === totalPages}
+                                                className="size-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-30"
+                                                aria-label="Trang sau"
+                                            >
+                                                <span className="material-symbols-outlined">chevron_right</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )
                     )}

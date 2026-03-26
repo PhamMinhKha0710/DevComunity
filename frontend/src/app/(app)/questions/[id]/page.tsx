@@ -180,10 +180,12 @@ export default function QuestionDetailPage() {
       targetType,
       targetId,
       isLiked,
+      voteType,
     }: {
       targetType: "question" | "answer";
       targetId: number;
       isLiked: boolean;
+      voteType: 'up' | 'down';
     }) => {
       if (isLiked) {
         return targetType === "question"
@@ -191,10 +193,10 @@ export default function QuestionDetailPage() {
           : votesApi.removeAnswerVote(targetId);
       }
       return targetType === "question"
-        ? votesApi.voteQuestion(targetId, { voteType: "up" })
-        : votesApi.voteAnswer(targetId, { voteType: "up" });
+        ? votesApi.voteQuestion(targetId, { voteType })
+        : votesApi.voteAnswer(targetId, { voteType });
     },
-    onMutate: async ({ targetType, targetId, isLiked }) => {
+    onMutate: async ({ targetType, targetId, isLiked, voteType }) => {
       const delta = isLiked ? -1 : 1;
       const newVote = isLiked ? null : "up";
 
@@ -233,8 +235,8 @@ export default function QuestionDetailPage() {
       }
     },
     onSuccess: (_data, vars) => {
-      const { targetType, targetId, isLiked } = vars;
-      const newUserVote = isLiked ? null : "up";
+      const { targetType, targetId, isLiked, voteType } = vars;
+      const newUserVote = isLiked ? null : voteType;
 
       if (targetType === "question") {
         const response = _data as { score: number; userVote?: string };
@@ -271,6 +273,7 @@ export default function QuestionDetailPage() {
   const handleLike = (
     targetType: "question" | "answer",
     targetId: number,
+    voteType: 'up' | 'down' = 'up'
   ) => {
     if (!user) return;
 
@@ -280,12 +283,27 @@ export default function QuestionDetailPage() {
       if (targetAnswer && targetAnswer.authorId === user.userId) return;
     }
 
-    const isLiked =
+    const currentVote =
       targetType === "question"
-        ? question?.userVoteType === "up"
-        : answers.find(a => a.answerId === targetId)?.userVoteType === "up";
+        ? question?.userVoteType
+        : answers.find(a => a.answerId === targetId)?.userVoteType;
 
-    likeMutation.mutate({ targetType, targetId, isLiked: !!isLiked });
+    const isLiked = currentVote === voteType;
+
+    likeMutation.mutate({ targetType, targetId, isLiked, voteType });
+  };
+
+  const acceptMutation = useMutation({
+    mutationFn: (answerId: number) => answersApi.accept(answerId, Number(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["answers", id] });
+      queryClient.invalidateQueries({ queryKey: ["question", id] });
+    },
+  });
+
+  const handleAccept = (answerId: number) => {
+    if (!user || user.userId !== question?.authorId) return;
+    acceptMutation.mutate(answerId);
   };
 
   const saveMutation = useMutation({
@@ -481,8 +499,9 @@ export default function QuestionDetailPage() {
             {/* Action bar */}
             <div className="flex flex-wrap sm:flex-nowrap items-center border-t border-b border-[var(--border-color)] py-1 mb-4">
               <button
-                onClick={() => handleLike("question", question.questionId)}
+                onClick={() => handleLike("question", question.questionId, "up")}
                 disabled={!!user && user.userId === question.authorId}
+                data-testid="question-upvote"
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition hover:bg-[var(--bg-tertiary)] ${
                   question.userVoteType === "up"
                     ? "text-[var(--primary)]"
@@ -492,10 +511,27 @@ export default function QuestionDetailPage() {
                 <span className="material-symbols-outlined text-xl">
                   {question.userVoteType === "up" ? "thumb_up" : "thumb_up_off_alt"}
                 </span>
+                {question.score > 0 && <span>{question.score}</span>}
                 Thích
               </button>
               <button
+                onClick={() => handleLike("question", question.questionId, "down")}
+                disabled={!!user && user.userId === question.authorId}
+                data-testid="question-downvote"
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition hover:bg-[var(--bg-tertiary)] ${
+                  question.userVoteType === "down"
+                    ? "text-red-500"
+                    : "text-[var(--text-muted)]"
+                }`}
+              >
+                <span className="material-symbols-outlined text-xl rotate-180">
+                  {question.userVoteType === "down" ? "thumb_up" : "thumb_up_off_alt"}
+                </span>
+                Ghét
+              </button>
+              <button
                 onClick={scrollToAnswerForm}
+                data-testid="question-comment"
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm text-[var(--text-muted)] transition hover:bg-[var(--bg-tertiary)]"
               >
                 <span className="material-symbols-outlined text-xl">comment</span>
@@ -588,8 +624,9 @@ export default function QuestionDetailPage() {
                   {/* Action bar */}
                   <div className="flex items-center border-t border-[var(--border-color)] pt-2 mb-3">
                     <button
-                      onClick={() => handleLike("answer", answer.answerId)}
-                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition hover:bg-[var(--bg-tertiary)] ${
+                      onClick={() => handleLike("answer", answer.answerId, "up")}
+                      data-testid={`answer-upvote-${answer.answerId}`}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition hover:bg-[var(--bg-tertiary)] ${
                         answer.userVoteType === "up"
                           ? "text-[var(--primary)]"
                           : "text-[var(--text-muted)]"
@@ -598,8 +635,32 @@ export default function QuestionDetailPage() {
                       <span className="material-symbols-outlined text-lg">
                         {answer.userVoteType === "up" ? "thumb_up" : "thumb_up_off_alt"}
                       </span>
-                      Thích
+                      {answer.score > 0 && <span>{answer.score}</span>}
                     </button>
+                    <button
+                      onClick={() => handleLike("answer", answer.answerId, "down")}
+                      data-testid={`answer-downvote-${answer.answerId}`}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition hover:bg-[var(--bg-tertiary)] ${
+                        answer.userVoteType === "down"
+                          ? "text-red-500"
+                          : "text-[var(--text-muted)]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-lg rotate-180">
+                        {answer.userVoteType === "down" ? "thumb_up" : "thumb_up_off_alt"}
+                      </span>
+                    </button>
+                    {user && user.userId === question.authorId && !answer.isAccepted && (
+                      <button
+                        onClick={() => handleAccept(answer.answerId)}
+                        data-testid={`answer-accept-${answer.answerId}`}
+                        disabled={acceptMutation.isPending}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-green-500/10 text-green-600 rounded-lg font-medium text-sm hover:bg-green-500/20 transition disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-lg">check_circle</span>
+                        Accept Answer
+                      </button>
+                    )}
                     <button
                       onClick={() => user && toggleReply(answer.answerId)}
                       className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition hover:bg-[var(--bg-tertiary)] ${

@@ -150,6 +150,7 @@ export default function HomePage() {
               <Link
                 key={question.questionId}
                 href={`/questions/${question.questionId}`}
+                data-testid="question-card"
                 className="block bg-white dark:bg-slate-900 p-5 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 hover:border-[var(--primary)]/50 transition-all cursor-pointer group"
               >
                 <div className="flex gap-4">

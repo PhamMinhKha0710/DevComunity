@@ -183,6 +183,7 @@ function QuestionsContent() {
                             <div className="flex-1 flex flex-col gap-3 min-w-0">
                                 <Link
                                     href={`/questions/${question.questionId}`}
+                                    data-testid="question-card"
                                     className="text-lg font-bold text-[var(--text-primary)] hover:text-[var(--primary)] cursor-pointer leading-tight transition-colors"
                                 >
                                     {question.title}

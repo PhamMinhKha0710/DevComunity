@@ -27,6 +27,8 @@ function AuthContent() {
     const searchParams = useSearchParams();
     const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
     const [isLoginMode, setIsLoginMode] = useState(initialMode === 'login');
+    const registered = searchParams.get('registered') === '1';
+    const passwordReset = searchParams.get('passwordReset') === '1';
 
     // Login form state
     const [loginEmail, setLoginEmail] = useState('');
@@ -44,6 +46,7 @@ function AuthContent() {
 
     // Shared state
     const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(false);
 
@@ -51,8 +54,23 @@ function AuthContent() {
     const { login, register, externalLogin } = useAuth();
 
     useEffect(() => {
+        if (registered) {
+            setSuccessMessage('Account created successfully. Please log in with your credentials.');
+        }
+    }, [registered]);
+
+    useEffect(() => {
+        if (passwordReset) {
+            setSuccessMessage('Your password has been reset successfully. You can now sign in.');
+            setIsLoginMode(true);
+        }
+    }, [passwordReset]);
+
+    useEffect(() => {
         const mode = isLoginMode ? 'login' : 'register';
-        window.history.replaceState(null, '', `/auth?mode=${mode}`);
+        const params = new URLSearchParams();
+        params.set('mode', mode);
+        window.history.replaceState(null, '', `/auth?${params.toString()}`);
     }, [isLoginMode]);
 
     const validateLoginForm = () => {
@@ -85,6 +103,7 @@ function AuthContent() {
     const handleLoginSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setError('');
+        setSuccessMessage('');
         if (!validateLoginForm()) return;
         setIsLoading(true);
         try {
@@ -117,7 +136,7 @@ function AuthContent() {
                 confirmPassword: confirmPassword,
                 displayName: fullName,
             });
-            router.push('/');
+            router.push('/auth?mode=login&registered=1');
         } catch (err: unknown) {
             const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
             if (axiosErr?.response?.data?.message) {
@@ -132,6 +151,7 @@ function AuthContent() {
 
     const toggleMode = () => {
         setError('');
+        setSuccessMessage('');
         setFieldErrors({});
         setIsLoginMode(!isLoginMode);
     };
@@ -202,6 +222,7 @@ function AuthContent() {
                                                 value={fullName}
                                                 onChange={(e) => { setFullName(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.fullName; return n; }); }}
                                                 placeholder="John Doe"
+                                                data-testid="register-full-name"
                                                 className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.fullName ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all`}
                                             />
                                             {fieldErrors.fullName && <p className="text-red-500 text-xs mt-1">{fieldErrors.fullName}</p>}
@@ -214,6 +235,7 @@ function AuthContent() {
                                                 value={registerEmail}
                                                 onChange={(e) => { setRegisterEmail(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.email; return n; }); }}
                                                 placeholder="you@example.com"
+                                                data-testid="register-email"
                                                 className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all`}
                                             />
                                             {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
@@ -227,6 +249,7 @@ function AuthContent() {
                                                     value={registerPassword}
                                                     onChange={(e) => { setRegisterPassword(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.password; return n; }); }}
                                                     placeholder="••••••••"
+                                                    data-testid="register-password"
                                                     className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all pr-12`}
                                                 />
                                                 <button
@@ -248,6 +271,7 @@ function AuthContent() {
                                                     value={confirmPassword}
                                                     onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.confirmPassword; return n; }); }}
                                                     placeholder="••••••••"
+                                                    data-testid="register-confirm-password"
                                                     className={`w-full px-4 py-3 bg-gray-50 border-2 ${fieldErrors.confirmPassword ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all pr-12`}
                                                 />
                                                 <button
@@ -267,6 +291,7 @@ function AuthContent() {
                                                 id="terms"
                                                 checked={agreeTerms}
                                                 onChange={(e) => { setAgreeTerms(e.target.checked); setFieldErrors(prev => { const n = {...prev}; delete n.terms; return n; }); }}
+                                                data-testid="register-terms"
                                                 className="w-4 h-4 mt-1 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                                             />
                                             <label htmlFor="terms" className="text-gray-600 text-sm">
@@ -278,6 +303,7 @@ function AuthContent() {
                                         <button
                                             type="submit"
                                             disabled={isLoading}
+                                            data-testid="register-submit"
                                             className="w-full py-3.5 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 disabled:opacity-70"
                                         >
                                             {isLoading ? 'Creating Account...' : 'Create Account'}
@@ -313,6 +339,13 @@ function AuthContent() {
                                         </div>
                                     )}
 
+                                    {successMessage && (
+                                        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            {successMessage}
+                                        </div>
+                                    )}
+
                                     <form onSubmit={handleLoginSubmit} className="space-y-5">
                                         <div>
                                             <label className="block text-gray-700 text-sm font-semibold mb-2">Email or Username</label>
@@ -321,6 +354,7 @@ function AuthContent() {
                                                 value={loginEmail}
                                                 onChange={(e) => { setLoginEmail(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.email; return n; }); }}
                                                 placeholder="you@example.com"
+                                                data-testid="login-email"
                                                 className={`w-full px-4 py-3.5 bg-gray-50 border-2 ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all text-lg`}
                                             />
                                             {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
@@ -339,6 +373,7 @@ function AuthContent() {
                                                     value={loginPassword}
                                                     onChange={(e) => { setLoginPassword(e.target.value); setFieldErrors(prev => { const n = {...prev}; delete n.password; return n; }); }}
                                                     placeholder="••••••••"
+                                                    data-testid="login-password"
                                                     className={`w-full px-4 py-3.5 bg-gray-50 border-2 ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} rounded-xl text-gray-800 placeholder-gray-400 focus:border-orange-500 focus:bg-white outline-none transition-all pr-12 text-lg`}
                                                 />
                                                 <button
@@ -360,6 +395,7 @@ function AuthContent() {
                                         <button
                                             type="submit"
                                             disabled={isLoading}
+                                            data-testid="login-submit"
                                             className="w-full py-4 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 disabled:opacity-70"
                                         >
                                             {isLoading ? 'Signing In...' : 'Sign In'}

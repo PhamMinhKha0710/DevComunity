@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const publicRoutes = ['/auth'];
+/** Đăng nhập / đăng ký — user đã có token sẽ bị chuyển về trang chủ */
+const authEntryRoutes = ['/auth'];
+
+/** Quên mật khẩu / đặt lại mật khẩu — luôn cho phép, kể cả khi đã đăng nhập */
+const passwordRecoveryRoutes = ['/forgot-password', '/reset-password'];
 
 const publicPrefixes = ['/api', '/_next', '/favicon', '/images', '/logo'];
+
+function matchesRoute(pathname: string, routes: string[]) {
+    return routes.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+}
 
 export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    if (publicPrefixes.some(p => pathname.startsWith(p)) || pathname.includes('.')) {
+    if (publicPrefixes.some((p) => pathname.startsWith(p)) || pathname.includes('.')) {
         return NextResponse.next();
     }
 
     const token = request.cookies.get('accessToken')?.value;
 
-    const isPublicRoute = publicRoutes.some(r => pathname === r || pathname.startsWith(r + '/'));
+    const isAuthEntry = matchesRoute(pathname, authEntryRoutes);
+    const isPasswordRecovery = matchesRoute(pathname, passwordRecoveryRoutes);
+    const isPublicRoute = isAuthEntry || isPasswordRecovery;
 
     if (!token && pathname === '/') {
         return NextResponse.next();
@@ -25,7 +35,7 @@ export function proxy(request: NextRequest) {
         return NextResponse.redirect(loginUrl);
     }
 
-    if (token && isPublicRoute) {
+    if (token && isAuthEntry) {
         return NextResponse.redirect(new URL('/', request.url));
     }
 

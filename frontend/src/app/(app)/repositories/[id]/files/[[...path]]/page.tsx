@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
 import type { RepositoryFile } from '@/types';
 import apiClient from '@/lib/api/client';
@@ -9,9 +10,17 @@ import AppLayout from '@/components/AppLayout';
 
 export default function FileViewPage() {
     const params = useParams();
+    const router = useRouter();
     const id = params.id as string;
+    const isValidId = id && id !== '0' && !isNaN(Number(id));
     const pathSegments = params.path as string[] || [];
     const filePath = pathSegments.join('/');
+
+    useEffect(() => {
+        if (!isValidId) {
+            router.replace('/repositories');
+        }
+    }, [isValidId, router]);
 
     const [content, setContent] = useState<string>('');
     const [fileInfo, setFileInfo] = useState<RepositoryFile | null>(null);
@@ -20,7 +29,7 @@ export default function FileViewPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetchContent();
+        if (isValidId) fetchContent();
     }, [id, filePath]);
 
     const fetchContent = async () => {

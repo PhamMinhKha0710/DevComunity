@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useParams } from 'next/navigation';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Repository, RepositoryFile } from '@/types';
 import { repositoriesApi } from '@/lib/api/repositories.api';
@@ -10,21 +12,32 @@ import { authorInitial } from '@/lib/utils';
 
 export default function RepositoryDetailsPage() {
     const params = useParams();
+    const router = useRouter();
     const id = params.id as string;
+    const isValidId = Boolean(id && id !== '0' && !isNaN(Number(id)));
+
+    useEffect(() => {
+        if (!isValidId) {
+            router.replace('/repositories');
+        }
+    }, [isValidId, router]);
 
     const { data: repository = null, isLoading: repoLoading } = useQuery({
         queryKey: ['repository', id],
         queryFn: () => repositoriesApi.getById(id),
+        enabled: isValidId,
     });
 
     const { data: filesData, isLoading: filesLoading } = useQuery({
         queryKey: ['repository', id, 'files'],
         queryFn: () => repositoriesApi.getFiles(id),
+        enabled: isValidId,
     });
 
     const { data: readmeData } = useQuery({
         queryKey: ['repository', id, 'readme'],
         queryFn: () => repositoriesApi.getFileContent(id, 'README.md').catch(() => null),
+        enabled: isValidId,
     });
 
     const isLoading = repoLoading || filesLoading;

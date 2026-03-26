@@ -21,4 +21,12 @@ export const groupsApi = {
 
     leave: (groupId: number | string) =>
         apiClient.post(`/Groups/${groupId}/leave`).then(r => r.data),
+
+    update: (
+        groupId: number | string,
+        data: { name?: string; description?: string | null; isPrivate?: boolean }
+    ) => apiClient.put(`/Groups/${groupId}`, data).then((r) => r.data),
+
+    delete: (groupId: number | string) =>
+        apiClient.delete(`/Groups/${groupId}`).then((r) => r.data),
 };

@@ -20,8 +20,11 @@ export const authApi = {
     resetPassword: (data: { email: string; token: string; newPassword: string }) =>
         apiClient.post('/auth/reset-password', data).then(r => r.data),
 
-    changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    changePassword: (data: { currentPassword: string; newPassword: string; verificationCode: string }) =>
         apiClient.post('/auth/change-password', data).then(r => r.data),
+
+    requestPasswordChangeCode: () =>
+        apiClient.post('/auth/request-password-change-code').then(r => r.data),
 
     externalLogin: (provider: 'google' | 'github' | 'facebook') => {
         // Redirect directly to backend to keep OAuth correlation cookies on same domain
